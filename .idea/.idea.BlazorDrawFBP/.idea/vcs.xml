@@ -3,6 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/capnproto-dotnetcore" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/mas_blazor_components" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/mas_capnproto_schemas" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/mas_csharp_common" vcs="Git" />
   </component>

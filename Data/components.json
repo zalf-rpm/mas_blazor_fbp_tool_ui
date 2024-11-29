@@ -12,16 +12,8 @@
       "interpreter": null,
       "path": "",
       "cmd_params": [],
-      "inputs": [
-        {
-          "name": "in"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out"
-        }
-      ]
+      "inputs": [{"name": "in"}],
+      "outputs": [{"name": "out"}]
     }
   ],
   "Safe-H2O-Farm": [
