@@ -30,7 +30,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using SharedDemo.Demos;
+//using SharedDemo.Demos;
 using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace BlazorDrawFBP.Pages

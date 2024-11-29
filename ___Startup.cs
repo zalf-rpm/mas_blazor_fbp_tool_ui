@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using SharedDemo;
+//using SharedDemo;
 
 namespace BlazorDrawFBP
 {
@@ -20,7 +20,7 @@ namespace BlazorDrawFBP
         {
             services.AddRazorPages();
             services.AddServerSideBlazor();
-            services.AddSingleton<LayoutData>();
+            //services.AddSingleton<LayoutData>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

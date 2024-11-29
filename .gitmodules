@@ -1,0 +1,12 @@
+[submodule "capnproto-dotnetcore"]
+	path = capnproto-dotnetcore
+	url = https://github.com/zalf-rpm/capnproto-dotnetcore.git
+[submodule "mas_capnproto_schemas"]
+	path = mas_capnproto_schemas
+	url = https://github.com/zalf-rpm/mas_capnproto_schemas.git
+[submodule "mas_csharp_common"]
+	path = mas_csharp_common
+	url = https://github.com/zalf-rpm/mas_csharp_common.git
+[submodule "mas_blazor_components"]
+	path = mas_blazor_components
+	url = https://github.com/zalf-rpm/mas_blazor_components.git
