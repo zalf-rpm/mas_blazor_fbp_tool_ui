@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -88,10 +88,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj" />
-    <ProjectReference Include="mas_blazor_components\BlazorComponents.csproj" />
-    <ProjectReference Include="mas_capnproto_schemas\gen\csharp\zalfmas_capnpschemas.csproj" />
-    <ProjectReference Include="mas_csharp_common\common.csproj" />
+    <ProjectReference Include="../../lib/capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj" />
+    <ProjectReference Include="../../lib/mas_blazor_components\BlazorComponents.csproj" />
+    <ProjectReference Include="../../lib/mas_capnproto_schemas/gen/csharp/Mas.Schema.csproj" />
+    <ProjectReference Include="../mas_csharp_common/Mas.Infrastructure.Common.csproj" />
   </ItemGroup>
 
 </Project>
