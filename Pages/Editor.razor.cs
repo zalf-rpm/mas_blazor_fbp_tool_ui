@@ -35,25 +35,25 @@ using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace BlazorDrawFBP.Pages
 {
-    internal class PcbRegistrar : Mas.Schema.Fbp.IPortCallbackRegistrar
-    {
-        private readonly CapnpFbpComponentModel _model;
-
-        public PcbRegistrar(CapnpFbpComponentModel componentModel)
-        {
-            _model = componentModel;
-        }
-        public Task RegisterCallback(PortCallbackRegistrar.IPortCallback callback, CancellationToken cancellationToken_ = default)
-        {
-            _model.PortCallback = Capnp.Rpc.Proxy.Share(callback);
-            return Task.CompletedTask;
-        }
-
-        public void Dispose()
-        {
-            // TODO release managed resources here
-        }
-    }
+    // internal class PcbRegistrar : Mas.Schema.Fbp.IPortCallbackRegistrar
+    // {
+    //     private readonly CapnpFbpComponentModel _model;
+    //
+    //     public PcbRegistrar(CapnpFbpComponentModel componentModel)
+    //     {
+    //         _model = componentModel;
+    //     }
+    //     public Task RegisterCallback(PortCallbackRegistrar.IPortCallback callback, CancellationToken cancellationToken_ = default)
+    //     {
+    //         _model.PortCallback = Capnp.Rpc.Proxy.Share(callback);
+    //         return Task.CompletedTask;
+    //     }
+    //
+    //     public void Dispose()
+    //     {
+    //         // TODO release managed resources here
+    //     }
+    // }
     
     public partial class Editor
     {
@@ -65,7 +65,7 @@ namespace BlazorDrawFBP.Pages
         private readonly Dictionary<string, JObject> _componentDict = new();
         
         private readonly Restorer _restorer = new() { TcpHost = ConnectionManager.GetLocalIPAddress() };
-        private readonly List<PcbRegistrar> _pcbRegistrars = new();
+        // private readonly List<PcbRegistrar> _pcbRegistrars = new();
         
         protected override void OnInitialized()
         {
@@ -715,11 +715,11 @@ namespace BlazorDrawFBP.Pages
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? pathToFile.Length == 0,
                         InParallelCount = initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                     };
-                    var pcbRegistrar = new PcbRegistrar(node);
-                    var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
-                    var pcbRegistrarSr = res.Item1;
-                    node.PortCallbackRegistarSr = pcbRegistrarSr;
-                    _pcbRegistrars.Add(pcbRegistrar);
+                    // var pcbRegistrar = new PcbRegistrar(node);
+                    // var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
+                    // var pcbRegistrarSr = res.Item1;
+                    // node.PortCallbackRegistarSr = pcbRegistrarSr;
+                    // _pcbRegistrars.Add(pcbRegistrar);
                     
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {

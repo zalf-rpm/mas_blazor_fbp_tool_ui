@@ -21,7 +21,7 @@ public class CapnpFbpComponentModel : NodeModel
     
     public string PortCallbackRegistarSr { get; set; }
     
-    public PortCallbackRegistrar.IPortCallback PortCallback { get; set; }
+    // public PortCallbackRegistrar.IPortCallback PortCallback { get; set; }
     
     public bool Editable { get; set; } = true;
     
