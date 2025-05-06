@@ -153,7 +153,11 @@ namespace BlazorDrawFBP.Pages
                                 l.TargetChanged += (link, oldTarget, newTarget) =>
                                 {
                                     if (newTarget.Model is not CapnpFbpPortModel outPort) return;
-                                    var nl = new LinkModel(outPort.Parent, sourcePort.Parent);
+                                    var nl = new RememberCapnpPortsLinkModel(outPort.Parent, sourcePort.Parent)
+                                    {
+                                        SourcePortModel = outPort,
+                                        TargetPortModel = sourcePort,
+                                    };
                                     nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
@@ -175,7 +179,12 @@ namespace BlazorDrawFBP.Pages
                                 l.TargetChanged += (link, oldTarget, newTarget) =>
                                 {
                                     if (newTarget.Model is not CapnpFbpPortModel inPort) return;
-                                    var nl = new LinkModel(sourcePort.Parent, inPort.Parent);
+                                    var nl = new RememberCapnpPortsLinkModel(sourcePort.Parent,
+                                        inPort.Parent)
+                                    {
+                                        SourcePortModel = sourcePort,
+                                        TargetPortModel = inPort,
+                                    };
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
@@ -204,7 +213,12 @@ namespace BlazorDrawFBP.Pages
                         l.TargetChanged += (link, oldTarget, newTarget) =>
                         {
                             if (newTarget.Model is not CapnpFbpPortModel inPort) return;
-                            var nl = new LinkModel(iipPortModel.Parent, inPort.Parent);
+                            var nl = new RememberCapnpPortsLinkModel(iipPortModel.Parent,
+                                inPort.Parent)
+                            {
+                                SourcePortModel = iipPortModel,
+                                TargetPortModel = inPort,
+                            };
                             nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                             var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                             InteractiveModeChanged += cllm.ToggleInteractiveMode;
@@ -340,20 +354,20 @@ namespace BlazorDrawFBP.Pages
             var oldNodeIdToNewNode = new Dictionary<string, NodeModel>();
             foreach (var node in dia["nodes"] ?? new JArray())
             {
-                if (node is not JObject obj) continue;
+                if (node is not JObject nodeObj) continue;
 
                 var position = new Point(
-                    obj["location"]?["x"]?.Value<double>() ?? 0, 
-                    obj["location"]?["y"]?.Value<double>() ?? 0);
+                    nodeObj["location"]?["x"]?.Value<double>() ?? 0,
+                    nodeObj["location"]?["y"]?.Value<double>() ?? 0);
                 
-                var component = obj["component_id"]?.Type switch
+                var component = nodeObj["component_id"]?.Type switch
                 {
-                    null => obj["inline_component"] as JObject,
-                    JTokenType.Null => obj["inline_component"] as JObject,
-                    _ => _componentDict[obj["component_id"]?.ToString() ?? ""]
+                    null => nodeObj["inline_component"] as JObject,
+                    JTokenType.Null => nodeObj["inline_component"] as JObject,
+                    _ => _componentDict[nodeObj["component_id"]?.ToString() ?? ""]
                 } ?? new JObject() { { "type", "CapnpFbpComponent" } };
-                var diaNode = AddFbpNode(position, component, obj);
-                oldNodeIdToNewNode.Add(obj["node_id"]?.ToString() ?? "", diaNode);
+                var diaNode = AddFbpNode(position, component, nodeObj);
+                oldNodeIdToNewNode.Add(nodeObj["node_id"]?.ToString() ?? "", diaNode);
             }
 
             foreach (var link in dia["links"] ?? new JArray())
@@ -385,7 +399,10 @@ namespace BlazorDrawFBP.Pages
                 if (sourcePort is CapnpFbpPortModel scp) scp.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
                 if (targetPort is CapnpFbpPortModel tcp) tcp.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
                 
-                var l = new LinkModel(sourceNode, targetNode);
+                var l = new RememberCapnpPortsLinkModel(sourceNode, targetNode) {
+                    SourcePortModel = sourcePort,
+                    TargetPortModel = targetPort
+                };
                 if (sourceNode is not CapnpFbpIipModel)
                 {
                     l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
@@ -409,13 +426,13 @@ namespace BlazorDrawFBP.Pages
                 {
                     case CapnpFbpComponentModel fbpNode:
                     {
-                        var cmdParams = new JObject();
-                        foreach (var line in fbpNode.CmdParamString.Split('\n'))
+                        var exampleConfig = new JObject();
+                        foreach (var line in fbpNode.DefaultConfigString.Split('\n'))
                         {
                             var kv = line.Split('=');
                             var k = kv[0].Trim();
                             var v = kv.Length == 2 ? kv[1].Trim() : "";
-                            if (k.Length > 0 && v.Length > 0) cmdParams.Add(k, v);
+                            if (k.Length > 0 && v.Length > 0) exampleConfig.Add(k, v);
                         }
 
                         var jn = new JObject()
@@ -425,12 +442,12 @@ namespace BlazorDrawFBP.Pages
                             { "location", new JObject() { { "x", fbpNode.Position.X }, { "y", fbpNode.Position.Y } } },
                             { "editable", fbpNode.Editable },
                             { "parallel_processes", fbpNode.InParallelCount },
-                            {
-                                "data", new JObject()
-                                {
-                                    { "cmd_params", cmdParams }
-                                }
-                            }
+                            // {
+                            //     "data", new JObject()
+                            //     {
+                            //         { "cmd_params", exampleConfig }
+                            //     }
+                            // }
                         };
                         if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
                             !_componentDict.ContainsKey(fbpNode.ComponentId))
@@ -451,11 +468,12 @@ namespace BlazorDrawFBP.Pages
                             {
                                 { "id", fbpNode.ComponentId },
                                 { "type", "CapnpFbpComponent" },
-                                { "interpreter", fbpNode.PathToInterpreter },
+                                //{ "interpreter", fbpNode.PathToInterpreter },
                                 { "description", fbpNode.ShortDescription },
                                 { "inputs", new JArray(inputs) },
                                 { "outputs", new JArray(outputs) },
-                                { "path", fbpNode.PathToFile }
+                                { "cmd", fbpNode.Cmd },
+                                { "example_config", exampleConfig}
                             });
                         }
                         else
@@ -474,12 +492,7 @@ namespace BlazorDrawFBP.Pages
                             { "node_id", iipNode.Id },
                             { "component_id", iipNode.ComponentId },
                             { "location", new JObject() { { "x", iipNode.Position.X }, { "y", iipNode.Position.Y } } },
-                            {
-                                "data", new JObject()
-                                {
-                                    { "content", iipNode.Content }
-                                }
-                            },
+                            { "content", iipNode.Content }
                         };
                         if (dia["nodes"] is JArray nodes) nodes.Add(jn);
                         break;
@@ -488,29 +501,28 @@ namespace BlazorDrawFBP.Pages
                         continue;
                 }
                 
-                foreach (var pl in node.PortLinks)
+                foreach (var pl in node.PortLinks.Concat(node.Links))
                 {
-                    if (!pl.IsAttached) continue;
+                    if (!pl.IsAttached || pl is not RememberCapnpPortsLinkModel rcplm) continue;
 
                     CapnpFbpIipPortModel outIipPort = null;
                     CapnpFbpPortModel outCapnpPort = null;
                     CapnpFbpPortModel inCapnpPort = null;
-                    switch (pl.Target.Model)
-                    {
+                    switch (rcplm.TargetPortModel) {
                         case CapnpFbpIipPortModel targetIipPort
-                            when pl.Source.Model is CapnpFbpPortModel sourceCapnpPort:
+                            when rcplm.SourcePortModel is CapnpFbpPortModel sourceCapnpPort:
                             outIipPort = targetIipPort;
                             inCapnpPort = sourceCapnpPort;
                             break;
                         case CapnpFbpPortModel targetCapnpPort
-                            when pl.Source.Model is CapnpFbpIipPortModel sourceIipPort:
+                            when rcplm.SourcePortModel is CapnpFbpIipPortModel sourceIipPort:
                         {
                             outIipPort = sourceIipPort;
                             inCapnpPort = targetCapnpPort;
                             break;
                         }
                         case CapnpFbpPortModel targetCapnpPort
-                            when pl.Source.Model is CapnpFbpPortModel sourceCapnpPort:
+                            when rcplm.SourcePortModel is CapnpFbpPortModel sourceCapnpPort:
                             outCapnpPort = sourceCapnpPort;
                             inCapnpPort = targetCapnpPort;
                             break;
@@ -670,29 +682,25 @@ namespace BlazorDrawFBP.Pages
         
         private NodeModel AddFbpNode(Point position, JObject component, JObject initNode = null)
         {
-            var initData = initNode == null ? new JObject() : initNode["data"] as JObject ?? new JObject();
-            
             switch (component["type"]?.ToString())
             {
                 case null:
                     return null;
                 case "CapnpFbpComponent":
                 {
-                    var cmdParams = new StringBuilder();
-                    var initCmdParams = initData["cmd_params"] as JObject ?? new JObject();
-                    var compCmdParams = component["cmd_params"] as JObject ?? new JObject();
-                    var cmdParamNames = ((IDictionary<string, JToken>)compCmdParams).Keys.ToHashSet();
-                        cmdParamNames.UnionWith(((IDictionary<string, JToken>)initCmdParams).Keys.ToHashSet());
-                    foreach(var paramName in cmdParamNames)
-                    {
-                        cmdParams.Append(paramName);
-                        cmdParams.Append('=');
-                        //if(initCmdParams[paramName]) 
-                        cmdParams.Append(initCmdParams.GetValue(paramName) ?? compCmdParams["default"] ?? "");
-                        cmdParams.AppendLine();
-                    }
+                    // var defaultConfig = new StringBuilder();
+                    // var compDefaultConfig = component["default_config"] as JObject ?? new JObject();
+                    // var paramNames = ((IDictionary<string, JToken>)compDefaultConfig).Keys.ToHashSet();
+                    // foreach(var paramName in paramNames)
+                    // {
+                    //     defaultConfig.Append(paramName);
+                    //     defaultConfig.Append('=');
+                    //     //if(initCmdParams[paramName])
+                    //     defaultConfig.Append(compDefaultConfig.GetValue(paramName) ?? compDefaultConfig["default"] ?? "");
+                    //     defaultConfig.AppendLine();
+                    // }
 
-                    var pathToFile = initData["path"]?.ToString() ?? component["path"]?.ToString() ?? "";
+                    var cmd = component["cmd"]?.ToString() ?? "";
                     var compId = component["id"]?.Type switch
                     {
                         JTokenType.Null => null,
@@ -708,11 +716,10 @@ namespace BlazorDrawFBP.Pages
                     {
                         ComponentId = compId,
                         ProcessName = procName ?? $"{compId ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
-                        PathToInterpreter = component["interpreter"]?.ToString(), 
-                        PathToFile = pathToFile,
+                        Cmd = cmd,
                         ShortDescription = component["description"]?.ToString() ?? "",
-                        CmdParamString = cmdParams.ToString(),
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? pathToFile.Length == 0,
+                        DefaultConfigString = component["default_config"]?.ToString() ?? "", //defaultConfig.ToString(),
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? cmd.Length == 0,
                         InParallelCount = initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                     };
                     var pcbRegistrar = new PcbRegistrar(node);
@@ -767,7 +774,7 @@ namespace BlazorDrawFBP.Pages
                     var node = new CapnpFbpIipModel(new Point(position.X, position.Y))
                     {
                         ComponentId = compId,
-                        Content = initData["content"]?.ToString() ?? ""
+                        Content = initNode?["content"]?.ToString() ?? ""
                     };
                     Diagram.Nodes.Add(node);
                     Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));

@@ -15,7 +15,7 @@ public class CapnpFbpComponentModel : NodeModel
     public string ComponentId { get; set; }
     public string ProcessName { get; set; }
     public string ShortDescription { get; set; }
-    public string PathToFile { get; set; }
+    public string Cmd { get; set; }
 
     public int InParallelCount { get; set; } = 1;
     
@@ -28,7 +28,7 @@ public class CapnpFbpComponentModel : NodeModel
     public static int ProcessNo { get; set; } = 0;
     
     // if null PathToFile is a standalone executable, else a script needing the interpreter
-    public string PathToInterpreter { get; set; } = null;
+    //public string PathToInterpreter { get; set; } = null;
     
     // public struct CmdParam
     // {
@@ -41,5 +41,5 @@ public class CapnpFbpComponentModel : NodeModel
     //     CmdParameters.Add(new CmdParam { Name = "", Value = "" });
     // }
     // public readonly List<CmdParam> CmdParameters = new();
-    public string CmdParamString { get; set; }
+    public string DefaultConfigString { get; set; }
 }

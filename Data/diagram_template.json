@@ -1,7 +1,7 @@
 {
-  "version": "0.1",
+  "version": "0.2",
   "name": "",
-  "components": "/home/berg/GitHub/mas-infrastructure/src/csharp/BlazorDrawFBP/Data/components.json",
+  "components": "/home/berg/GitHub/mas_blazor_fbp_tool_ui/Data/components.json",
   "nodes": [],
   "links": []
 }

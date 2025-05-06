@@ -58,22 +58,22 @@
             </CardHeaderActions>*@
         </MudCardHeader>
         @* <MudCardMedia Image="images/pilars.jpg" Height="250" /> *@
-        @if (Node.Editable || Node.CmdParamString.Length > 0)
+        @if (Node.Editable || Node.DefaultConfigString.Length > 0)
         {
             <MudCardContent>
-                @if (!Node.Editable && Node.CmdParamString.Length > 0)
+                @if (!Node.Editable && Node.DefaultConfigString.Length > 0)
                 {
-                    <MudField Label="CMD arguments"
+                    <MudField Label="Default TOML config"
                               Variant="Variant.Outlined">
-                        <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
+                        <MudText Typo="Typo.body2">@Node.DefaultConfigString</MudText>
                     </MudField>
                 }
                 @if (Node.Editable)
                 {
                     <MudTextField T="string"
-                                  @bind-Value="Node.CmdParamString"
+                                  @bind-Value="Node.DefaultConfigString"
                                   Lines="2"
-                                  Label="CMD arguments (Key=Value)"
+                                  Label="Default TOML config (Key=Value)"
                                   Variant="Variant.Outlined"/>
                     <MudField Label="Component data"
                               Variant="Variant.Outlined">
@@ -84,12 +84,8 @@
                                       Label="Description"
                                       Variant="Variant.Outlined"/>
                         <MudTextField T="string"
-                                      @bind-Value="Node.PathToInterpreter"
-                                      Label="Path to interpreter"
-                                      Variant="Variant.Outlined"/>
-                        <MudTextField T="string"
-                                      @bind-Value="Node.PathToFile"
-                                      Label="Path to .py file"
+                                      @bind-Value="Node.Cmd"
+                                      Label="Commandline"
                                       Variant="Variant.Outlined"/>
                     </MudField>
                 }
@@ -188,16 +184,17 @@
             if (_processStarted)
             {
                 var si = new ProcessStartInfo();
-                if (string.IsNullOrEmpty(Node.PathToInterpreter)) si.FileName = Node.PathToFile;
-                else
-                {
-                    si.FileName =  Node.PathToInterpreter;
-                    si.ArgumentList.Add(Node.PathToFile);
-                }
-                foreach (var arg in Node.CmdParamString.Split("\n"))
-                {
-                    if (!string.IsNullOrWhiteSpace(arg)) si.ArgumentList.Add(arg);
-                }
+                //if (string.IsNullOrEmpty(Node.PathToInterpreter))
+                si.FileName = Node.Cmd;
+                // else
+                // {
+                //     si.FileName =  Node.PathToInterpreter;
+                //     si.ArgumentList.Add(Node.Cmd);
+                // }
+                // foreach (var arg in Node.ExampleConfigString.Split("\n"))
+                // {
+                //     if (!string.IsNullOrWhiteSpace(arg)) si.ArgumentList.Add(arg);
+                // }
                 si.ArgumentList.Add($"port_callback_registrar_sr={Node.PortCallbackRegistarSr}");
                 _process = Process.Start(si);
 
