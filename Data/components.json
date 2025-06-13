@@ -2,11 +2,14 @@
   "generic": [
     {
       "id": "IIP",
+      "name": "IIP",
       "type": "CapnpFbpIIP",
+      "content_type": "string",
       "description": "Initial Information Packet"
     },
     {
       "id": null,
+      "name": "generic component",
       "type": "CapnpFbpComponent",
       "description": "Generic component",
       "cmd": "",
@@ -18,6 +21,7 @@
   "Safe-H2O-Farm": [
     {
       "id": "create_env_component.py",
+      "name": "create_env_component.py",
       "type": "CapnpFbpComponent",
       "example_config": [
         {"name": "sim.json", "type": "string", "description": "path to sim.json file"},

@@ -78,15 +78,21 @@
                     <MudField Label="Component data"
                               Variant="Variant.Outlined">
                         <MudTextField @bind-Value="Node.ComponentId"
-                                      Label="Component ID"
+                                      Label="Id"
+                                      Variant="Variant.Outlined"/>
+                        <MudTextField @bind-Value="Node.ComponentName"
+                                      Label="Name"
                                       Variant="Variant.Outlined"/>
                         <MudTextField @bind-Value="Node.ShortDescription"
                                       Label="Description"
                                       Variant="Variant.Outlined"/>
-                        <MudTextField T="string"
-                                      @bind-Value="Node.Cmd"
-                                      Label="Commandline"
-                                      Variant="Variant.Outlined"/>
+                        @if ((Node.ComponentId ?? "") == "")
+                        {
+                            <MudTextField T="string"
+                                          @bind-Value="Node.Cmd"
+                                          Label="Commandline"
+                                          Variant="Variant.Outlined"/>
+                        }
                     </MudField>
                 }
             </MudCardContent>
@@ -195,7 +201,7 @@
                 // {
                 //     if (!string.IsNullOrWhiteSpace(arg)) si.ArgumentList.Add(arg);
                 // }
-                si.ArgumentList.Add($"port_callback_registrar_sr={Node.PortCallbackRegistarSr}");
+                //si.ArgumentList.Add($"port_callback_registrar_sr={Node.PortCallbackRegistarSr}");
                 _process = Process.Start(si);
 
                 _process?.Start();
@@ -215,7 +221,7 @@
     private async void NotififyOfNewOutPort()
     {
         Console.WriteLine("sending new out port message");
-        await Node.PortCallback.NewOutPort("out", null);
+        //await Node.PortCallback.NewOutPort("out", null);
         Console.WriteLine("sent new out port message");
     }
     

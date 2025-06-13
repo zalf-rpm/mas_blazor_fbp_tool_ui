@@ -1,0 +1,38 @@
+{
+  "categories": [
+    {"id": "default", "name": "0 Default"}
+  ],
+  "entries": [
+    {
+      "categoryId": "default",
+      "component": {
+        "info": {
+          "id": "iip",
+          "name": "IIP",
+          "description": "Initial Information Packet"
+        },
+        "type": "iip",
+        "inPorts": [
+          {"name": "out", "contentType": "common.capnp:StructuredText"}
+        ]
+      }
+    },
+    {
+      "categoryId": "default",
+      "component": {
+        "info": {
+          "id": "empty_component",
+          "name": "Empty component",
+          "description": "Generic component"
+        },
+        "type": "standard",
+        "inPorts": [
+          {"name": "in"}
+        ],
+        "outPorts": [
+          {"name": "out"}
+        ]
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
@@ -22,9 +23,12 @@ using BlazorDrawFBP.Behaviors;
 using BlazorDrawFBP.Controls;
 using BlazorDrawFBP.Models;
 using Capnp.Rpc;
+using Mas.Infrastructure.BlazorComponents;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Climate;
+using Mas.Schema.Common;
 using Mas.Schema.Fbp;
+using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -35,38 +39,57 @@ using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace BlazorDrawFBP.Pages
 {
-    internal class PcbRegistrar : Mas.Schema.Fbp.IPortCallbackRegistrar
-    {
-        private readonly CapnpFbpComponentModel _model;
-
-        public PcbRegistrar(CapnpFbpComponentModel componentModel)
-        {
-            _model = componentModel;
-        }
-        public Task RegisterCallback(PortCallbackRegistrar.IPortCallback callback, CancellationToken cancellationToken_ = default)
-        {
-            _model.PortCallback = Capnp.Rpc.Proxy.Share(callback);
-            return Task.CompletedTask;
-        }
-
-        public void Dispose()
-        {
-            // TODO release managed resources here
-        }
-    }
-    
     public partial class Editor
     {
         private static readonly Random Random = new();
         private BlazorDiagram Diagram { get; set; } = null!;
         //private readonly List<string> events = new List<string>();
 
-        private JObject _components = null!;
-        private readonly Dictionary<string, JObject> _componentDict = new();
+        //private JObject _components = null!;
+        //private readonly Dictionary<string, JObject> _componentDict = new();
+        private readonly Dictionary<string, List<string>> _catId2ComponentIds = new();
+        private readonly Dictionary<string, Mas.Schema.Common.IdInformation> _catId2Info = new();
+        private readonly Dictionary<string, Mas.Schema.Fbp.Component> _componentId2Component = new();
+        private readonly List<Mas.Schema.Registry.IRegistry> _registries = [];
         
         private readonly Restorer _restorer = new() { TcpHost = ConnectionManager.GetLocalIPAddress() };
-        private readonly List<PcbRegistrar> _pcbRegistrars = new();
-        
+
+
+        static Component CreateFromJson(JToken jComp)
+        {
+            if (jComp is not JObject comp) return null;
+            var info = comp["info"];
+            var compId = info?["id"]?.ToString() ?? "";
+            if (compId.Length == 0) return null;
+            return new Component()
+            {
+                Info = new IdInformation
+                {
+                    Id = compId,
+                    Name = info?["name"]?.ToString() ?? compId,
+                    Description = info?["description"]?.ToString() ?? ""
+                },
+                Type = comp["type"]?.ToString() switch {
+                    "iip" => Component.ComponentType.iip,
+                    "standard" => Component.ComponentType.standard,
+                    "subflow" => Component.ComponentType.subflow,
+                    _ => Component.ComponentType.standard,
+                },
+                InPorts = comp["inPorts"]?.Select(p => new Component.Port()
+                {
+                    Name = p["name"]?.ToString() ?? "no_name",
+                    Type = Component.Port.PortType.standard,
+                    TheContentType = p["contentType"]?.ToString() ?? "",
+                }).ToList() ?? [],
+                OutPorts = comp["outPorts"]?.Select(p => new Component.Port()
+                {
+                    Name = p["name"]?.ToString() ?? "no_name",
+                    Type = Component.Port.PortType.standard,
+                    TheContentType = p["contentType"]?.ToString() ?? "",
+                }).ToList() ?? [],
+            };
+        }
+
         protected override void OnInitialized()
         {
             var options = new BlazorDiagramOptions
@@ -86,14 +109,34 @@ namespace BlazorDrawFBP.Pages
             ksb?.RemoveShortcut("Delete", false, false, false);
             ksb?.SetShortcut("Delete", false, true, false, KeyboardShortcutsDefaults.DeleteSelection);
             
-            _components = JObject.Parse(File.ReadAllText("Data/components.json"));
-            foreach (var (cat, value) in _components)
+            var defComps = JObject.Parse(File.ReadAllText("Data/default_components.json"));
+            foreach (var cat in defComps["categories"] ?? new JArray())
             {
-                if (value is not JArray components) continue;
-                foreach (var component in components)
+                var catId = cat["id"]?.ToString() ?? "";
+                if (catId.Length == 0) continue;
+                _catId2Info[catId] = new IdInformation
                 {
-                    if (component is JObject comp) _componentDict.Add(comp["id"]?.ToString() ?? "", comp);
-                }
+                    Id = catId,
+                    Name = cat["name"]?.ToString() ?? catId,
+                    Description = cat["description"]?.ToString() ?? ""
+                };
+            }
+            foreach (var entry in defComps["entries"] ?? new JArray())
+            {
+                var catId = entry["categoryId"]?.ToString() ?? "";
+                if (catId.Length == 0) continue;
+                if (entry["component"] is not JObject comp) continue;
+
+                if (!_catId2ComponentIds.ContainsKey(catId)) _catId2ComponentIds[catId] = [];
+                if (!_catId2Info.ContainsKey(catId)) _catId2Info[catId] = new IdInformation
+                {
+                    Id = catId, Name = catId
+                };
+
+                var component = CreateFromJson(entry["component"]);
+                if (component == null) continue;
+                _catId2ComponentIds[catId].Add(component.Info.Id);
+                _componentId2Component[component.Info.Id] = component;
             }
 
             Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
@@ -117,6 +160,50 @@ namespace BlazorDrawFBP.Pages
             ConMan.Restorer = _restorer;
             ConMan.Bind(IPAddress.Any, 0, _restorer);
             _restorer.TcpPort = ConMan.Port;
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (!firstRender) return;
+            if (!await LocalStorage.ContainKeyAsync("sturdy-ref-store")) return;
+            var allBookmarks = await StoredSRData.GetAllData(LocalStorage);
+            allBookmarks.Add(new StoredSRData()
+            {
+                AutoConnect = true,
+                InterfaceId = typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0,
+                PetName = "Local components service",
+                SturdyRef = "capnp://J1TYEVg3Z20MjV4CVwlp5O1Zohn8Rdzj2MPL0njmsl8=@10.10.28.250:9988/local_components",
+            });
+            allBookmarks.Sort();
+
+            // iterate over all bookmarks
+            foreach (var ssrd in allBookmarks)
+            {
+                var reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
+                _registries.Add(Capnp.Rpc.Proxy.Share(reg));
+                var entries = await reg.Entries(null);
+                foreach (var e in entries)
+                {
+                    if (!_catId2ComponentIds.ContainsKey(e.CategoryId)) _catId2ComponentIds[e.CategoryId] = [];
+                    _catId2ComponentIds[e.CategoryId].Add(e.Id);
+                    if (e.Ref is not Proxy p) continue;
+                    var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
+                    try
+                    {
+                        _componentId2Component.Add(e.Id, await holder.Value());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                }
+            }
+            StateHasChanged();
+        }
+
+        protected override async Task OnInitializedAsync()
+        {
+
         }
 
         private void RegisterEvents()
@@ -359,13 +446,9 @@ namespace BlazorDrawFBP.Pages
                 var position = new Point(
                     nodeObj["location"]?["x"]?.Value<double>() ?? 0,
                     nodeObj["location"]?["y"]?.Value<double>() ?? 0);
-                
-                var component = nodeObj["component_id"]?.Type switch
-                {
-                    null => nodeObj["inline_component"] as JObject,
-                    JTokenType.Null => nodeObj["inline_component"] as JObject,
-                    _ => _componentDict[nodeObj["component_id"]?.ToString() ?? ""]
-                } ?? new JObject() { { "type", "CapnpFbpComponent" } };
+
+                var compId = nodeObj["component_id"]?.ToString() ?? "";
+                var component = string.IsNullOrEmpty(compId) ? CreateFromJson(nodeObj["component"]) : _componentId2Component[compId];
                 var diaNode = AddFbpNode(position, component, nodeObj);
                 oldNodeIdToNewNode.Add(nodeObj["node_id"]?.ToString() ?? "", diaNode);
             }
@@ -426,14 +509,14 @@ namespace BlazorDrawFBP.Pages
                 {
                     case CapnpFbpComponentModel fbpNode:
                     {
-                        var exampleConfig = new JObject();
-                        foreach (var line in fbpNode.DefaultConfigString.Split('\n'))
-                        {
-                            var kv = line.Split('=');
-                            var k = kv[0].Trim();
-                            var v = kv.Length == 2 ? kv[1].Trim() : "";
-                            if (k.Length > 0 && v.Length > 0) exampleConfig.Add(k, v);
-                        }
+                        // var exampleConfig = new JObject();
+                        // foreach (var line in fbpNode.DefaultConfigString.Split('\n'))
+                        // {
+                        //     var kv = line.Split('=');
+                        //     var k = kv[0].Trim();
+                        //     var v = kv.Length == 2 ? kv[1].Trim() : "";
+                        //     if (k.Length > 0 && v.Length > 0) exampleConfig.Add(k, v);
+                        // }
 
                         var jn = new JObject()
                         {
@@ -442,15 +525,9 @@ namespace BlazorDrawFBP.Pages
                             { "location", new JObject() { { "x", fbpNode.Position.X }, { "y", fbpNode.Position.Y } } },
                             { "editable", fbpNode.Editable },
                             { "parallel_processes", fbpNode.InParallelCount },
-                            // {
-                            //     "data", new JObject()
-                            //     {
-                            //         { "cmd_params", exampleConfig }
-                            //     }
-                            // }
                         };
                         if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
-                            !_componentDict.ContainsKey(fbpNode.ComponentId))
+                            !_componentId2Component.ContainsKey(fbpNode.ComponentId))
                         {
                             // create inputs
                             var inputs = fbpNode.Ports.Where(p => p is CapnpFbpPortModel cp
@@ -464,16 +541,18 @@ namespace BlazorDrawFBP.Pages
                                 .Select(p => p as CapnpFbpPortModel)
                                 .Select(p => new JObject() { { "name", p!.Name } });
 
-                            jn.Add("inline_component", new JObject()
+                            jn.Add("component", new JObject()
                             {
-                                { "id", fbpNode.ComponentId },
-                                { "type", "CapnpFbpComponent" },
-                                //{ "interpreter", fbpNode.PathToInterpreter },
-                                { "description", fbpNode.ShortDescription },
-                                { "inputs", new JArray(inputs) },
-                                { "outputs", new JArray(outputs) },
+                                { "info", new JObject()
+                                {
+                                    { "id", fbpNode.ComponentId },
+                                    { "name", fbpNode.ComponentName },
+                                    { "description", fbpNode.ShortDescription }
+                                }},
+                                { "type", "standard" },
+                                { "inPorts", new JArray(inputs) },
+                                { "outPorts", new JArray(outputs) },
                                 { "cmd", fbpNode.Cmd },
-                                { "example_config", exampleConfig}
                             });
                         }
                         else
@@ -482,7 +561,6 @@ namespace BlazorDrawFBP.Pages
                         }
 
                         if (dia["nodes"] is JArray nodes) nodes.Add(jn);
-
                         break;
                     }
                     case CapnpFbpIipModel iipNode:
@@ -665,9 +743,10 @@ namespace BlazorDrawFBP.Pages
             //     Convert.ToBase64String(Encoding.UTF8.GetBytes(dia.ToString())));
         }
         
-        private JObject _draggedComponent;
+        //private JObject _draggedComponent;
+        private Mas.Schema.Fbp.Component _draggedComponent;
         
-        private void OnNodeDragStart(JObject component)//string nodeType, string nodeName)
+        private void OnNodeDragStart(Mas.Schema.Fbp.Component component)//(JObject component)//string nodeType, string nodeName)
         {
             _draggedComponent = component;
         }
@@ -680,13 +759,11 @@ namespace BlazorDrawFBP.Pages
             _draggedComponent = null;
         }
         
-        private NodeModel AddFbpNode(Point position, JObject component, JObject initNode = null)
+        private NodeModel AddFbpNode(Point position, Mas.Schema.Fbp.Component component, JObject initNode = null)
         {
-            switch (component["type"]?.ToString())
+            switch (component.Type)
             {
-                case null:
-                    return null;
-                case "CapnpFbpComponent":
+                case Component.ComponentType.standard:
                 {
                     // var defaultConfig = new StringBuilder();
                     // var compDefaultConfig = component["default_config"] as JObject ?? new JObject();
@@ -700,12 +777,8 @@ namespace BlazorDrawFBP.Pages
                     //     defaultConfig.AppendLine();
                     // }
 
-                    var cmd = component["cmd"]?.ToString() ?? "";
-                    var compId = component["id"]?.Type switch
-                    {
-                        JTokenType.Null => null,
-                        _ => component["id"]?.ToString()
-                    };
+                    var cmd = "";//component["cmd"]?.ToString() ?? "";
+                    var compId = component.Info.Id;
                     var procName = initNode?.GetValue("process_name")?.Type switch
                     {
                         JTokenType.Null => null,
@@ -715,18 +788,19 @@ namespace BlazorDrawFBP.Pages
                     var node = new CapnpFbpComponentModel(new Point(position.X, position.Y))
                     {
                         ComponentId = compId,
-                        ProcessName = procName ?? $"{compId ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
+                        ComponentName = component.Info.Name ?? compId,
+                        ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                         Cmd = cmd,
-                        ShortDescription = component["description"]?.ToString() ?? "",
-                        DefaultConfigString = component["default_config"]?.ToString() ?? "", //defaultConfig.ToString(),
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? cmd.Length == 0,
+                        ShortDescription = component.Info.Description ?? "",
+                        DefaultConfigString = "",//component["default_config"]?.ToString() ?? "", //defaultConfig.ToString(),
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                     };
-                    var pcbRegistrar = new PcbRegistrar(node);
-                    var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
-                    var pcbRegistrarSr = res.Item1;
-                    node.PortCallbackRegistarSr = pcbRegistrarSr;
-                    _pcbRegistrars.Add(pcbRegistrar);
+                    // var pcbRegistrar = new PcbRegistrar(node);
+                    // var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
+                    // var pcbRegistrarSr = res.Item1;
+                    // node.PortCallbackRegistarSr = pcbRegistrarSr;
+                    // _pcbRegistrars.Add(pcbRegistrar);
                     
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
@@ -748,29 +822,21 @@ namespace BlazorDrawFBP.Pages
                     
                     var portLocations = initNode?["location"]?["ports"] as JObject;
 
-                    foreach(var (i, input) in (component["inputs"] ?? new JArray()).
-                            Select((inp, i) => (i, inp)))
+                    foreach(var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
                     {
-                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.In, i, 
-                            input["name"]?.ToString());
+                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.In, i, input.Name);
                     }
                     
-                    foreach(var (i, output) in (component["outputs"] ?? new JArray()).
-                            Select((outp, i) => (i, outp)))
+                    foreach(var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
                     {
-                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.Out, i,  
-                            output["name"]?.ToString());
+                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.Out, i, output.Name);
                     }
                     Diagram.Nodes.Add(node);
                     return node;
                 }
-                case "CapnpFbpIIP":
+                case Component.ComponentType.iip:
                 {
-                    var compId = component["id"]?.Type switch
-                    {
-                        JTokenType.Null => null,
-                        _ => component["id"]?.ToString()
-                    };
+                    var compId = component.Info.Id;
                     var node = new CapnpFbpIipModel(new Point(position.X, position.Y))
                     {
                         ComponentId = compId,

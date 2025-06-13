@@ -13,15 +13,12 @@ public class CapnpFbpComponentModel : NodeModel
     
     // the id of component
     public string ComponentId { get; set; }
+    public string ComponentName { get; set; }
     public string ProcessName { get; set; }
     public string ShortDescription { get; set; }
     public string Cmd { get; set; }
 
     public int InParallelCount { get; set; } = 1;
-    
-    public string PortCallbackRegistarSr { get; set; }
-    
-    public PortCallbackRegistrar.IPortCallback PortCallback { get; set; }
     
     public bool Editable { get; set; } = true;
     

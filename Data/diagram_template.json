@@ -1,7 +1,8 @@
 {
-  "version": "0.2",
+  "version": "0.3",
   "name": "",
-  "components": "/home/berg/GitHub/mas_blazor_fbp_tool_ui/Data/components.json",
+  "components": "/home/berg/GitHub/mas_python_fbp/local_components.json",
+  "cmds": "/home/berg/GitHub/mas_python_fbp/local_cmds.json",
   "nodes": [],
   "links": []
 }

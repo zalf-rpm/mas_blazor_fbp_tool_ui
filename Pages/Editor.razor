@@ -3,14 +3,15 @@
 @namespace BlazorDrawFBP.Pages
 
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IJSRuntime JsRuntime
 
 @using Blazor.Diagrams.Components.Widgets
 @using BlazorDrawFBP.Models
 @using Newtonsoft.Json.Linq
 @using MudBlazor
 @using System.Timers
-
-@inject IJSRuntime JsRuntime
+@using Mas.Schema.Fbp
 
 <div>
     <MudGrid>
@@ -72,29 +73,21 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Cancel"
                                   OnAdornmentClick="() => { _query = null; }"/>
-                    @foreach (var (cat, value) in _components)
+                    @foreach (var (catId, compIds) in _catId2ComponentIds)
                     {
-                        <MudExpansionPanel Text="@cat" 
+                        <MudExpansionPanel Text="@(_catId2Info[catId].Name)"
                                            Expanded="@(!string.IsNullOrWhiteSpace(_query)
-                                                    || _expandedPanels.GetValueOrDefault(cat, false))"
-                                           ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[cat] = b; }">
+                                                    || _expandedPanels.GetValueOrDefault(catId, false))"
+                                           ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
                             <MudStack Spacing="1">
-                                @foreach (var component in value as JArray ?? [])
+                                @foreach (var compId in compIds)
                                 {
-                                    if (component is not JObject obj) continue;
-        
-                                    var componentId = obj["id"]?.Type switch
-                                    {
-                                        JTokenType.Null => "empty",
-                                        _ => obj["id"]?.ToString()
-                                    };
-                                    var nodeType = obj["type"]?.ToString();
-                                    if (nodeType == null) continue;
-                                    
-                                    var desc = obj["description"]?.ToString() ?? "";
+                                    var comp = _componentId2Component[compId];
+                                    if (comp.Type == Component.ComponentType.subflow) continue;
+                                    var desc = comp.Info.Description ?? "";
 
                                     if (!string.IsNullOrWhiteSpace(_query) && 
-                                        componentId?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
+                                        comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
                                         desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
                                     {
                                         continue;
@@ -102,22 +95,22 @@
                                     <MudCard>
                                         <MudCardHeader>
                                             <CardHeaderContent>
-                                                <MudText>@componentId</MudText>
-                                                <MudText Typo="Typo.body1" >(@cat)</MudText>
+                                                <MudText>@comp.Info.Name</MudText>
+                                                <!--<MudText Typo="Typo.body1" >(@catId)</MudText>-->
                                                 <MudText Typo="Typo.body2">@desc</MudText>
                                             </CardHeaderContent>
-                                            <CardHeaderActions>
+                                            <!--<CardHeaderActions>
                                                 <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Default"/>
-                                            </CardHeaderActions>
+                                            </CardHeaderActions>-->
                                         </MudCardHeader>
                                         @* <MudCardMedia Image="/img/DefaultNodeWidget.png" Height="100"/> *@
                                         <MudCardContent>
-                                            <MudTooltip Text="@componentId">
+                                            <MudTooltip Text="@comp.Info.Name">
                                                 <MudImage Src="/img/DefaultNodeWidget.png"
                                                           Alt="Capnp node"
                                                           Class="rounded-lg"
                                                           draggable="@true"
-                                                          @ondragstart="() => OnNodeDragStart(obj)"/>
+                                                          @ondragstart="() => OnNodeDragStart(comp)"/>
                                             </MudTooltip>
                                         </MudCardContent>
                                     </MudCard>
