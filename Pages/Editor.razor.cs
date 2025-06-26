@@ -172,7 +172,7 @@ namespace BlazorDrawFBP.Pages
                 AutoConnect = true,
                 InterfaceId = typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0,
                 PetName = "Local components service",
-                SturdyRef = "capnp://J1TYEVg3Z20MjV4CVwlp5O1Zohn8Rdzj2MPL0njmsl8=@10.10.28.250:9988/local_components",
+                SturdyRef = "capnp://10.10.28.250:9988/local_components",
             });
             allBookmarks.Sort();
 
@@ -181,6 +181,14 @@ namespace BlazorDrawFBP.Pages
             {
                 var reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
                 _registries.Add(Capnp.Rpc.Proxy.Share(reg));
+                var categories = await reg.SupportedCategories();
+                foreach (var cat in categories)
+                {
+                    if (!_catId2Info.ContainsKey(cat.Id)) _catId2Info[cat.Id] = new IdInformation
+                    {
+                        Id = cat.Id, Name = cat.Name ?? cat.Id, Description = cat.Description ?? cat.Name ?? cat.Id
+                    };
+                }
                 var entries = await reg.Entries(null);
                 foreach (var e in entries)
                 {
@@ -448,7 +456,15 @@ namespace BlazorDrawFBP.Pages
                     nodeObj["location"]?["y"]?.Value<double>() ?? 0);
 
                 var compId = nodeObj["component_id"]?.ToString() ?? "";
-                var component = string.IsNullOrEmpty(compId) ? CreateFromJson(nodeObj["component"]) : _componentId2Component[compId];
+                Component component;
+                if (string.IsNullOrEmpty(compId) && nodeObj.TryGetValue("component", out var compDesc))
+                {
+                    component = CreateFromJson(compDesc);
+                }
+                else if (!_componentId2Component.TryGetValue(compId, out component))
+                {
+                    component = nodeObj.ContainsKey("content") ? _componentId2Component["iip"] : _componentId2Component["empty_component"];
+                }
                 var diaNode = AddFbpNode(position, component, nodeObj);
                 oldNodeIdToNewNode.Add(nodeObj["node_id"]?.ToString() ?? "", diaNode);
             }
