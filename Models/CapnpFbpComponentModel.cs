@@ -39,4 +39,7 @@ public class CapnpFbpComponentModel : NodeModel
     // }
     // public readonly List<CmdParam> CmdParameters = new();
     public string DefaultConfigString { get; set; }
+
+    public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
+    public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; set; }
 }

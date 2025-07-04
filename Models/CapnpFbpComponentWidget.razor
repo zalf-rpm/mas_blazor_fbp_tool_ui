@@ -1,3 +1,6 @@
+@inject Mas.Infrastructure.Common.ConnectionManager ConMan
+
+@using System.Collections.Generic;
 @using Blazor.Diagrams.Components.Renderers;
 @using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
@@ -5,7 +8,9 @@
 @using System.Diagnostics.Metrics
 @using _Imports = MudBlazor._Imports
 @using System.Diagnostics
+@using System.Reflection
 @using System.Threading
+@using Mas.Schema.Fbp
 
 <div>
     <MudCard Style="@MinHeight">
@@ -28,8 +33,9 @@
                                      ToggledColor="@Color.Secondary" 
                                      ToggledTitle="Parallel Off"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
-                                     @bind-Toggled="@ProcessStarted"
-                                     Icon="@Icons.Material.Filled.PlayCircle" 
+                                     Toggled="@_processStarted"
+                                     ToggledChanged="StartProcess"
+                                     Icon="@Icons.Material.Filled.PlayCircle"
                                      Color="@Color.Primary" 
                                      Title="Start process"
                                      ToggledIcon="@Icons.Material.Filled.StopCircle" 
@@ -178,47 +184,86 @@
         set => Node.InParallelCount = value ? 2 : 1;
     }
 
-    private Process _process;
-    
+    private async void StartProcess(bool start)
+    {
+        try
+        {
+            if (!start || Node.ChannelStarterService == null) return;
+            List<Mas.Schema.Fbp.PortInfos.NameAndSR> inPortSRs = [];
+            List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
+            foreach (var pl in Node.Links)
+            {
+                if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
+
+                List<PortModel> ps = [rcplm.TargetPortModel];
+                if (rcplm.SourcePortModel is CapnpFbpIipPortModel iipp) ps.Add(iipp);
+                else continue;
+
+                foreach (var p in ps)
+                {
+                    switch (p)
+                    {
+                        case CapnpFbpPortModel port:
+                            if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null) await port.ChannelTask;
+                            switch (port.ThePortType)
+                            {
+                                case CapnpFbpPortModel.PortType.In:
+                                    inPortSRs.Add(new PortInfos.NameAndSR
+                                    {
+                                        Name = port.Name,
+                                        Sr = port.ReaderWriterSturdyRef,
+                                    });
+                                    break;
+                                case CapnpFbpPortModel.PortType.Out:
+                                    outPortSRs.Add(new PortInfos.NameAndSR
+                                    {
+                                        Name = port.Name,
+                                        Sr = port.ReaderWriterSturdyRef,
+                                    });
+                                    break;
+                            }
+
+                            break;
+                        case CapnpFbpIipPortModel iipPort:
+                            if (iipPort.Parent is not CapnpFbpIipModel iipModel) continue;
+                            if (iipPort.WriterSturdyRef == null && iipPort.ChannelTask != null) await iipPort.ChannelTask;
+                            var iipWriter = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
+                            await iipWriter.Write(new Channel<IP>.Msg { Value = new IP { Content = iipModel.Content } });
+                            break;
+                    }
+                }
+            }
+
+            var si = await Node.ChannelStarterService.Create(new StartChannelsService.Params
+            {
+                Name = $"config_{Node.ProcessName}"
+            });
+            if (si.Count == 0 || si[0].ReaderSRs.Count == 0 || si[0].WriterSRs.Count == 0) return;
+            if (Node != null) _processStarted = await Node.Runnable.Start(si[0].ReaderSRs[0]);
+            var writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si[0].WriterSRs[0]);
+            await writer.Write(new Channel<PortInfos>.Msg
+            {
+                Value = new PortInfos
+                {
+                    InPorts = inPortSRs,
+                    OutPorts = outPortSRs,
+                }
+            });
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Caught exception: " + e);
+        }
+    }
+
     private bool _processStarted = false;
     private bool ProcessStarted
     {
         get => _processStarted;
-        set
-        {
-            _processStarted = value;
-            if (_processStarted)
-            {
-                var si = new ProcessStartInfo();
-                //if (string.IsNullOrEmpty(Node.PathToInterpreter))
-                si.FileName = Node.Cmd;
-                // else
-                // {
-                //     si.FileName =  Node.PathToInterpreter;
-                //     si.ArgumentList.Add(Node.Cmd);
-                // }
-                // foreach (var arg in Node.ExampleConfigString.Split("\n"))
-                // {
-                //     if (!string.IsNullOrWhiteSpace(arg)) si.ArgumentList.Add(arg);
-                // }
-                //si.ArgumentList.Add($"port_callback_registrar_sr={Node.PortCallbackRegistarSr}");
-                _process = Process.Start(si);
-
-                _process?.Start();
-                Console.WriteLine("process started");
-            }
-            else
-            {
-                //InvokeAsync(NotififyOfNewOutPort);
-                NotififyOfNewOutPort();
-                Thread.Sleep(5000);
-                _process?.Kill();
-                Console.WriteLine("process stopped");
-            }
-        }
+        set => _processStarted = value;
     }
 
-    private async void NotififyOfNewOutPort()
+    private async void NotifyOfNewOutPort()
     {
         Console.WriteLine("sending new out port message");
         //await Node.PortCallback.NewOutPort("out", null);
@@ -252,6 +297,8 @@
         if (path.Contains("node")) return "Js";
         return "";
     }
+
+
 
 
 }

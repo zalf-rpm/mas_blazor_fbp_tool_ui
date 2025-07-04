@@ -51,9 +51,11 @@ namespace BlazorDrawFBP.Pages
         private readonly Dictionary<string, Mas.Schema.Common.IdInformation> _catId2Info = new();
         private readonly Dictionary<string, Mas.Schema.Fbp.Component> _componentId2Component = new();
         private readonly List<Mas.Schema.Registry.IRegistry> _registries = [];
-        
+        private List<Mas.Schema.Fbp.PortInfos.NameAndSR> test = [];
+
         private readonly Restorer _restorer = new() { TcpHost = ConnectionManager.GetLocalIPAddress() };
 
+        private Mas.Schema.Fbp.IStartChannelsService _channelStarterService = null;
 
         static Component CreateFromJson(JToken jComp)
         {
@@ -174,35 +176,51 @@ namespace BlazorDrawFBP.Pages
                 PetName = "Local components service",
                 SturdyRef = "capnp://10.10.28.250:9988/local_components",
             });
+            var channelStarterInterfaceId = typeof(Mas.Schema.Fbp.IStartChannelsService)
+                .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
+            allBookmarks.Add(new StoredSRData()
+            {
+                AutoConnect = true,
+                InterfaceId = channelStarterInterfaceId,
+                PetName = "Channels Starter Service",
+                SturdyRef = "capnp://10.10.28.250:9989/channel_starter",
+            });
             allBookmarks.Sort();
 
             // iterate over all bookmarks
             foreach (var ssrd in allBookmarks)
             {
-                var reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
-                _registries.Add(Capnp.Rpc.Proxy.Share(reg));
-                var categories = await reg.SupportedCategories();
-                foreach (var cat in categories)
+                if (ssrd.InterfaceId == channelStarterInterfaceId)
                 {
-                    if (!_catId2Info.ContainsKey(cat.Id)) _catId2Info[cat.Id] = new IdInformation
-                    {
-                        Id = cat.Id, Name = cat.Name ?? cat.Id, Description = cat.Description ?? cat.Name ?? cat.Id
-                    };
+                    _channelStarterService = await ConMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(ssrd.SturdyRef);
                 }
-                var entries = await reg.Entries(null);
-                foreach (var e in entries)
+                else
                 {
-                    if (!_catId2ComponentIds.ContainsKey(e.CategoryId)) _catId2ComponentIds[e.CategoryId] = [];
-                    _catId2ComponentIds[e.CategoryId].Add(e.Id);
-                    if (e.Ref is not Proxy p) continue;
-                    var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
-                    try
+                    var reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
+                    _registries.Add(Capnp.Rpc.Proxy.Share(reg));
+                    var categories = await reg.SupportedCategories();
+                    foreach (var cat in categories)
                     {
-                        _componentId2Component.Add(e.Id, await holder.Value());
+                        if (!_catId2Info.ContainsKey(cat.Id)) _catId2Info[cat.Id] = new IdInformation
+                        {
+                            Id = cat.Id, Name = cat.Name ?? cat.Id, Description = cat.Description ?? cat.Name ?? cat.Id
+                        };
                     }
-                    catch (System.Exception ex)
+                    var entries = await reg.Entries(null);
+                    foreach (var e in entries)
                     {
-                        Console.WriteLine(ex);
+                        if (!_catId2ComponentIds.ContainsKey(e.CategoryId)) _catId2ComponentIds[e.CategoryId] = [];
+                        _catId2ComponentIds[e.CategoryId].Add(e.Id);
+                        if (e.Ref is not Proxy p) continue;
+                        var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
+                        try
+                        {
+                            _componentId2Component.Add(e.Id, await holder.Value());
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Console.WriteLine(ex);
+                        }
                     }
                 }
             }
@@ -211,7 +229,40 @@ namespace BlazorDrawFBP.Pages
 
         protected override async Task OnInitializedAsync()
         {
+        }
 
+        //private readonly List<Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>>> _createChannelTasks = [];
+        private void CreateChannel(string name, PortModel sourcePort, CapnpFbpPortModel targetPort)
+        {
+            if (_channelStarterService == null) return;
+            var t = Task.Run(async () =>
+            {
+                var si = await _channelStarterService.Create(new StartChannelsService.Params
+                {
+                    Name = name
+                });
+                if (si.Count <= 0 || si[0].ReaderSRs.Count <= 0 || si[0].WriterSRs.Count <= 0) return;
+                switch (sourcePort)
+                {
+                    case CapnpFbpPortModel sPort:
+                        sPort.ReaderWriterSturdyRef = si[0].WriterSRs[0];
+                        break;
+                    case CapnpFbpIipPortModel iipPort:
+                        iipPort.WriterSturdyRef = si[0].WriterSRs[0];
+                        break;
+                }
+                targetPort.ReaderWriterSturdyRef = si[0].ReaderSRs[0];
+            });
+            switch (sourcePort)
+            {
+                case CapnpFbpPortModel sPort:
+                    sPort.ChannelTask = t;
+                    break;
+                case CapnpFbpIipPortModel iipPort:
+                    iipPort.ChannelTask = t;
+                    break;
+            }
+            targetPort.ChannelTask = t;
         }
 
         private void RegisterEvents()
@@ -231,7 +282,7 @@ namespace BlazorDrawFBP.Pages
             //     StateHasChanged();
             // };
 
-            Diagram.Links.Added += (l) =>
+            Diagram.Links.Added += async (l) =>
             {
                 Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
                 switch (l.Source.Model)
@@ -255,6 +306,9 @@ namespace BlazorDrawFBP.Pages
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
+                                    var chanName =
+                                        $"{outPort.Parent.Id}.{outPort.Name}->{sourcePort.Parent.Id}.{sourcePort.Name}";
+                                    if (InteractiveMode) CreateChannel(chanName, outPort, sourcePort);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                     nl.Labels.Add(cllm);
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.8));
@@ -282,6 +336,9 @@ namespace BlazorDrawFBP.Pages
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
+                                    var chanName =
+                                        $"{sourcePort.Parent.Id}.{sourcePort.Name}->{inPort.Parent.Id}.{inPort.Name}";
+                                    if (InteractiveMode) CreateChannel(chanName, sourcePort, inPort);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                     nl.Labels.Add(cllm);
                                     nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
@@ -316,6 +373,9 @@ namespace BlazorDrawFBP.Pages
                             };
                             nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                             var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
+                            var chanName =
+                                $"{iipPortModel.Parent.Id}.iip->{inPort.Parent.Id}.{inPort.Name}";
+                            if (InteractiveMode) CreateChannel(chanName, iipPortModel, inPort);
                             InteractiveModeChanged += cllm.ToggleInteractiveMode;
                             nl.Labels.Add(cllm);
                             nl.TargetMarker = LinkMarker.Arrow;
@@ -811,7 +871,9 @@ namespace BlazorDrawFBP.Pages
                         DefaultConfigString = "",//component["default_config"]?.ToString() ?? "", //defaultConfig.ToString(),
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
+                        ChannelStarterService = _channelStarterService != null ? Capnp.Rpc.Proxy.Share(_channelStarterService) : null,
                     };
+                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
                     // var pcbRegistrar = new PcbRegistrar(node);
                     // var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
                     // var pcbRegistrarSr = res.Item1;

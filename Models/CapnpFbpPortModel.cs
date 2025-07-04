@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
@@ -24,6 +25,10 @@ public class CapnpFbpPortModel : PortModel
     
     public PortType ThePortType { get; }
     public string Name { get; set; }
+
+    public Task ChannelTask { get; set; }
+    //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
+    public string ReaderWriterSturdyRef { get; set; }
 
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 

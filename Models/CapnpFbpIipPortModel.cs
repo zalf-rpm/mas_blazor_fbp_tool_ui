@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
@@ -8,6 +9,10 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpIipPortModel : PortModel
 {
+    public Task ChannelTask { get; set; }
+    //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
+    public string WriterSturdyRef { get; set; }
+
     public CapnpFbpIipPortModel(NodeModel parent, PortAlignment alignment = PortAlignment.Bottom,
         Point position = null, Size size = null) : base(parent, alignment, position, size)
     {
