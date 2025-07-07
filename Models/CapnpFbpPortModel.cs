@@ -30,6 +30,9 @@ public class CapnpFbpPortModel : PortModel
     //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
     public string ReaderWriterSturdyRef { get; set; }
 
+    // public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IReader Reader { get; set; }
+    // public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
+
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 
     // order of the port in the list of ports with the same alignment

@@ -4,6 +4,30 @@
 @using System.Text
 
 <div>
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudIconButton Style="position: absolute; right: -5px; top: -5px;"
+                               OnClick="SendIip"
+                               Icon="@Icons.Material.Filled.Repeat"
+                               Color="@Color.Primary"/>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudTextField T="string" @bind-Value="Node.Content" Lines="3" Label="IIP content"
+                          Variant="Variant.Outlined"/>
+        </MudCardContent>
+
+        @foreach (var port in Node.Ports)
+        {
+            if (port is not CapnpFbpIipPortModel iipPort) continue;
+            <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
+        }
+    </MudCard>
+</div>
+
+@*
+<div>
     <MudTextField T="string" @bind-Value="Node.Content" Lines="3" Label="IIP content" Variant="Variant.Outlined"/>
 
     @foreach (var port in Node.Ports)
@@ -12,8 +36,30 @@
         <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
     }
 </div>
+*@
 
 @code 
 {
     [Parameter] public CapnpFbpIipModel Node { get; set; }
+
+    private async void SendIip()
+    {
+        try
+        {
+            foreach (var pl in Node.Links)
+            {
+                if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
+                if (rcplm.SourcePortModel is not CapnpFbpIipPortModel iippm) continue;
+                if (iippm.Writer == null) return;
+                await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
+                {
+                    Value = new Mas.Schema.Fbp.IP { Content = Node.Content }
+                });
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Caught exception: " + e);
+        }
+    }
 }

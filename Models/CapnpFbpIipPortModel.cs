@@ -13,6 +13,8 @@ public class CapnpFbpIipPortModel : PortModel
     //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
     public string WriterSturdyRef { get; set; }
 
+    public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
+
     public CapnpFbpIipPortModel(NodeModel parent, PortAlignment alignment = PortAlignment.Bottom,
         Point position = null, Size size = null) : base(parent, alignment, position, size)
     {
