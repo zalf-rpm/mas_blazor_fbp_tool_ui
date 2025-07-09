@@ -8,7 +8,7 @@ using Blazor.Diagrams.Core.Models.Base;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpPortModel : PortModel
+public class CapnpFbpPortModel : PortModel, IDisposable
 {
     public enum PortType
     {
@@ -27,11 +27,9 @@ public class CapnpFbpPortModel : PortModel
     public string Name { get; set; }
 
     public Task ChannelTask { get; set; }
-    //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
     public string ReaderWriterSturdyRef { get; set; }
 
-    // public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IReader Reader { get; set; }
-    // public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
+    public Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP> Channel { get; set; }
 
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 
@@ -61,5 +59,11 @@ public class CapnpFbpPortModel : PortModel
 
         // Only link Ins with Outs
         return ThePortType != otherPort.ThePortType;
+    }
+
+    public void Dispose()
+    {
+        ChannelTask?.Dispose();
+        Channel?.Dispose();
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -28,6 +29,7 @@ using Mas.Infrastructure.Common;
 using Mas.Schema.Climate;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
+using Mas.Schema.Persistence;
 using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
@@ -36,6 +38,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 //using SharedDemo.Demos;
 using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
+using Restorer = Mas.Infrastructure.Common.Restorer;
 
 namespace BlazorDrawFBP.Pages
 {
@@ -231,28 +234,48 @@ namespace BlazorDrawFBP.Pages
         {
         }
 
-        //private readonly List<Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>>> _createChannelTasks = [];
         private void CreateChannel(string name, PortModel sourcePort, CapnpFbpPortModel targetPort)
         {
             if (_channelStarterService == null) return;
             var t = Task.Run(async () =>
             {
-                var si = await _channelStarterService.Create(new StartChannelsService.Params
+                if (targetPort.Channel == null) // there is no channel for the IN port yet
                 {
-                    Name = name
-                });
-                if (si.Count <= 0 || si[0].ReaderSRs.Count <= 0 || si[0].WriterSRs.Count <= 0) return;
-                switch (sourcePort)
-                {
-                    case CapnpFbpPortModel sPort:
-                        sPort.ReaderWriterSturdyRef = si[0].WriterSRs[0];
-                        break;
-                    case CapnpFbpIipPortModel iipPort:
-                        iipPort.WriterSturdyRef = si[0].WriterSRs[0];
-                        break;
+                    var si = await _channelStarterService.Create(new StartChannelsService.Params
+                    {
+                        Name = name
+                    });
+                    if (si.Count <= 0 || si[0].ReaderSRs.Count <= 0 || si[0].WriterSRs.Count <= 0) return;
+                    switch (sourcePort)
+                    {
+                        case CapnpFbpPortModel sPort:
+                            sPort.ReaderWriterSturdyRef = si[0].WriterSRs[0];
+                            break;
+                        case CapnpFbpIipPortModel iipPort:
+                            iipPort.WriterSturdyRef = si[0].WriterSRs[0];
+                            break;
+                    }
+                    targetPort.ReaderWriterSturdyRef = si[0].ReaderSRs[0];
+                    // attach channel cap to IN port (target port)
+                    targetPort.Channel = await ConMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP>>(si[0].ChannelSR);
                 }
-                targetPort.ReaderWriterSturdyRef = si[0].ReaderSRs[0];
+                else
+                {
+                    var writerSr =
+                        Restorer.SturdyRefStr((await targetPort.Channel.Writer().Result.Save(null)).SturdyRef);
+                    switch (sourcePort)
+                    {
+                        case CapnpFbpPortModel sPort:
+                            sPort.ReaderWriterSturdyRef = writerSr;
+                            break;
+                        case CapnpFbpIipPortModel iipPort:
+                            iipPort.WriterSturdyRef = writerSr;
+                            break;
+                    }
+                    Debug.Assert(!string.IsNullOrEmpty(targetPort.ReaderWriterSturdyRef));// = Restorer.SturdyRefStr((await eps.Item1.Save(null)).SturdyRef));
+                }
             });
+            if (targetPort.Channel == null) return;
             switch (sourcePort)
             {
                 case CapnpFbpPortModel sPort:

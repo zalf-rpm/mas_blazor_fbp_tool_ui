@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,10 +8,9 @@ using Blazor.Diagrams.Core.Models.Base;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpIipPortModel : PortModel
+public class CapnpFbpIipPortModel : PortModel, IDisposable
 {
     public Task ChannelTask { get; set; }
-    //public Task<IReadOnlyList<Mas.Schema.Fbp.Channel<object>.StartupInfo>> ChannelTask { get; set; }
     public string WriterSturdyRef { get; set; }
 
     public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
@@ -34,5 +34,11 @@ public class CapnpFbpIipPortModel : PortModel
 
         // Only connect IIP to In ports
         return otherPort.ThePortType == CapnpFbpPortModel.PortType.In;
+    }
+
+    public void Dispose()
+    {
+        ChannelTask?.Dispose();
+        Writer?.Dispose();
     }
 }

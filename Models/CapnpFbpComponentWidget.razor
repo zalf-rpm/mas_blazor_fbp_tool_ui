@@ -34,7 +34,7 @@
                                      ToggledTitle="Parallel Off"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
                                      Toggled="@_processStarted"
-                                     ToggledChanged="StartProcess"
+                                     ToggledChanged="@StartProcess"
                                      Icon="@Icons.Material.Filled.PlayCircle"
                                      Color="@Color.Primary" 
                                      Title="Start process"
@@ -128,7 +128,7 @@
             PortAlignment.Right => _leftRightOffsetsMap[Math.Min(portCount, 11)],
             PortAlignment.Top => _topBottomOffsets,
             PortAlignment.Bottom => _topBottomOffsets,
-            _ => new List<int>()
+            _ => []
         };
         if (capnpPort.Alignment is PortAlignment.Right or PortAlignment.Bottom)
         {
@@ -184,7 +184,7 @@
         set => Node.InParallelCount = value ? 2 : 1;
     }
 
-    private async void StartProcess(bool start)
+    private async Task StartProcess(bool start)
     {
         try
         {
@@ -240,20 +240,30 @@
                                     Console.WriteLine("awaiting iipPort.ChannelTask");
                                     await iipPort.ChannelTask;
                                 }
-                                iipPort.Writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
-                                await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = iipModel.Content } });
+
+                                Task.Run(async () =>
+                                {
+                                    var content = iipModel.Content;
+                                    Console.WriteLine($"before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
+                                    iipPort.Writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
+                                    await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
+                                    Console.WriteLine("after connecting to writer for iip");
+                                });
                                 break;
                         }
                     }
                 }
-
+                Console.WriteLine("Trying to start channel");
                 var si = await Node.ChannelStarterService.Create(new StartChannelsService.Params
                 {
                     Name = $"config_{Node.ProcessName}"
                 });
+                Console.WriteLine($"Channel started si.Count={si.Count}, si[0].ReaderSRs.Count={si[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si[0].WriterSRs.Count}");
                 if (si.Count == 0 || si[0].ReaderSRs.Count == 0 || si[0].WriterSRs.Count == 0) return;
                 _processStarted = await Node.Runnable.Start(si[0].ReaderSRs[0]);
-                var writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si[0].WriterSRs[0]);
+                if (!_processStarted) return;
+                Console.WriteLine($"Runnable started: {_processStarted}");
+                using var writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si[0].WriterSRs[0]);
                 await writer.Write(new Channel<PortInfos>.Msg
                 {
                     Value = new PortInfos
@@ -263,11 +273,11 @@
                     }
                 });
                 Console.WriteLine("Wrote PortInfos to PortInfoChannel");
-                // free writer capability
-                writer.Dispose();
+                //close writer
+                await writer.Close();
 
                 //close port infos channel
-                var channel = await ConMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
+                using var channel = await ConMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
                 await channel.Close(false);
             }
             else // stop
@@ -279,6 +289,7 @@
         {
             Console.WriteLine("Caught exception: " + e);
         }
+        StateHasChanged();
     }
 
     private bool _processStarted = false;
