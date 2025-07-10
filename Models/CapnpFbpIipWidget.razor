@@ -49,7 +49,7 @@
             foreach (var pl in Node.Links)
             {
                 if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
-                if (rcplm.SourcePortModel is not CapnpFbpIipPortModel iippm) continue;
+                if (rcplm.OutPortModel is not CapnpFbpIipPortModel iippm) continue;
                 if (iippm.Writer == null) return;
                 await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
                 {

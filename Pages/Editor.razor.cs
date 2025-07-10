@@ -195,35 +195,69 @@ namespace BlazorDrawFBP.Pages
             {
                 if (ssrd.InterfaceId == channelStarterInterfaceId)
                 {
-                    _channelStarterService = await ConMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(ssrd.SturdyRef);
+                    try
+                    {
+                        _channelStarterService =
+                            await ConMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(ssrd.SturdyRef);
+                    }
+                    catch (Capnp.Rpc.RpcException e)
+                    {
+                        Console.WriteLine("Couldn't connect to channel starter service @ " + ssrd.SturdyRef);
+                    }
                 }
                 else
                 {
-                    var reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
-                    _registries.Add(Capnp.Rpc.Proxy.Share(reg));
-                    var categories = await reg.SupportedCategories();
-                    foreach (var cat in categories)
+                    Mas.Schema.Registry.IRegistry reg = null;
+                    try
                     {
-                        if (!_catId2Info.ContainsKey(cat.Id)) _catId2Info[cat.Id] = new IdInformation
-                        {
-                            Id = cat.Id, Name = cat.Name ?? cat.Id, Description = cat.Description ?? cat.Name ?? cat.Id
-                        };
+                        reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
                     }
-                    var entries = await reg.Entries(null);
-                    foreach (var e in entries)
+                    catch (Capnp.Rpc.RpcException e)
                     {
-                        if (!_catId2ComponentIds.ContainsKey(e.CategoryId)) _catId2ComponentIds[e.CategoryId] = [];
-                        _catId2ComponentIds[e.CategoryId].Add(e.Id);
-                        if (e.Ref is not Proxy p) continue;
-                        var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
-                        try
+                        Console.WriteLine("Couldn't connect to components registry @ " + ssrd.SturdyRef);
+                        continue;
+                    }
+                    try
+                    {
+                        _registries.Add(Capnp.Rpc.Proxy.Share(reg));
+                        var categories = await reg.SupportedCategories();
+                        foreach (var cat in categories)
                         {
-                            _componentId2Component.Add(e.Id, await holder.Value());
+                            if (!_catId2Info.ContainsKey(cat.Id))
+                                _catId2Info[cat.Id] = new IdInformation
+                                {
+                                    Id = cat.Id, Name = cat.Name ?? cat.Id,
+                                    Description = cat.Description ?? cat.Name ?? cat.Id
+                                };
                         }
-                        catch (System.Exception ex)
+                    }
+                    catch (Capnp.Rpc.RpcException e)
+                    {
+                        Console.WriteLine("Error loading supported categories from " + ssrd.SturdyRef);
+                    }
+
+                    try
+                    {
+                        var entries = await reg.Entries(null);
+                        foreach (var e in entries)
                         {
-                            Console.WriteLine(ex);
+                            if (!_catId2ComponentIds.ContainsKey(e.CategoryId)) _catId2ComponentIds[e.CategoryId] = [];
+                            _catId2ComponentIds[e.CategoryId].Add(e.Id);
+                            if (e.Ref is not Proxy p) continue;
+                            var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
+                            try
+                            {
+                                _componentId2Component.Add(e.Id, await holder.Value());
+                            }
+                            catch (System.Exception ex)
+                            {
+                                Console.WriteLine(ex);
+                            }
                         }
+                    }
+                    catch (Capnp.Rpc.RpcException e)
+                    {
+                        Console.WriteLine("Error loading entries from " + ssrd.SturdyRef);
                     }
                 }
             }
@@ -234,58 +268,9 @@ namespace BlazorDrawFBP.Pages
         {
         }
 
-        private void CreateChannel(string name, PortModel sourcePort, CapnpFbpPortModel targetPort)
+        private void CreateChannel(PortModel outPort, CapnpFbpPortModel inPort)
         {
-            if (_channelStarterService == null) return;
-            var t = Task.Run(async () =>
-            {
-                if (targetPort.Channel == null) // there is no channel for the IN port yet
-                {
-                    var si = await _channelStarterService.Create(new StartChannelsService.Params
-                    {
-                        Name = name
-                    });
-                    if (si.Count <= 0 || si[0].ReaderSRs.Count <= 0 || si[0].WriterSRs.Count <= 0) return;
-                    switch (sourcePort)
-                    {
-                        case CapnpFbpPortModel sPort:
-                            sPort.ReaderWriterSturdyRef = si[0].WriterSRs[0];
-                            break;
-                        case CapnpFbpIipPortModel iipPort:
-                            iipPort.WriterSturdyRef = si[0].WriterSRs[0];
-                            break;
-                    }
-                    targetPort.ReaderWriterSturdyRef = si[0].ReaderSRs[0];
-                    // attach channel cap to IN port (target port)
-                    targetPort.Channel = await ConMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP>>(si[0].ChannelSR);
-                }
-                else
-                {
-                    var writerSr =
-                        Restorer.SturdyRefStr((await targetPort.Channel.Writer().Result.Save(null)).SturdyRef);
-                    switch (sourcePort)
-                    {
-                        case CapnpFbpPortModel sPort:
-                            sPort.ReaderWriterSturdyRef = writerSr;
-                            break;
-                        case CapnpFbpIipPortModel iipPort:
-                            iipPort.WriterSturdyRef = writerSr;
-                            break;
-                    }
-                    Debug.Assert(!string.IsNullOrEmpty(targetPort.ReaderWriterSturdyRef));// = Restorer.SturdyRefStr((await eps.Item1.Save(null)).SturdyRef));
-                }
-            });
-            if (targetPort.Channel == null) return;
-            switch (sourcePort)
-            {
-                case CapnpFbpPortModel sPort:
-                    sPort.ChannelTask = t;
-                    break;
-                case CapnpFbpIipPortModel iipPort:
-                    iipPort.ChannelTask = t;
-                    break;
-            }
-            targetPort.ChannelTask = t;
+            Shared.Shared.CreateChannel(ConMan, _channelStarterService, outPort, inPort);
         }
 
         private void RegisterEvents()
@@ -324,14 +309,12 @@ namespace BlazorDrawFBP.Pages
                                     if (newTarget.Model is not CapnpFbpPortModel outPort) return;
                                     var nl = new RememberCapnpPortsLinkModel(outPort.Parent, sourcePort.Parent)
                                     {
-                                        SourcePortModel = outPort,
-                                        TargetPortModel = sourcePort,
+                                        OutPortModel = outPort,
+                                        InPortModel = sourcePort,
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                    var chanName =
-                                        $"{outPort.Parent.Id}.{outPort.Name}->{sourcePort.Parent.Id}.{sourcePort.Name}";
-                                    if (InteractiveMode) CreateChannel(chanName, outPort, sourcePort);
+                                    if (InteractiveMode) CreateChannel(outPort, sourcePort);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                     nl.Labels.Add(cllm);
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.8));
@@ -354,14 +337,12 @@ namespace BlazorDrawFBP.Pages
                                     var nl = new RememberCapnpPortsLinkModel(sourcePort.Parent,
                                         inPort.Parent)
                                     {
-                                        SourcePortModel = sourcePort,
-                                        TargetPortModel = inPort,
+                                        OutPortModel = sourcePort,
+                                        InPortModel = inPort,
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                    var chanName =
-                                        $"{sourcePort.Parent.Id}.{sourcePort.Name}->{inPort.Parent.Id}.{inPort.Name}";
-                                    if (InteractiveMode) CreateChannel(chanName, sourcePort, inPort);
+                                    if (InteractiveMode) CreateChannel(sourcePort, inPort);
                                     InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                     nl.Labels.Add(cllm);
                                     nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
@@ -391,14 +372,12 @@ namespace BlazorDrawFBP.Pages
                             var nl = new RememberCapnpPortsLinkModel(iipPortModel.Parent,
                                 inPort.Parent)
                             {
-                                SourcePortModel = iipPortModel,
-                                TargetPortModel = inPort,
+                                OutPortModel = iipPortModel,
+                                InPortModel = inPort,
                             };
                             nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                             var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                            var chanName =
-                                $"{iipPortModel.Parent.Id}.iip->{inPort.Parent.Id}.{inPort.Name}";
-                            if (InteractiveMode) CreateChannel(chanName, iipPortModel, inPort);
+                            if (InteractiveMode) CreateChannel(iipPortModel, inPort);
                             InteractiveModeChanged += cllm.ToggleInteractiveMode;
                             nl.Labels.Add(cllm);
                             nl.TargetMarker = LinkMarker.Arrow;
@@ -582,8 +561,8 @@ namespace BlazorDrawFBP.Pages
                 if (targetPort is CapnpFbpPortModel tcp) tcp.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
                 
                 var l = new RememberCapnpPortsLinkModel(sourceNode, targetNode) {
-                    SourcePortModel = sourcePort,
-                    TargetPortModel = targetPort
+                    OutPortModel = sourcePort,
+                    InPortModel = targetPort
                 };
                 if (sourceNode is not CapnpFbpIipModel)
                 {
@@ -685,21 +664,21 @@ namespace BlazorDrawFBP.Pages
                     CapnpFbpIipPortModel outIipPort = null;
                     CapnpFbpPortModel outCapnpPort = null;
                     CapnpFbpPortModel inCapnpPort = null;
-                    switch (rcplm.TargetPortModel) {
+                    switch (rcplm.InPortModel) {
                         case CapnpFbpIipPortModel targetIipPort
-                            when rcplm.SourcePortModel is CapnpFbpPortModel sourceCapnpPort:
+                            when rcplm.OutPortModel is CapnpFbpPortModel sourceCapnpPort:
                             outIipPort = targetIipPort;
                             inCapnpPort = sourceCapnpPort;
                             break;
                         case CapnpFbpPortModel targetCapnpPort
-                            when rcplm.SourcePortModel is CapnpFbpIipPortModel sourceIipPort:
+                            when rcplm.OutPortModel is CapnpFbpIipPortModel sourceIipPort:
                         {
                             outIipPort = sourceIipPort;
                             inCapnpPort = targetCapnpPort;
                             break;
                         }
                         case CapnpFbpPortModel targetCapnpPort
-                            when rcplm.SourcePortModel is CapnpFbpPortModel sourceCapnpPort:
+                            when rcplm.OutPortModel is CapnpFbpPortModel sourceCapnpPort:
                             outCapnpPort = sourceCapnpPort;
                             inCapnpPort = targetCapnpPort;
                             break;
@@ -769,77 +748,19 @@ namespace BlazorDrawFBP.Pages
                 Convert.ToBase64String(Encoding.UTF8.GetBytes(dia.ToString())));
         }
 
-        protected async Task ClearDiagram()
+        public async Task ClearDiagram()
         {
             Diagram.Nodes.Clear();
             Diagram.Refresh();
         }
 
-        protected async Task CreatePythonFlow()
+        public async Task ExecuteFlow()
         {
-            // var dia = JObject.Parse(File.ReadAllText("Data/diagram_template.json"));
-            // HashSet<string> linkSet = new();
-            // foreach(var node in Diagram.Nodes)
-            // {
-            //     if (node is not PythonFbpComponentModel fbpNode) continue;
-            //
-            //     var cmdParams = new JObject();
-            //     foreach (var line in fbpNode.CmdParamString.Split('\n'))
-            //     {
-            //         var kv = line.Split('=');
-            //         cmdParams.Add(kv[0].Trim(), kv.Length == 2 ? kv[1].Trim() : "");
-            //     }
-            //     var jn = new JObject()
-            //     {
-            //         { "node_id", fbpNode.Id },
-            //         { "component_id", fbpNode.ComponentId },
-            //         { "user_name", fbpNode.UserName },
-            //         { "location", new JObject() { { "x", fbpNode.Position.X }, { "y", fbpNode.Position.Y } } },
-            //         {
-            //             "data", new JObject()
-            //             {
-            //                 { "path", fbpNode.PathToPythonFile },
-            //                 { "cmd_params", cmdParams }
-            //             }
-            //         }
-            //     };
-            //     if (dia["nodes"] is JArray nodes) nodes.Add(jn);
-            //
-            //     foreach (var pl in node.PortLinks)
-            //     {
-            //         if (!pl.IsAttached) continue;
-            //
-            //         if (pl.Source.Model is not CapnpFbpPortModel sourceCapnpPort ||
-            //             pl.Target.Model is not CapnpFbpPortModel targetCapnpPort) continue;
-            //
-            //         var checkS = $"{sourceCapnpPort.Parent.Id}.{sourceCapnpPort.Name}";
-            //         var checkT = $"{targetCapnpPort.Parent.Id}.{targetCapnpPort.Name}";
-            //         if (linkSet.Contains($"{checkS}->{checkT}") ||
-            //             linkSet.Contains($"{checkT}->{checkS}")) continue;
-            //         else linkSet.Add($"{checkS}->{checkT}");
-            //
-            //         var jl = new JObject()
-            //         {
-            //             { "source", new JObject()
-            //                 {
-            //                     { "node_id", sourceCapnpPort.Parent.Id }, 
-            //                     { "port", sourceCapnpPort.Name }
-            //                 } 
-            //             },
-            //             { "target", new JObject()
-            //                 {
-            //                     { "node_id", targetCapnpPort.Parent.Id }, 
-            //                     { "port", targetCapnpPort.Name }
-            //                 } 
-            //             }
-            //         };
-            //         if (dia["links"] is JArray links) links.Add(jl);
-            //     }
-            // }
-            //
-            // //File.WriteAllText("Data/diagram_new.json", dia.ToString());
-            // await JsRuntime.InvokeVoidAsync("saveAsBase64", "diagram.json", 
-            //     Convert.ToBase64String(Encoding.UTF8.GetBytes(dia.ToString())));
+            foreach(var node in Diagram.Nodes)
+            {
+                if (node is not CapnpFbpComponentModel fbpNode) continue;
+                await fbpNode.StartProcess(ConMan, true);
+            }
         }
         
         //private JObject _draggedComponent;

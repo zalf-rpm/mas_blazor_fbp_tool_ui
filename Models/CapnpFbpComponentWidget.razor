@@ -33,7 +33,7 @@
                                      ToggledColor="@Color.Secondary" 
                                      ToggledTitle="Parallel Off"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
-                                     Toggled="@_processStarted"
+                                     Toggled="@ProcessStarted"
                                      ToggledChanged="@StartProcess"
                                      Icon="@Icons.Material.Filled.PlayCircle"
                                      Color="@Color.Primary" 
@@ -186,109 +186,7 @@
 
     private async Task StartProcess(bool start)
     {
-        try
-        {
-            if (Node.ChannelStarterService == null || Node.Runnable == null) return;
-
-            Console.WriteLine($"StartProcess start={start}");
-
-            if (start) // stop
-            {
-                List<Mas.Schema.Fbp.PortInfos.NameAndSR> inPortSRs = [];
-                List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
-                foreach (var pl in Node.Links)
-                {
-                    if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
-
-                    List<PortModel> ps = [rcplm.TargetPortModel];
-                    if (rcplm.SourcePortModel is CapnpFbpIipPortModel iipp) ps.Add(iipp);
-                    else continue;
-
-                    foreach (var p in ps)
-                    {
-                        switch (p)
-                        {
-                            case CapnpFbpPortModel port:
-                                if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null)
-                                {
-                                    Console.WriteLine("awaiting port.ChannelTask");
-                                    await port.ChannelTask;
-                                }
-                                switch (port.ThePortType)
-                                {
-                                    case CapnpFbpPortModel.PortType.In:
-                                        inPortSRs.Add(new PortInfos.NameAndSR
-                                        {
-                                            Name = port.Name,
-                                            Sr = port.ReaderWriterSturdyRef,
-                                        });
-                                        break;
-                                    case CapnpFbpPortModel.PortType.Out:
-                                        outPortSRs.Add(new PortInfos.NameAndSR
-                                        {
-                                            Name = port.Name,
-                                            Sr = port.ReaderWriterSturdyRef,
-                                        });
-                                        break;
-                                }
-
-                                break;
-                            case CapnpFbpIipPortModel iipPort:
-                                if (iipPort.Parent is not CapnpFbpIipModel iipModel) continue;
-                                if (iipPort.WriterSturdyRef == null && iipPort.ChannelTask != null)
-                                {
-                                    Console.WriteLine("awaiting iipPort.ChannelTask");
-                                    await iipPort.ChannelTask;
-                                }
-
-                                Task.Run(async () =>
-                                {
-                                    var content = iipModel.Content;
-                                    Console.WriteLine($"before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
-                                    iipPort.Writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
-                                    await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
-                                    Console.WriteLine("after connecting to writer for iip");
-                                });
-                                break;
-                        }
-                    }
-                }
-                Console.WriteLine("Trying to start channel");
-                var si = await Node.ChannelStarterService.Create(new StartChannelsService.Params
-                {
-                    Name = $"config_{Node.ProcessName}"
-                });
-                Console.WriteLine($"Channel started si.Count={si.Count}, si[0].ReaderSRs.Count={si[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si[0].WriterSRs.Count}");
-                if (si.Count == 0 || si[0].ReaderSRs.Count == 0 || si[0].WriterSRs.Count == 0) return;
-                _processStarted = await Node.Runnable.Start(si[0].ReaderSRs[0]);
-                if (!_processStarted) return;
-                Console.WriteLine($"Runnable started: {_processStarted}");
-                using var writer = await ConMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si[0].WriterSRs[0]);
-                await writer.Write(new Channel<PortInfos>.Msg
-                {
-                    Value = new PortInfos
-                    {
-                        InPorts = inPortSRs,
-                        OutPorts = outPortSRs,
-                    }
-                });
-                Console.WriteLine("Wrote PortInfos to PortInfoChannel");
-                //close writer
-                await writer.Close();
-
-                //close port infos channel
-                using var channel = await ConMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
-                await channel.Close(false);
-            }
-            else // stop
-            {
-                _processStarted = await Node.Runnable.Stop();
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("Caught exception: " + e);
-        }
+        ProcessStarted = await Node.StartProcess(ConMan, start);
         StateHasChanged();
     }
 

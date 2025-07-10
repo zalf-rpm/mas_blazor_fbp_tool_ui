@@ -53,13 +53,13 @@
                                        OnClick="ClearButtonClicked">
                                 @(ClearButtonDisabled ? "Clear Diagram" : "Clear Diagram")
                             </MudButton>
-                            @* <MudButton StartIcon="@Icons.Material.Filled.Download" *@
-                            @*            Variant="@Variant.Filled" *@
-                            @*            Color="@Color.Primary" *@
-                            @*            FullWidth="true" *@
-                            @*            @onclick="CreatePythonFlow"> *@
-                            @*     Create Flow *@
-                            @* </MudButton> *@
+                            <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                                       Variant="@Variant.Filled"
+                                       Color="@Color.Default"
+                                       FullWidth="true"
+                                       @onclick="@ExecuteFlow">
+                                Execute flow
+                            </MudButton>
                         </MudStack>
                     </MudExpansionPanel>
                     <MudSwitch @bind-Value="@InteractiveMode" 
