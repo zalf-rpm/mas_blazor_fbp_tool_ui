@@ -10,48 +10,26 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpComponentModel : NodeModel
+public class CapnpFbpComponentModel(Point position = null) : NodeModel(position), IDisposable
 {
-    public CapnpFbpComponentModel(Point position = null) : base(position) {}
-    
-    // the id of component
     public string ComponentId { get; set; }
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
     public string ShortDescription { get; set; }
     public string Cmd { get; set; }
-
     public int InParallelCount { get; set; } = 1;
-    
     public bool Editable { get; set; } = true;
-    
     public static int ProcessNo { get; set; } = 0;
-    
-    // if null PathToFile is a standalone executable, else a script needing the interpreter
-    //public string PathToInterpreter { get; set; } = null;
-    
-    // public struct CmdParam
-    // {
-    //     public string Name { get; set; }
-    //     public string Value { get; set; }
-    // }
-    //
-    // public void AddEmptyCmdParam()
-    // {
-    //     CmdParameters.Add(new CmdParam { Name = "", Value = "" });
-    // }
-    // public readonly List<CmdParam> CmdParameters = new();
     public string DefaultConfigString { get; set; }
-
     public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
-    public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; set; }
+    public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
+    public bool ProcessStarted { get; private set; }
 
-    public async Task<bool> StartProcess(ConnectionManager conMan, bool start)
+    public async Task StartProcess(ConnectionManager conMan, bool start)
     {
-        var processStarted = false;
         try
         {
-            if (ChannelStarterService == null || Runnable == null) return false;
+            if (ChannelStarterService == null || Runnable == null) return;
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
@@ -74,6 +52,8 @@ public class CapnpFbpComponentModel : NodeModel
                         case CapnpFbpPortModel.PortType.Out:
                             outPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
                             break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
                     }
                 }
 
@@ -87,7 +67,7 @@ public class CapnpFbpComponentModel : NodeModel
                     // the IN port (link) is not associated with a channel yet -> create channel
                     if (inPort.ReaderWriterSturdyRef == null && inPort.ChannelTask == null)
                     {
-                        if (inPort.Parent is not CapnpFbpComponentModel m) return false;
+                        if (inPort.Parent is not CapnpFbpComponentModel m) return;
                         await Shared.Shared.CreateChannel(conMan, m.ChannelStarterService, rcplm.OutPortModel, inPort);
                     }
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
@@ -122,16 +102,16 @@ public class CapnpFbpComponentModel : NodeModel
 
                 //start temporary port info channel and send port infos to component
                 Console.WriteLine($"{ProcessName}: Trying to start port info channel");
-                var si = await ChannelStarterService.Create(new StartChannelsService.Params
+                var si = await ChannelStarterService.Start(new StartChannelsService.Params
                 {
                     Name = $"config_{ProcessName}"
                 });
-                Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Count}, si[0].ReaderSRs.Count={si[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si[0].WriterSRs.Count}");
-                if (si.Count == 0 || si[0].ReaderSRs.Count == 0 || si[0].WriterSRs.Count == 0) return false;
-                processStarted = await Runnable.Start(si[0].ReaderSRs[0], ProcessName);
-                if (!processStarted) return false;
-                Console.WriteLine($"{ProcessName}: Runnable started: {processStarted}");
-                using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si[0].WriterSRs[0]);
+                Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
+                if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0) return;
+                ProcessStarted = await Runnable.Start(si.Item1[0].ReaderSRs[0], ProcessName);
+                if (!ProcessStarted) return;
+                Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
+                using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
                 await writer.Write(new Channel<PortInfos>.Msg
                 {
                     Value = new PortInfos
@@ -145,21 +125,34 @@ public class CapnpFbpComponentModel : NodeModel
                 await writer.Close();
 
                 //close port infos channel
-                using var channel = await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
-                await channel.Close(false);
+                await si.Item2.Stop();
+                si.Item2.Dispose();
+                //using var channel = await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
+                //await channel.Close(false);
             }
             else // stop
             {
-                processStarted = await Runnable.Stop();
+                ProcessStarted = await Runnable.Stop();
             }
         }
         catch (Exception e)
         {
             Console.WriteLine($"{ProcessName}: Caught exception: " + e);
         }
-
-        return processStarted;
     }
 
 
+    public void Dispose()
+    {
+        Console.WriteLine($"{ProcessName}: Disposing");
+        if (Runnable != null)
+        {
+            Task.Run(async () => await Runnable.Stop()).ContinueWith(t => Runnable.Dispose());
+        }
+        ChannelStarterService?.Dispose();
+        foreach (var port in Ports)
+        {
+            if (port is IDisposable disposable) disposable.Dispose();
+        }
+    }
 }

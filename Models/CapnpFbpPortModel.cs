@@ -30,6 +30,7 @@ public class CapnpFbpPortModel : PortModel, IDisposable
     public string ReaderWriterSturdyRef { get; set; }
 
     public Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP> Channel { get; set; }
+    public Mas.Schema.Service.IStoppable StopChannel { get; set; }
 
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 
@@ -63,7 +64,12 @@ public class CapnpFbpPortModel : PortModel, IDisposable
 
     public void Dispose()
     {
-        ChannelTask?.Dispose();
+        Console.WriteLine($"Port {Name}: Disposing");
         Channel?.Dispose();
+        if (StopChannel != null && ThePortType == PortType.In)
+        {
+            Task.Run(async () => await StopChannel.Stop()).ContinueWith(t => StopChannel.Dispose());
+        }
+        //ChannelTask?.Dispose();
     }
 }

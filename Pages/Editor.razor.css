@@ -9,7 +9,8 @@
 }
 
 ::deep .diagram-node.selected {
-    border: 1px solid #6e9fd4;
+    border: 2px solid #6e9fd4;
+    border-radius: var(--mud-default-borderradius);
 }
 
 /*::deep .diagram-node .selected .port {*/

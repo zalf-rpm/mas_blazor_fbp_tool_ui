@@ -13,7 +13,7 @@
 @using Mas.Schema.Fbp
 
 <div>
-    <MudCard Style="@MinHeight">
+    <MudCard Style="@CardStyle">
         <MudCardHeader>
             @*<CardHeaderAvatar>
                 <MudAvatar Color="Color.Secondary"
@@ -163,7 +163,12 @@
 
 @code {
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
-    
+
+    private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
+
+    private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
+    private string FrameColor => $@"border-color: {(Node.Runnable == null ? "#6e9fd4" : (ProcessStarted ? "#1ac12e" : "#ff0000"))}";
+
     private string MinHeight =>
         $@"min-height: {Math.Max(100, Math.Max(
             Node.Ports.Count(p =>
@@ -186,24 +191,12 @@
 
     private async Task StartProcess(bool start)
     {
-        ProcessStarted = await Node.StartProcess(ConMan, start);
+        await Node.StartProcess(ConMan, start);
         StateHasChanged();
     }
 
-    private bool _processStarted = false;
-    private bool ProcessStarted
-    {
-        get => _processStarted;
-        set => _processStarted = value;
-    }
+    private bool ProcessStarted => Node.ProcessStarted;
 
-    private async void NotifyOfNewOutPort()
-    {
-        Console.WriteLine("sending new out port message");
-        //await Node.PortCallback.NewOutPort("out", null);
-        Console.WriteLine("sent new out port message");
-    }
-    
     private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new()
     {
         { 1, new List<int> { 0 } },
@@ -219,20 +212,7 @@
         { 11, new List<int> { 50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50 } },
     };
 
-    private readonly List<int> _topBottomOffsets = new() { -40, -30, -20, -10, 0, 10, 20, 30, 40 };
+    private readonly List<int> _topBottomOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
 
     private readonly Dictionary<PortAlignment, int> _portCounts = new();
-
-    static string InterpreterShortcut(string path)
-    {
-        if (path == null) return "Exe";
-        if (path.Contains("python")) return "Py";
-        if (path.Contains("python3")) return "Py3";
-        if (path.Contains("node")) return "Js";
-        return "";
-    }
-
-
-
-
 }

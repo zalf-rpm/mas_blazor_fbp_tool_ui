@@ -200,7 +200,7 @@ namespace BlazorDrawFBP.Pages
                         _channelStarterService =
                             await ConMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(ssrd.SturdyRef);
                     }
-                    catch (Capnp.Rpc.RpcException e)
+                    catch (Capnp.Rpc.RpcException)
                     {
                         Console.WriteLine("Couldn't connect to channel starter service @ " + ssrd.SturdyRef);
                     }
@@ -212,7 +212,7 @@ namespace BlazorDrawFBP.Pages
                     {
                         reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
                     }
-                    catch (Capnp.Rpc.RpcException e)
+                    catch (Capnp.Rpc.RpcException)
                     {
                         Console.WriteLine("Couldn't connect to components registry @ " + ssrd.SturdyRef);
                         continue;
@@ -231,7 +231,7 @@ namespace BlazorDrawFBP.Pages
                                 };
                         }
                     }
-                    catch (Capnp.Rpc.RpcException e)
+                    catch (Capnp.Rpc.RpcException)
                     {
                         Console.WriteLine("Error loading supported categories from " + ssrd.SturdyRef);
                     }
@@ -255,7 +255,7 @@ namespace BlazorDrawFBP.Pages
                             }
                         }
                     }
-                    catch (Capnp.Rpc.RpcException e)
+                    catch (Capnp.Rpc.RpcException)
                     {
                         Console.WriteLine("Error loading entries from " + ssrd.SturdyRef);
                     }
@@ -750,6 +750,10 @@ namespace BlazorDrawFBP.Pages
 
         public async Task ClearDiagram()
         {
+            foreach(var node in Diagram.Nodes)
+            {
+                if (node is IDisposable disposable) disposable.Dispose();
+            }
             Diagram.Nodes.Clear();
             Diagram.Refresh();
         }
@@ -760,7 +764,9 @@ namespace BlazorDrawFBP.Pages
             {
                 if (node is not CapnpFbpComponentModel fbpNode) continue;
                 await fbpNode.StartProcess(ConMan, true);
+                fbpNode.Refresh();
             }
+            StateHasChanged();
         }
         
         //private JObject _draggedComponent;

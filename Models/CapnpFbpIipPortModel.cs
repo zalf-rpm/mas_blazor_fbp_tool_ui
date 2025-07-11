@@ -38,7 +38,8 @@ public class CapnpFbpIipPortModel : PortModel, IDisposable
 
     public void Dispose()
     {
-        ChannelTask?.Dispose();
+        Console.WriteLine($"IIP: Disposing");
+        //ChannelTask?.Dispose();
         Writer?.Dispose();
     }
 }

@@ -38,26 +38,28 @@ namespace BlazorDrawFBP.Shared
             {
                 if (inPort.Channel == null) // there is no channel for the IN port yet
                 {
-                    var si = await css.Create(new StartChannelsService.Params
+                    var si = await css.Start(new StartChannelsService.Params
                     {
                         Name = $"{NodeNameFromPort(outPort)}.{PortName(outPort)}->" +
                                $"{NodeNameFromPort(inPort)}.{PortName(inPort)}"
                     });
-                    if (si.Count <= 0 || si[0].ReaderSRs.Count <= 0 || si[0].WriterSRs.Count <= 0) return;
+                    if (si.Item1.Count <= 0 || si.Item1[0].ReaderSRs.Count <= 0 || si.Item1[0].WriterSRs.Count <= 0) return;
                     switch (outPort)
                     {
                         case CapnpFbpPortModel sPort:
-                            sPort.ReaderWriterSturdyRef = si[0].WriterSRs[0];
+                            sPort.ReaderWriterSturdyRef = si.Item1[0].WriterSRs[0];
                             break;
                         case CapnpFbpIipPortModel iipPort:
-                            iipPort.WriterSturdyRef = si[0].WriterSRs[0];
+                            iipPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
                             break;
                     }
 
-                    inPort.ReaderWriterSturdyRef = si[0].ReaderSRs[0];
+                    inPort.ReaderWriterSturdyRef = si.Item1[0].ReaderSRs[0];
                     // attach channel cap to IN port (target port)
                     inPort.Channel =
-                        await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP>>(si[0].ChannelSR);
+                        await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP>>(si.Item1[0].ChannelSR);
+                    // attach stop channel cap to IN port
+                    inPort.StopChannel = si.Item2;
                 }
                 else
                 {
