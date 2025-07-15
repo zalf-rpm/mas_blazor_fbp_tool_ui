@@ -124,11 +124,14 @@ public class CapnpFbpComponentModel(Point position = null) : NodeModel(position)
                 //close writer
                 await writer.Close();
 
+                //commented out because closing the channel at this point will make it unavailable for the component
+                //we have to rely on closing the writer will close down the channel properly after last message being read
+                //from the reader
                 //close port infos channel
-                await si.Item2.Stop();
-                si.Item2.Dispose();
-                //using var channel = await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si[0].ChannelSR);
-                //await channel.Close(false);
+                //await si.Item1[0].Channel.Close(true);
+                //si.Item2.Dispose();
+                //using var channel = await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si.Item1[0].ChannelSR);
+                //await channel.Close(true);
             }
             else // stop
             {

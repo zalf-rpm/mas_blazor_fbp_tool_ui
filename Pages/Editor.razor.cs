@@ -169,6 +169,7 @@ namespace BlazorDrawFBP.Pages
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            Console.WriteLine($"Editor: OnAfterRenderAsync firstRender: {firstRender}");
             if (!firstRender) return;
             if (!await LocalStorage.ContainKeyAsync("sturdy-ref-store")) return;
             var allBookmarks = await StoredSRData.GetAllData(LocalStorage);
@@ -199,6 +200,7 @@ namespace BlazorDrawFBP.Pages
                     {
                         _channelStarterService =
                             await ConMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(ssrd.SturdyRef);
+                        Console.WriteLine("Connected to channel starter service @ " + ssrd.SturdyRef);
                     }
                     catch (Capnp.Rpc.RpcException)
                     {
@@ -211,6 +213,7 @@ namespace BlazorDrawFBP.Pages
                     try
                     {
                         reg = await ConMan.Connect<Mas.Schema.Registry.IRegistry>(ssrd.SturdyRef);
+                        Console.WriteLine("Connected to components registry @ " + ssrd.SturdyRef);
                     }
                     catch (Capnp.Rpc.RpcException)
                     {
@@ -230,6 +233,7 @@ namespace BlazorDrawFBP.Pages
                                     Description = cat.Description ?? cat.Name ?? cat.Id
                                 };
                         }
+                        Console.WriteLine("Loaded supported categories from " + ssrd.SturdyRef);
                     }
                     catch (Capnp.Rpc.RpcException)
                     {
@@ -254,6 +258,7 @@ namespace BlazorDrawFBP.Pages
                                 Console.WriteLine(ex);
                             }
                         }
+                        Console.WriteLine("Loaded entries from " + ssrd.SturdyRef);
                     }
                     catch (Capnp.Rpc.RpcException)
                     {
