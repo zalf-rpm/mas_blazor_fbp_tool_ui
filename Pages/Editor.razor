@@ -6,6 +6,7 @@
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 
+@using System.Collections.Immutable
 @using Blazor.Diagrams.Components.Widgets
 @using BlazorDrawFBP.Models
 @using Newtonsoft.Json.Linq
@@ -27,7 +28,7 @@
                             @*            @onclick="RemoveNode"> *@
                             @*     Remove Node *@
                             @* </MudButton> *@
-                            <MudFileUpload T="IBrowserFile" 
+                            <MudFileUpload T="IBrowserFile"
                                            FilesChanged="LoadDiagram"
                                            Style="margin-top:0;">
                                 <ActivatorContent>
@@ -46,11 +47,12 @@
                                        @onclick="SaveDiagram">
                                 Save Diagram
                             </MudButton>
-                            <MudButton StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                                       Variant="@Variant.Filled"
-                                       Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                                       FullWidth="true"
-                                       OnClick="ClearButtonClicked">
+                            <MudButton
+                                StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+                                Variant="@Variant.Filled"
+                                Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+                                FullWidth="true"
+                                OnClick="ClearButtonClicked">
                                 @(ClearButtonDisabled ? "Clear Diagram" : "Clear Diagram")
                             </MudButton>
                             <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
@@ -62,22 +64,23 @@
                             </MudButton>
                         </MudStack>
                     </MudExpansionPanel>
-                    <MudSwitch @bind-Value="@InteractiveMode" 
-                               Label="Interactive" 
+                    <MudSwitch @bind-Value="@InteractiveMode"
+                               Label="Interactive"
                                Color="Color.Success"
                                Style="padding-left: 10px"/>
-                    <MudTextField @bind-Value="@_query" 
-                                  Label="Search component ..." 
+                    <MudTextField @bind-Value="@_query"
+                                  Label="Search component ..."
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Cancel"
                                   OnAdornmentClick="() => { _query = null; }"/>
-                    @foreach (var (catId, compIds) in _catId2ComponentIds)
+                    @foreach (var catId in sortedCatIds)
                     {
+                        var compIds = _catId2ComponentIds[catId];
                         <MudExpansionPanel Text="@(_catId2Info[catId].Name)"
                                            Expanded="@(!string.IsNullOrWhiteSpace(_query)
-                                                    || _expandedPanels.GetValueOrDefault(catId, false))"
+                                                     || _expandedPanels.GetValueOrDefault(catId, false))"
                                            ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
                             <MudStack Spacing="1">
                                 @foreach (var compId in compIds)
@@ -86,41 +89,47 @@
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
 
-                                    if (!string.IsNullOrWhiteSpace(_query) && 
+                                    if (!string.IsNullOrWhiteSpace(_query) &&
                                         comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
                                         desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
                                     {
                                         continue;
                                     }
-                                    <MudCard>
-                                        <MudCardHeader>
-                                            <CardHeaderContent>
-                                                <MudText>@comp.Info.Name</MudText>
-                                                <!--<MudText Typo="Typo.body1" >(@catId)</MudText>-->
-                                                <MudText Typo="Typo.body2">@desc</MudText>
-                                            </CardHeaderContent>
-                                            <!--<CardHeaderActions>
-                                                <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Default"/>
-                                            </CardHeaderActions>-->
-                                        </MudCardHeader>
-                                        @* <MudCardMedia Image="/img/DefaultNodeWidget.png" Height="100"/> *@
-                                        <MudCardContent>
-                                            <MudTooltip Text="@comp.Info.Name">
-                                                <ChildContent>
-                                                    <MudImage Src="/img/DefaultNodeWidget.png"
-                                                              Alt="Capnp node"
-                                                              Class="rounded-lg"
-                                                            draggable="@true"
-                                                            @ondragstart="() => OnNodeDragStart(comp)"/>
-                                                </ChildContent>
-                                                <TooltipContent>
-                                                    <MudText Typo="Typo.h6">@comp.Info.Name</MudText>
-                                                    <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
-                                                    <!--<MudIcon Icon="@Icons.Material.Filled.Star"/>-->
-                                                </TooltipContent>
-                                            </MudTooltip>
-                                        </MudCardContent>
-                                    </MudCard>
+
+                                    if (string.IsNullOrEmpty(comp.Info.Description))
+                                    {
+                                        <MudButton style="cursor: grab;"
+                                                   draggable="true"
+                                                   @ondragstart="() => OnNodeDragStart(comp)"
+                                                   Variant="Variant.Filled"
+                                                   StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                   IconColor="Color.Primary"
+                                                   Color="Color.Default"
+                                                   FullWidth="true"
+                                                   Size="Size.Large">
+                                            @comp.Info.Name
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip>
+                                            <ChildContent>
+                                                <MudButton style="cursor: grab;"
+                                                           draggable="true"
+                                                           @ondragstart="() => OnNodeDragStart(comp)"
+                                                           Variant="Variant.Filled"
+                                                           StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                           IconColor="Color.Primary"
+                                                           FullWidth="true"
+                                                           Color="Color.Default">
+                                                    @comp.Info.Name
+                                                </MudButton>
+                                            </ChildContent>
+                                            <TooltipContent>
+                                                <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
+                                            </TooltipContent>
+                                        </MudTooltip>
+                                    }
                                 }
                             </MudStack>
                         </MudExpansionPanel>
@@ -129,7 +138,8 @@
             </MudPaper>
         </MudItem>
         <MudItem xs="10">
-            <MudPaper Outlined="true" class="diagram-container" ondragover="event.preventDefault();" @ondrop="OnNodeDrop">
+            <MudPaper Outlined="true" class="diagram-container" ondragover="event.preventDefault();"
+                      @ondrop="OnNodeDrop">
                 <CascadingValue Value="Diagram" IsFixed="true">
                     <DiagramCanvas>
                         <Widgets>
@@ -150,7 +160,8 @@
     private bool ClearButtonDisabled { get; set; } = true;
     private Editor _editor;
     private string _query;
-    private Dictionary<string, bool> _expandedPanels = new() { {"generic", true} };
+    private const string DefaultCatId = "default";
+    private Dictionary<string, bool> _expandedPanels = new() { {DefaultCatId, true} };
     private bool _interactiveMode = false;
     private bool InteractiveMode { 
         get => _interactiveMode; 
@@ -160,7 +171,18 @@
         }
     }
     public event Action<bool> InteractiveModeChanged;
-    
+
+    private IEnumerable<(string, Component)> catId2Component =>
+        _catId2ComponentIds.SelectMany(kv =>
+            kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
+                (catIdCompId.Key, _componentId2Component[catIdCompId.compId]));
+
+    private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
+            .Concat(_catId2ComponentIds.Keys
+            .Where(catId => catId != DefaultCatId)
+            .ToImmutableSortedSet()
+            .AsEnumerable());
+
     private void ClearButtonClicked()
     {
         if (ClearButtonDisabled)

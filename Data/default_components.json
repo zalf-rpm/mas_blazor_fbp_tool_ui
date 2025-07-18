@@ -1,6 +1,6 @@
 {
   "categories": [
-    {"id": "default", "name": "0 Default"}
+    {"id": "default", "name": "Default"}
   ],
   "entries": [
     {
@@ -9,7 +9,7 @@
         "info": {
           "id": "iip",
           "name": "IIP",
-          "description": "Initial Information Packet"
+          "description": "Initial Information Packet, e.g. for config ports."
         },
         "type": "iip",
         "inPorts": [
@@ -23,7 +23,7 @@
         "info": {
           "id": "empty_component",
           "name": "Empty component",
-          "description": "Generic component"
+          "description": "An empty generic component with an input and output port."
         },
         "type": "standard",
         "inPorts": [
