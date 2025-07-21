@@ -220,6 +220,7 @@ namespace BlazorDrawFBP.Pages
                         Console.WriteLine("Couldn't connect to components registry @ " + ssrd.SturdyRef);
                         continue;
                     }
+                    if (reg == null) continue;
                     try
                     {
                         _registries.Add(Capnp.Rpc.Proxy.Share(reg));
@@ -536,6 +537,7 @@ namespace BlazorDrawFBP.Pages
                 oldNodeIdToNewNode.Add(nodeObj["node_id"]?.ToString() ?? "", diaNode);
             }
 
+
             foreach (var link in dia["links"] ?? new JArray())
             {
                 if (link["source"] is not JObject source || link["target"] is not JObject target) continue;
@@ -552,14 +554,24 @@ namespace BlazorDrawFBP.Pages
                 var sourcePort = sourceNode.Ports.Where(p => 
                         p is CapnpFbpPortModel capnpPort && capnpPort.Name == sourcePortName)
                     .DefaultIfEmpty(null).First();
+                var noOfSourcePorts = sourceNode.Ports.Count(p => p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out });
                 var targetPort = targetNode.Ports.Where(p => 
                         p is CapnpFbpPortModel capnpPort && capnpPort.Name == targetPortName)
                     .DefaultIfEmpty(null).First();
+                var noOfTargetPorts = sourceNode.Ports.Count(p => p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In });
                 // might be an IIP
                 sourcePort ??= sourceNode.Ports.Where(p =>
                         p is CapnpFbpIipPortModel iipPort && iipPort.Alignment.ToString() == sourcePortName)
                     .DefaultIfEmpty(null).First();
-                if (sourcePort == null || targetPort == null) continue;
+                if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
+                {
+                    AddPortControl.CreateAndAddPort(sn, CapnpFbpPortModel.PortType.Out, noOfSourcePorts+1, sourcePortName);
+                }
+                if (targetPort == null  && targetNode is CapnpFbpComponentModel tn)
+                {
+                    AddPortControl.CreateAndAddPort(tn, CapnpFbpPortModel.PortType.In, noOfTargetPorts+1, targetPortName);
+                }
+                //if (sourcePort == null || targetPort == null) continue;
                 //Diagram.Links.Add(new LinkModel(sourcePort, targetPort));
 
                 if (sourcePort is CapnpFbpPortModel scp) scp.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
