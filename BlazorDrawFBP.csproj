@@ -35,6 +35,11 @@
     <Content Remove="mas_blazor_components\**" />
     <Content Remove="mas_csharp_common\**" />
     <Content Remove="mas_capnproto_schemas\**" />
+    <Content Update="Data\diagram_template.mmd">
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

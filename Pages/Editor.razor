@@ -29,14 +29,14 @@
                             @*     Remove Node *@
                             @* </MudButton> *@
                             <MudFileUpload T="IBrowserFile"
-                                           FilesChanged="LoadDiagram"
+                                           FilesChanged="LoadFlow"
                                            Style="margin-top:0;">
                                 <ActivatorContent>
                                     <MudButton StartIcon="@Icons.Material.Filled.Upload"
                                                Variant="@Variant.Filled"
                                                Color="@Color.Primary"
                                                FullWidth="true">
-                                        Load Diagram
+                                        Load Flow
                                     </MudButton>
                                 </ActivatorContent>
                             </MudFileUpload>
@@ -44,8 +44,15 @@
                                        Variant="@Variant.Filled"
                                        Color="@Color.Primary"
                                        FullWidth="true"
-                                       @onclick="SaveDiagram">
-                                Save Diagram
+                                       @onclick="() => SaveFlow(false)">
+                                Save Flow
+                            </MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                       Variant="@Variant.Filled"
+                                       Color="@Color.Primary"
+                                       FullWidth="true"
+                                       @onclick="() => SaveFlow(true)">
+                                Export as Mermaid Flow
                             </MudButton>
                             <MudButton
                                 StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
@@ -53,7 +60,7 @@
                                 Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
                                 FullWidth="true"
                                 OnClick="ClearButtonClicked">
-                                @(ClearButtonDisabled ? "Clear Diagram" : "Clear Diagram")
+                                @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
                             </MudButton>
                             <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
                                        Variant="@Variant.Filled"
