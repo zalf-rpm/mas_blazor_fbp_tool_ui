@@ -565,11 +565,11 @@ namespace BlazorDrawFBP.Pages
                     .DefaultIfEmpty(null).First();
                 if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
                 {
-                    sourcePort = AddPortControl.CreateAndAddPort(sn, CapnpFbpPortModel.PortType.Out, noOfSourcePorts+1, sourcePortName);
+                    sourcePort = AddPortControl.CreateAndAddPort(sn, CapnpFbpPortModel.PortType.Out, noOfSourcePorts, sourcePortName);
                 }
                 if (targetPort == null  && targetNode is CapnpFbpComponentModel tn)
                 {
-                    targetPort = AddPortControl.CreateAndAddPort(tn, CapnpFbpPortModel.PortType.In, noOfTargetPorts+1, targetPortName);
+                    targetPort = AddPortControl.CreateAndAddPort(tn, CapnpFbpPortModel.PortType.In, noOfTargetPorts, targetPortName);
                 }
                 //if (sourcePort == null || targetPort == null) continue;
                 //Diagram.Links.Add(new LinkModel(sourcePort, targetPort));
@@ -594,6 +594,8 @@ namespace BlazorDrawFBP.Pages
             }
         }
 
+        private const int IipIdLength = 10;
+        private const int ProcIdLength = 20;
         protected async Task SaveFlow(bool asMermaid)
         {
             var dia = asMermaid ? null
@@ -601,19 +603,63 @@ namespace BlazorDrawFBP.Pages
             HashSet<string> linkSet = [];
             StringBuilder sb = new();
             if (asMermaid) sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
-            var procIdCount = 1;
-            var iipIdCount = 1;
-            Dictionary<string, int> uuid2ShortProcId = new();
-            Dictionary<string, int> uuid2ShortIipId = new();
-            int ShortProcId(string oldId)
+
+            var procIdCount = 2;
+            HashSet<string> shortProcIds = [];
+            Dictionary<string, string> uuid2ShortProcId = new();
+            string ShortProcId(string oldId, string procName)
             {
-                if (!uuid2ShortProcId.ContainsKey(oldId)) uuid2ShortProcId.Add(oldId, procIdCount++);
-                return uuid2ShortProcId[oldId];
+                if (uuid2ShortProcId.TryGetValue(oldId, out var value)) return value;
+
+                var procNameShortened = procName.Length > ProcIdLength
+                    ? procName.Split('\n')[0][..ProcIdLength] : procName;
+                var shortProcId = procNameShortened.Length < procName.Length ? $"{procNameShortened}..." : procNameShortened;
+                if (shortProcIds.Contains(shortProcId)) shortProcId = $"{shortProcId} ({procIdCount++})";
+                uuid2ShortProcId[oldId] = shortProcId;
+                shortProcIds.Add(shortProcId);
+                return shortProcId;
             }
-            int ShortIipId(string oldId)
+
+            var iipIdCount = 2;
+            HashSet<string> shortIipIds = [];
+            Dictionary<string, string> uuid2ShortIipId = new();
+            string ShortIipId(string oldId, string iipContent)
             {
-                if (!uuid2ShortIipId.ContainsKey(oldId)) uuid2ShortIipId.Add(oldId, iipIdCount++);
-                return uuid2ShortIipId[oldId];
+                if (uuid2ShortIipId.TryGetValue(oldId, out var value)) return value;
+
+                var iipContentShortened = iipContent.Length > IipIdLength
+                    ? iipContent.Split('\n')[0][..IipIdLength] : iipContent;
+                var shortIipId = $"IIP [{iipContentShortened}...]";
+                if (shortIipIds.Contains(shortIipId)) shortIipId = $"{shortIipId} ({iipIdCount++})";
+                uuid2ShortIipId[oldId] = shortIipId;
+                shortIipIds.Add(shortIipId);
+                return shortIipId;
+            }
+
+            string MermaidEscapeQuotes(string str) => str.Replace("\"", "&quot;");
+
+            string CreateMermaidId(string id)
+            {
+                var newId = new StringBuilder();
+                foreach (var c in id) newId.Append(char.IsLetterOrDigit(c) ? c : '_');
+                //now remove all repeated _ from name
+                var newId2 = new StringBuilder();
+                var foundUnderscore = false;
+                foreach (var c in newId.ToString())
+                {
+                    if (c != '_')
+                    {
+                        newId2.Append(c);
+                        foundUnderscore = false;
+                    }
+                    else if (!foundUnderscore)
+                    {
+                        newId2.Append(c);
+                        foundUnderscore = true;
+                    }
+                }
+                var newId2Str = newId2.ToString();
+                return newId2Str[^1] == '_' ? newId2Str[..^1] : newId2Str;
             }
 
             foreach(var node in Diagram.Nodes)
@@ -622,19 +668,13 @@ namespace BlazorDrawFBP.Pages
                 {
                     case CapnpFbpComponentModel fbpNode:
                     {
-                        var nodeId = $"P{ShortProcId(fbpNode.Id)}";
-                        if (asMermaid) sb.AppendLine($"{nodeId}(\"{fbpNode.ProcessName}\")");
+                        var nodeId = ShortProcId(fbpNode.Id, fbpNode.ProcessName);
+                        if (asMermaid)
+                        {
+                            sb.AppendLine($"{CreateMermaidId(nodeId)}(\"{MermaidEscapeQuotes(fbpNode.ProcessName)}\")");
+                        }
                         else
                         {
-                            // var exampleConfig = new JObject();
-                            // foreach (var line in fbpNode.DefaultConfigString.Split('\n'))
-                            // {
-                            //     var kv = line.Split('=');
-                            //     var k = kv[0].Trim();
-                            //     var v = kv.Length == 2 ? kv[1].Trim() : "";
-                            //     if (k.Length > 0 && v.Length > 0) exampleConfig.Add(k, v);
-                            // }
-
                             var jn = new JObject()
                             {
                                 { "node_id", nodeId },
@@ -690,8 +730,11 @@ namespace BlazorDrawFBP.Pages
                     }
                     case CapnpFbpIipModel iipNode:
                     {
-                        var iipNodeId = $"IIP{ShortIipId(iipNode.Id)}";
-                        if (asMermaid) sb.AppendLine($"{iipNodeId}[[\"{iipNode.Content}\"]]");
+                        var iipNodeId = ShortIipId(iipNode.Id, iipNode.Content);
+                        if (asMermaid)
+                        {
+                            sb.AppendLine($"{CreateMermaidId(iipNodeId)}[[\"{MermaidEscapeQuotes(iipNode.Content)}\"]]");
+                        }
                         else
                         {
                             var jn = new JObject()
@@ -734,24 +777,26 @@ namespace BlazorDrawFBP.Pages
                             break;
                     }
 
-                    if (outIipPort != null && inCapnpPort != null)
+                    if (outIipPort is { Parent: CapnpFbpIipModel outIipModel }
+                        && inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel })
                     {
-                        var outIipNodeId = $"P{ShortIipId(outIipPort.Parent.Id)}";
-                        var inNodeId = $"P{ShortProcId(inCapnpPort.Parent.Id)}";
+                        var outIipNodeId = ShortIipId(outIipModel.Id, outIipModel.Content);
+                        var inNodeId = ShortProcId(inCapnpModel.Id, inCapnpModel.ProcessName);
+
+                        // make sure the link is only stored once
+                        var checkOut = $"{outIipNodeId}.{outIipPort.Alignment.ToString()}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (linkSet.Contains($"{checkOut}->{checkIn}") ||
+                            linkSet.Contains($"{checkIn}->{checkOut}")) continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
+
                         if (asMermaid)
                         {
-                            sb.AppendLine($"{outIipNodeId} -- \"" +
-                                          $"{inCapnpPort.Name}\" --> {inNodeId}");
+                            sb.AppendLine($"{CreateMermaidId(outIipNodeId)} -- \"" +
+                                          $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}");
                         }
                         else
                         {
-                            // make sure the link is only stored once
-                            var checkOut = $"{outIipNodeId}.{outIipPort.Alignment.ToString()}";
-                            var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                            if (linkSet.Contains($"{checkOut}->{checkIn}") ||
-                                linkSet.Contains($"{checkIn}->{checkOut}")) continue;
-                            linkSet.Add($"{checkOut}->{checkIn}");
-
                             var jl = new JObject()
                             {
                                 {
@@ -772,24 +817,27 @@ namespace BlazorDrawFBP.Pages
                             if (dia["links"] is JArray links) links.Add(jl);
                         }
                     } 
-                    else if (outCapnpPort != null && inCapnpPort != null)
+                    else if (outCapnpPort is { Parent: CapnpFbpComponentModel outCapnpModel }
+                             && inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel2 })
                     {
-                        var outNodeId = $"P{ShortProcId(outCapnpPort.Parent.Id)}";
-                        var inNodeId = $"P{ShortProcId(inCapnpPort.Parent.Id)}";
+                        var outNodeId = ShortProcId(outCapnpModel.Id, outCapnpModel.ProcessName);
+                        var inNodeId = ShortProcId(inCapnpModel2.Id, inCapnpModel2.ProcessName);
+
+                        // make sure the link is only stored once
+                        var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (linkSet.Contains($"{checkOut}->{checkIn}") ||
+                            linkSet.Contains($"{checkIn}->{checkOut}")) continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
+
                         if (asMermaid)
                         {
-                            sb.AppendLine($"{outNodeId} -- \"{outCapnpPort.Name} : {inCapnpPort.Name}\" " +
-                                          $"--> {inNodeId}");
+                            sb.AppendLine($"{CreateMermaidId(outNodeId)} -- " +
+                                          $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" " +
+                                          $"--> {CreateMermaidId(inNodeId)}");
                         }
                         else
                         {
-                            // make sure the link is only stored once
-                            var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
-                            var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                            if (linkSet.Contains($"{checkOut}->{checkIn}") ||
-                                linkSet.Contains($"{checkIn}->{checkOut}")) continue;
-                            linkSet.Add($"{checkOut}->{checkIn}");
-
                             var jl = new JObject()
                             {
                                 {
