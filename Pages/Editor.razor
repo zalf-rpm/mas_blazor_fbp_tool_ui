@@ -3,6 +3,7 @@
 @namespace BlazorDrawFBP.Pages
 
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
+@inject Shared Shared
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 
@@ -84,15 +85,15 @@
                                   OnAdornmentClick="() => { _query = null; }"/>
                     @foreach (var catId in sortedCatIds)
                     {
-                        var compIds = _catId2ComponentIds[catId];
-                        <MudExpansionPanel Text="@(_catId2Info[catId].Name)"
+                        var compIds = Shared.CatId2ComponentIds[catId];
+                        <MudExpansionPanel Text="@(Shared.CatId2Info[catId].Name)"
                                            Expanded="@(!string.IsNullOrWhiteSpace(_query)
                                                      || _expandedPanels.GetValueOrDefault(catId, false))"
                                            ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
                             <MudStack Spacing="1">
                                 @foreach (var compId in compIds)
                                 {
-                                    var comp = _componentId2Component[compId];
+                                    var comp = Shared.ComponentId2Component[compId];
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
 
@@ -180,12 +181,12 @@
     public event Action<bool> InteractiveModeChanged;
 
     private IEnumerable<(string, Component)> catId2Component =>
-        _catId2ComponentIds.SelectMany(kv =>
+        Shared.CatId2ComponentIds.SelectMany(kv =>
             kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
-                (catIdCompId.Key, _componentId2Component[catIdCompId.compId]));
+                (catIdCompId.Key, Shared.ComponentId2Component[catIdCompId.compId]));
 
     private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
-            .Concat(_catId2ComponentIds.Keys
+            .Concat(Shared.CatId2ComponentIds.Keys
             .Where(catId => catId != DefaultCatId)
             .ToImmutableSortedSet()
             .AsEnumerable());

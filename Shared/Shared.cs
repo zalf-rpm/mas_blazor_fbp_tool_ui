@@ -1,14 +1,108 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
+using Capnp.Rpc;
+using Mas.Infrastructure.Common;
+using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Restorer = Mas.Infrastructure.Common.Restorer;
 
 namespace BlazorDrawFBP.Shared
 {
-    public struct Shared
+    public class Shared
     {
+        public List<Mas.Schema.Registry.IRegistry> Registries { get; } = [];
+
+        public List<Mas.Schema.Fbp.IStartChannelsService> ChannelStarterServices { get; } = [];
+
+        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService => ChannelStarterServices.FirstOrDefault(null as IStartChannelsService);
+
+        public readonly Dictionary<string, List<string>> CatId2ComponentIds = new();
+        public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
+        public readonly Dictionary<string, Mas.Schema.Fbp.Component> ComponentId2Component = new();
+
+        public async Task<IStartChannelsService> ConnectToStartChannelsService(ConnectionManager conMan, string sturdyRef)
+        {
+            try
+            {
+                var service = await conMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(sturdyRef);
+                if (service == null) return null;
+                Console.WriteLine("Connected to channel starter service @ " + sturdyRef);
+                ChannelStarterServices.Add(Capnp.Rpc.Proxy.Share(service));
+                return service;
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Couldn't connect to channel starter service @ " + sturdyRef);
+            }
+            return null;
+        }
+
+        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(ConnectionManager conMan, string sturdyRef)
+        {
+            Mas.Schema.Registry.IRegistry reg = null;
+            try
+            {
+                reg = await conMan.Connect<Mas.Schema.Registry.IRegistry>(sturdyRef);
+                if  (reg == null) return null;
+                Console.WriteLine("Connected to components registry @ " + sturdyRef);
+                Registries.Add(Capnp.Rpc.Proxy.Share(reg));
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Couldn't connect to components registry @ " + sturdyRef);
+                return null;
+            }
+            try
+            {
+                var categories = await reg.SupportedCategories();
+                foreach (var cat in categories)
+                {
+                    if (!CatId2Info.ContainsKey(cat.Id))
+                        CatId2Info[cat.Id] = new IdInformation
+                        {
+                            Id = cat.Id, Name = cat.Name ?? cat.Id,
+                            Description = cat.Description ?? cat.Name ?? cat.Id
+                        };
+                }
+                Console.WriteLine("Loaded supported categories from " + sturdyRef);
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Error loading supported categories from " + sturdyRef);
+            }
+
+            try
+            {
+                var entries = await reg.Entries(null);
+                foreach (var e in entries)
+                {
+                    if (!CatId2ComponentIds.ContainsKey(e.CategoryId)) CatId2ComponentIds[e.CategoryId] = [];
+                    CatId2ComponentIds[e.CategoryId].Add(e.Id);
+                    if (e.Ref is not Proxy p) continue;
+                    var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
+                    try
+                    {
+                        ComponentId2Component.Add(e.Id, await holder.Value());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                }
+                Console.WriteLine("Loaded entries from " + sturdyRef);
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Error loading entries from " + sturdyRef);
+            }
+            return reg;
+        }
+
         public static string NodeNameFromPort(PortModel port)
         {
             return port.Parent switch
