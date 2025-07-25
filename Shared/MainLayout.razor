@@ -3,117 +3,79 @@
 @using System.Reflection
 @using Mas.Infrastructure.BlazorComponents
 
-@inject IDialogService DialogService
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
-@inject Mas.Infrastructure.Common.ConnectionManager ConMan
-@inject Shared Shared
+@* @inject IDialogService DialogService *@
+@* @inject Blazored.LocalStorage.ILocalStorageService LocalStorage *@
+@* @inject Mas.Infrastructure.Common.ConnectionManager ConMan *@
+@* @inject Shared Shared *@
 
-<MudThemeProvider Theme="currentTheme" />
-<MudDialogProvider/>
-<MudPopoverProvider/>
-<MudSnackbarProvider/>
+<MudThemeProvider Theme="_currentTheme" />
+@* <MudDialogProvider/> *@
+@* <MudPopoverProvider/> *@
+@* <MudSnackbarProvider/> *@
 
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudImage Class="ml-5 mr-5" Src="img/ocapi_logo.png" Height="50"/>
-        <MudText Typo="Typo.h5">OCAPI-Flow Tool</MudText>
-        <MudSpacer/>
-        <MudButtonGroup>
-            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
-                       Variant="@Variant.Filled"
-                       Color="@Color.Inherit"
-                       @onclick="AddComponentServiceSturdyRef">
-                Components
-            </MudButton>
-            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
-                       Variant="@Variant.Filled"
-                       Color="@Color.Inherit"
-                       @onclick="AddChannelServiceSturdyRef">
-                Channels
-            </MudButton>
-            <MudButton StartIcon="@Icons.Material.Filled.SettingsRemote"
-                       Color="Color.Inherit"
-                       Variant="Variant.Filled"
-                       OnClick="@ShowSturdyRefDialog">
-                Show SturdyRefs
-            </MudButton>
-        </MudButtonGroup>
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
-    </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="2">
-        <MudDrawerHeader Class="logo-container">
-            <img src="/images/no-fdsmas-logo.png" asp-append-version="true" />
-        </MudDrawerHeader>
-        <NavMenu />
-    </MudDrawer>
-    <MudMainContent>
-        <MudContainer Class="mt-4 px-4" MaxWidth="MaxWidth.False">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+@Body
+
+@* <MudLayout> *@
+@*     $1$ <MudAppBar Elevation="1"> #1# *@
+@*     $1$     <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" /> #1# *@
+@*     $1$     <MudImage Class="ml-5 mr-5" Src="img/ocapi_just_logo.png" Height="50"/> #1# *@
+@*     $1$     <MudText Typo="Typo.h5">OCAPI-Flow Tool</MudText> #1# *@
+@*     $1$     <MudSpacer/> #1# *@
+@*     $1$     <MudButtonGroup> #1# *@
+@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Add" #1# *@
+@*     $1$                    Variant="@Variant.Filled" #1# *@
+@*     $1$                    Color="@Color.Inherit" #1# *@
+@*     $1$                    @onclick="AddComponentServiceSturdyRef"> #1# *@
+@*     $1$             Components #1# *@
+@*     $1$         </MudButton> #1# *@
+@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Add" #1# *@
+@*     $1$                    Variant="@Variant.Filled" #1# *@
+@*     $1$                    Color="@Color.Inherit" #1# *@
+@*     $1$                    @onclick="AddChannelServiceSturdyRef"> #1# *@
+@*     $1$             Channels #1# *@
+@*     $1$         </MudButton> #1# *@
+@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Settings" #1# *@
+@*     $1$                    Color="Color.Inherit" #1# *@
+@*     $1$                    Variant="Variant.Filled" #1# *@
+@*     $1$                    OnClick="@ShowSturdyRefDialog"> #1# *@
+@*     $1$             Edit SturdyRefs #1# *@
+@*     $1$         </MudButton> #1# *@
+@*     $1$     </MudButtonGroup> #1# *@
+@*     $1$     <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" /> #1# *@
+@*     $1$ </MudAppBar> #1# *@
+@*     $1$ <MudDrawer @bind-Open="_drawerOpen" Elevation="2"> #1# *@
+@*     $1$     <MudDrawerHeader Class="logo-container"> #1# *@
+@*     $1$         <img src="/images/no-fdsmas-logo.png" asp-append-version="true" /> #1# *@
+@*     $1$     </MudDrawerHeader> #1# *@
+@*     $1$     <NavMenu /> #1# *@
+@*     $1$ </MudDrawer> #1# *@
+@*     <MudMainContent> *@
+@*         <MudContainer Class="mt-4 px-4" MaxWidth="MaxWidth.False"> *@
+@*             @Body *@
+@*         </MudContainer> *@
+@*     </MudMainContent> *@
+@* </MudLayout> *@
 @code {
-    bool _drawerOpen = false;
+    // bool _drawerOpen = false;
 
-    void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
-
-    private async Task AddComponentServiceSturdyRef()
-    {
-        var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Fbp.IComponentService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
-        var res = await DialogService.Show<NewSturdyRefDialog>("Add sturdy reference", parameters, options).Result;
-        if (res is { Data: StoredSRData nb })// && editData == null)
-        {
-            if (nb.SturdyRef.Length == 0) return;
-            await StoredSRData.SaveNew(LocalStorage, nb);
-            if (nb.AutoConnect) await Shared.ConnectToRegistryService(ConMan, nb.SturdyRef);
-        }
-    }
-
-    private async Task AddChannelServiceSturdyRef()
-    {
-        var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
-        var res = await DialogService.Show<NewSturdyRefDialog>("Add sturdy reference", parameters, options).Result;
-        if (res is { Data: StoredSRData nb })// && editData == null)
-        {
-            if (nb.SturdyRef.Length == 0) return;
-            await StoredSRData.SaveNew(LocalStorage, nb);
-            if (nb.AutoConnect) await Shared.ConnectToStartChannelsService(ConMan, nb.SturdyRef);
-        }
-    }
-
-    private async Task ShowSturdyRefDialog()
-    {
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
-        DialogService.Show<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", options);
-    }
+    // void DrawerToggle()
+    // {
+    //     _drawerOpen = !_drawerOpen;
+    // }
 
     protected override void OnInitialized()
     {
-        currentTheme = defaultTheme;
+        _currentTheme = _defaultTheme;
     }
 
     void DarkMode()
     {
-        if (currentTheme == defaultTheme)
-        {
-            currentTheme = darkTheme;
-        }
-        else
-        {
-            currentTheme = defaultTheme;
-        }
+        _currentTheme = _currentTheme == _defaultTheme ? _darkTheme : _defaultTheme;
     }
 
-    MudTheme currentTheme = new MudTheme();
-    MudTheme defaultTheme = new MudTheme()
+    MudTheme _currentTheme = new();
+
+    readonly MudTheme _defaultTheme = new()
     {
         PaletteLight = new PaletteLight()
         {
@@ -125,7 +87,7 @@
     };
 
     // The dark theme is just placed here for later use if needed
-    MudTheme darkTheme = new MudTheme()
+    readonly MudTheme _darkTheme = new()
     {
         PaletteDark = new PaletteDark()
         {

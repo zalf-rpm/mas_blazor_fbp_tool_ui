@@ -48,17 +48,7 @@ namespace BlazorDrawFBP.Pages
         private BlazorDiagram Diagram { get; set; } = null!;
         //private readonly List<string> events = new List<string>();
 
-        //private JObject _components = null!;
-        //private readonly Dictionary<string, JObject> _componentDict = new();
-        //private readonly Dictionary<string, List<string>> _catId2ComponentIds = new();
-        //private readonly Dictionary<string, Mas.Schema.Common.IdInformation> _catId2Info = new();
-        //private readonly Dictionary<string, Mas.Schema.Fbp.Component> _componentId2Component = new();
-        //private readonly List<Mas.Schema.Registry.IRegistry> _registries = [];
-        private List<Mas.Schema.Fbp.PortInfos.NameAndSR> test = [];
-
         private readonly Restorer _restorer = new() { TcpHost = ConnectionManager.GetLocalIPAddress() };
-
-        //private Mas.Schema.Fbp.IStartChannelsService _channelStarterService = null;
 
         static Component CreateFromJson(JToken jComp)
         {
@@ -172,35 +162,17 @@ namespace BlazorDrawFBP.Pages
             Console.WriteLine($"Editor: OnAfterRenderAsync firstRender: {firstRender}");
             if (!firstRender) return;
             if (!await LocalStorage.ContainKeyAsync("sturdy-ref-store")) return;
-            var allBookmarks = await StoredSRData.GetAllData(LocalStorage);
-            var registryInterfaceId =
-                typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
-            // allBookmarks.Add(new StoredSRData()
-            // {
-            //     AutoConnect = true,
-            //     InterfaceId = registryInterfaceId,
-            //     PetName = "Local components service",
-            //     SturdyRef = "capnp://10.10.28.250:9988/local_components",
-            // });
-            var channelStarterInterfaceId = typeof(Mas.Schema.Fbp.IStartChannelsService)
-                .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
-            // allBookmarks.Add(new StoredSRData()
-            // {
-            //     AutoConnect = true,
-            //     InterfaceId = channelStarterInterfaceId,
-            //     PetName = "Channels Starter Service",
-            //     SturdyRef = "capnp://10.10.28.250:9989/channel_starter",
-            // });
+            var allBookmarks = await StoredSrData.GetAllData(LocalStorage);
             allBookmarks.Sort();
 
-            // iterate over all bookmarks
+            // iterate over all bookmarks and connect to all auto connect sturdy refs
             foreach (var ssrd in allBookmarks.Where(ssrd => ssrd.AutoConnect))
             {
-                if (ssrd.InterfaceId == channelStarterInterfaceId)
+                if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
                 {
                     await Shared.ConnectToStartChannelsService(ConMan, ssrd.SturdyRef);
                 }
-                else if (ssrd.InterfaceId == registryInterfaceId)
+                else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
                 {
                     await Shared.ConnectToRegistryService(ConMan, ssrd.SturdyRef);
                 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
@@ -9,21 +10,42 @@ using Capnp.Rpc;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
+using Mas.Schema.Registry;
 using Restorer = Mas.Infrastructure.Common.Restorer;
 
 namespace BlazorDrawFBP.Shared
 {
     public class Shared
     {
-        public List<Mas.Schema.Registry.IRegistry> Registries { get; } = [];
+        public static readonly ulong ChannelStarterInterfaceId = typeof(Mas.Schema.Fbp.IStartChannelsService)
+            .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
+        public static readonly ulong RegistryInterfaceId = typeof(Mas.Schema.Registry.IRegistry)
+            .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
 
-        public List<Mas.Schema.Fbp.IStartChannelsService> ChannelStarterServices { get; } = [];
+        public Dictionary<ulong, Mas.Schema.Registry.IRegistry> Registries { get; } = [];
 
-        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService => ChannelStarterServices.FirstOrDefault(null as IStartChannelsService);
+        public Dictionary<ulong, Mas.Schema.Fbp.IStartChannelsService> ChannelStarterServices { get; } = [];
+
+        public Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
+            { RegistryInterfaceId, typeof(Mas.Schema.Registry.IRegistry) },
+            { ChannelStarterInterfaceId, typeof(Mas.Schema.Fbp.IStartChannelsService) },
+        };
+
+        public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
+
+        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
+            ChannelStarterServices.FirstOrDefault(new KeyValuePair<ulong, IStartChannelsService>(0, null)).Value;
 
         public readonly Dictionary<string, List<string>> CatId2ComponentIds = new();
         public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
         public readonly Dictionary<string, Mas.Schema.Fbp.Component> ComponentId2Component = new();
+
+        public static ulong GetInterfaceId<T>()
+            where T : class
+        {
+            var x = typeof(T);
+            return typeof(T).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
+        }
 
         public async Task<IStartChannelsService> ConnectToStartChannelsService(ConnectionManager conMan, string sturdyRef)
         {
@@ -32,7 +54,9 @@ namespace BlazorDrawFBP.Shared
                 var service = await conMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(sturdyRef);
                 if (service == null) return null;
                 Console.WriteLine("Connected to channel starter service @ " + sturdyRef);
-                ChannelStarterServices.Add(Capnp.Rpc.Proxy.Share(service));
+                var iid = GetInterfaceId<IStartChannelsService>();
+                ChannelStarterServices[iid] = Capnp.Rpc.Proxy.Share(service);
+                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(service) as Proxy;
                 return service;
             }
             catch (Capnp.Rpc.RpcException)
@@ -50,13 +74,23 @@ namespace BlazorDrawFBP.Shared
                 reg = await conMan.Connect<Mas.Schema.Registry.IRegistry>(sturdyRef);
                 if  (reg == null) return null;
                 Console.WriteLine("Connected to components registry @ " + sturdyRef);
-                Registries.Add(Capnp.Rpc.Proxy.Share(reg));
+                var iid = GetInterfaceId<IRegistry>();
+                Registries[iid] = Capnp.Rpc.Proxy.Share(reg);
+                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(reg) as Proxy;
             }
             catch (Capnp.Rpc.RpcException)
             {
                 Console.WriteLine("Couldn't connect to components registry @ " + sturdyRef);
                 return null;
             }
+
+            await LoadComponentsFromRegistry(reg, sturdyRef);
+            return reg;
+        }
+
+        public async Task LoadComponentsFromRegistry(Mas.Schema.Registry.IRegistry reg, string sturdyRef)
+        {
+            if (reg ==  null) return;
             try
             {
                 var categories = await reg.SupportedCategories();
@@ -100,7 +134,6 @@ namespace BlazorDrawFBP.Shared
             {
                 Console.WriteLine("Error loading entries from " + sturdyRef);
             }
-            return reg;
         }
 
         public static string NodeNameFromPort(PortModel port)

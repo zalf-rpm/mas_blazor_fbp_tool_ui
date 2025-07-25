@@ -2,21 +2,61 @@
 @page "/editor"
 @namespace BlazorDrawFBP.Pages
 
+@inject IDialogService DialogService
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
 @inject Shared Shared
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 
 @using System.Collections.Immutable
+@using System.Reflection
 @using Blazor.Diagrams.Components.Widgets
 @using BlazorDrawFBP.Models
 @using Newtonsoft.Json.Linq
 @using MudBlazor
 @using System.Timers
+@using Capnp.Rpc
+@using Mas.Infrastructure.BlazorComponents
 @using Mas.Schema.Fbp
+@using Mas.Schema.Registry
+
+<MudDialogProvider/>
+<MudPopoverProvider/>
 
 <div>
     <MudGrid>
+        <MudItem xs="12">
+            @code { private static string HeaderStyle => $"background-color: {Color.Primary}; width: 100%"; }
+            <MudPaper Class="pa-2 align-start d-flex" Style="@HeaderStyle">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                               Color="Color.Inherit"
+                               Edge="Edge.Start"/>
+                <MudImage Class="ml-3 mr-3" Src="img/ocapi_just_logo.png" Height="45"/>
+                <MudText Class="mt-1" Typo="Typo.h4">OCAPI-Flow Tool</MudText>
+                <MudSpacer/>
+                <MudButtonGroup Class="mt-1">
+                    <MudButton StartIcon="@Icons.Material.Filled.Add"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Inherit"
+                               @onclick="AddComponentServiceSturdyRef">
+                        Components
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Add"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Inherit"
+                               @onclick="AddChannelServiceSturdyRef">
+                        Channels
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Settings"
+                               Color="Color.Inherit"
+                               Variant="Variant.Filled"
+                               OnClick="@ShowSturdyRefDialog">
+                        Edit SturdyRefs
+                    </MudButton>
+                </MudButtonGroup>
+                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
+            </MudPaper>
+        </MudItem>
         <MudItem xs="2">
             <MudPaper Height="90vh" Class="overflow-scroll">
                 <MudExpansionPanels MultiExpansion="true">
@@ -217,5 +257,62 @@
         //Console.WriteLine("Timer elapsed");
         ClearButtonDisabled = true;
         _editor?.InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddComponentServiceSturdyRef()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("InterfaceId", typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var res = await DialogService.Show<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options).Result;
+        if (res is { Data: StoredSrData nb })// && editData == null)
+        {
+            if (nb.SturdyRef.Length == 0) return;
+            await StoredSrData.SaveNew(LocalStorage, nb);
+            if (nb.AutoConnect) await Shared.ConnectToRegistryService(ConMan, nb.SturdyRef);
+        }
+        StateHasChanged();
+    }
+
+    private async Task AddChannelServiceSturdyRef()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("InterfaceId", typeof(Mas.Schema.Fbp.IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var res = await DialogService.Show<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options).Result;
+        if (res is { Data: StoredSrData nb })// && editData == null)
+        {
+            if (nb.SturdyRef.Length == 0) return;
+            await StoredSrData.SaveNew(LocalStorage, nb);
+            if (nb.AutoConnect) await Shared.ConnectToStartChannelsService(ConMan, nb.SturdyRef);
+        }
+    }
+
+    private async Task ShowSturdyRefDialog()
+    {
+        async Task HandleNewConnections((ulong, string) intIdAndSr)
+        {
+            var sr = intIdAndSr.Item2;
+            if (!Shared.SturdyRef2Services.TryGetValue(sr, out var value)) return;
+            var intId = intIdAndSr.Item1;
+            if (intId == Shared.ChannelStarterInterfaceId)
+            {
+                Shared.ChannelStarterServices[intId] = value as IStartChannelsService;
+            }
+            else if (intId == Shared.RegistryInterfaceId && value is IRegistry reg)
+            {
+                Shared.Registries[intId] = Proxy.Share(reg);
+                await Shared.LoadComponentsFromRegistry(Proxy.Share(reg), sr);
+                StateHasChanged();
+            }
+        }
+
+        EventCallback<(ulong, string)> ecb = new(this, HandleNewConnections);
+        var parameters = new DialogParameters();
+        parameters.Add("InterfaceIdToType", Shared.InterfaceIdToType);
+        parameters.Add("SturdyRef2Services", Shared.SturdyRef2Services);
+        parameters.Add("ConnectedToInterfaceIdAndSturdyRefChanged", ecb);
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+        DialogService.Show<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
 }
