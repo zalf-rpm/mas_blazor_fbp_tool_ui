@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Expose HTTP (Kestrel defaults to 8080 in containers)
 EXPOSE 8080
-ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_URLS="http://+:8080"
 
 # Build image
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
