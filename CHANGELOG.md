@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.0.0...v1.0.1) (2025-08-08)
+
+
+### Bug Fixes
+
+* image name ([83c70bd](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/83c70bd57c8ac578b63c8e8b2b754e90aac51ed8))
+
 ## 1.0.0 (2025-08-08)
 
 
