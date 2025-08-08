@@ -1,0 +1,16 @@
+# Ignore build outputs and VCS metadata
+**/bin/
+**/obj/
+.git
+.gitignore
+.gitattributes
+.gitmodules
+.idea
+.vscode
+Dockerfile
+README.md
+LICENSE
+*.user
+*.suo
+*.tmp
+
