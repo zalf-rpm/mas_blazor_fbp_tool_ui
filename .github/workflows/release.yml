@@ -1,0 +1,11 @@
+name: Release FBP Flow Tool UI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    uses: dakispro/.github/.github/workflows/release.yml@main
+    secrets: inherit
