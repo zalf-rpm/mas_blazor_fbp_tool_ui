@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.0.1...v1.1.0) (2025-08-14)
+
+
+### Features
+
+* add manifest and config based release please ([ba28383](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/ba283830f5f4685787effd0bef9739ba6cd59989))
+
 ## [1.0.1](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.0.0...v1.0.1) (2025-08-08)
 
 
