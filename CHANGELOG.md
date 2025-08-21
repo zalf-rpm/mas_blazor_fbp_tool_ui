@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.1.0...v1.2.0) (2025-08-21)
+
+
+### Features
+
+* update package version with release please ([ac213db](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/ac213db39cb70e83817288929e37e96d4e45ebe2))
+* update release please to use github actions bot instead of my PAT ([9ba2c96](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/9ba2c964daa2e24d3b190ee45e856d38567e8334))
+
 ## [1.1.0](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.0.1...v1.1.0) (2025-08-14)
 
 
