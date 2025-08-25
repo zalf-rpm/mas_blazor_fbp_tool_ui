@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.2.0...v1.2.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* **CI:** add issue write permission ([fedd1e8](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/fedd1e83df9bd5b989649227d1c9f8626e517950))
+* **common:** resolve arbitrary hostname ([8e6448e](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/commit/8e6448e718bea613dbd3e2de1443f55d55814a2f))
+
 ## [1.2.0](https://github.com/DAKISpro/mas_blazor_fbp_tool_ui/compare/v1.1.0...v1.2.0) (2025-08-21)
 
 
