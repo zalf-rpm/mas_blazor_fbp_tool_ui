@@ -10,8 +10,12 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpComponentModel(Point position = null) : NodeModel(position), IDisposable
+public class CapnpFbpComponentModel : NodeModel, IDisposable
 {
+    public CapnpFbpComponentModel(Point position = null) : base(position) {}
+
+    public CapnpFbpComponentModel(string id, Point position = null) : base(id, position) {}
+
     public string ComponentId { get; set; }
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
