@@ -76,11 +76,14 @@
                 }
                 @if (Node.Editable)
                 {
-                    <MudTextField T="string"
-                                  @bind-Value="Node.DefaultConfigString"
-                                  Lines="2"
-                                  Label="Default TOML config (Key=Value)"
-                                  Variant="Variant.Outlined"/>
+                    @if ((Node.DefaultConfigString ?? "") != "")
+                    {
+                        <MudTextField T="string"
+                                      @bind-Value="Node.DefaultConfigString"
+                                      Lines="2"
+                                      Label="Default TOML config (Key=Value)"
+                                      Variant="Variant.Outlined"/>
+                    }
                     <MudField Label="Component data"
                               Variant="Variant.Outlined">
                         <MudTextField @bind-Value="Node.ComponentId"
@@ -92,7 +95,7 @@
                         <MudTextField @bind-Value="Node.ShortDescription"
                                       Label="Description"
                                       Variant="Variant.Outlined"/>
-                        @if ((Node.ComponentId ?? "") == "")
+                        @if (Node.Runnable == null)
                         {
                             <MudTextField T="string"
                                           @bind-Value="Node.Cmd"
@@ -199,20 +202,18 @@
 
     private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new()
     {
-        { 1, new List<int> { 0 } },
-        { 2, new List<int> { 30, -30 } },
-        { 3, new List<int> { 30, 0, -30 } },
-        { 4, new List<int> { 30, 10, -10, -30 } },
-        { 5, new List<int> { 30, 15, 0, -15, -30 } },
-        { 6, new List<int> { 30, 15, 0, -15, -30, -45 } },
-        { 7, new List<int> { 30, 20, 10, 0, -10, -20, -30 } },
-        { 8, new List<int> { 35, 25, 15, 5, -5, -15, -25, -35 } },
-        { 9, new List<int> { 40, 30, 20, 10, 0, -10, -20, -30, -40 } },
-        { 10, new List<int> { -45, -35, -25, -15, -5, 5, 15, 25, 35, 45 } },
-        { 11, new List<int> { 50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50 } },
+        { 1, [0] },
+        { 2, [30, -30] },
+        { 3, [30, 0, -30] },
+        { 4, [30, 10, -10, -30] },
+        { 5, [30, 15, 0, -15, -30] },
+        { 6, [30, 15, 0, -15, -30, -45] },
+        { 7, [30, 20, 10, 0, -10, -20, -30] },
+        { 8, [35, 25, 15, 5, -5, -15, -25, -35] },
+        { 9, [40, 30, 20, 10, 0, -10, -20, -30, -40] },
+        { 10, [-45, -35, -25, -15, -5, 5, 15, 25, 35, 45] },
+        { 11, [50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50] },
     };
 
     private readonly List<int> _topBottomOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
-
-    private readonly Dictionary<PortAlignment, int> _portCounts = new();
 }
