@@ -36,7 +36,7 @@ namespace BlazorDrawFBP.Shared
         public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
             ChannelStarterServices.FirstOrDefault(new KeyValuePair<ulong, IStartChannelsService>(0, null)).Value;
 
-        public readonly Dictionary<string, List<string>> CatId2ComponentIds = new();
+        public readonly Dictionary<string, HashSet<string>> CatId2ComponentIds = new();
         public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
         public readonly Dictionary<string, Mas.Schema.Fbp.Component> ComponentId2Component = new();
 
