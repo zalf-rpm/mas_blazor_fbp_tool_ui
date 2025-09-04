@@ -5,15 +5,15 @@
 
 <div>
     <MudCard>
-        <MudCardHeader>
-            <CardHeaderContent>
-                <MudIconButton Style="position: absolute; right: -5px; top: -5px;"
-                               OnClick="SendIip"
-                               Icon="@Icons.Material.Filled.Repeat"
-                               Color="@Color.Primary"/>
-            </CardHeaderContent>
-        </MudCardHeader>
         <MudCardContent>
+            <MudIconButton Style="position: absolute; right: -5px; top: -5px;"
+                           OnClick="SendIip"
+                           Icon="@Icons.Material.Filled.Repeat"
+                           Color="@Color.Primary"/>
+            <MudTextField Class="d-inline-flex pr-4"
+                          @bind-Value="Node.ShortDescription"
+                          Label="Description"
+                          Variant="Variant.Outlined"/>
             <MudTextField T="string" @bind-Value="Node.Content" Lines="3" Label="IIP content"
                           Variant="Variant.Outlined"/>
         </MudCardContent>

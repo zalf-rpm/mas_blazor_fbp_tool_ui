@@ -472,7 +472,7 @@ namespace BlazorDrawFBP.Pages
                 var targetPort = targetNode.Ports.Where(p => 
                         p is CapnpFbpPortModel capnpPort && capnpPort.Name == targetPortName)
                     .DefaultIfEmpty(null).First();
-                var noOfTargetPorts = sourceNode.Ports.Count(p => p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In });
+                var noOfTargetPorts = targetNode.Ports.Count(p => p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In });
                 // might be an IIP
                 sourcePort ??= sourceNode.Ports.Where(p =>
                         p is CapnpFbpIipPortModel iipPort && iipPort.Alignment.ToString() == sourcePortName)
@@ -586,6 +586,29 @@ namespace BlazorDrawFBP.Pages
                         if (asMermaid)
                         {
                             sb.AppendLine($"{CreateMermaidId(nodeId)}(\"{MermaidEscapeQuotes(fbpNode.ProcessName)}\")");
+
+                            // create an artificially create an IIP node for the config,
+                            // if the config port is not connected
+                            // hardcoding the port name is bad and should probably be an own in port type
+                            const string confPortName = "conf";
+                            var confLinks = fbpNode.Links.Where(blm => blm is RememberCapnpPortsLinkModel
+                            {
+                                InPortModel: CapnpFbpPortModel
+                                {
+                                    Name: confPortName,
+                                }
+                            });
+                            if (!string.IsNullOrEmpty(fbpNode.ConfigString) && !confLinks.Any())
+                            {
+
+                                var tempIipNodeId = Guid.NewGuid().ToString();
+                                var iipNodeId = ShortIipId(tempIipNodeId, fbpNode.ConfigString);
+                                var mermaidIipId = CreateMermaidId(iipNodeId);
+                                sb.AppendLine(
+                                    $"{mermaidIipId}[[\"{MermaidEscapeQuotes(fbpNode.ConfigString)}\"]]");
+                                sb.AppendLine($"{mermaidIipId} -- \"" +
+                                              $"{confPortName}\" --> {CreateMermaidId(nodeId)}");
+                            }
                         }
                         else
                         {
@@ -599,6 +622,7 @@ namespace BlazorDrawFBP.Pages
                                 },
                                 { "editable", fbpNode.Editable },
                                 { "parallelProcesses", fbpNode.InParallelCount },
+                                { "config", fbpNode.ConfigString },
                             };
                             if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
                                 !Shared.ComponentId2Component.ContainsKey(fbpNode.ComponentId))
@@ -631,6 +655,7 @@ namespace BlazorDrawFBP.Pages
                                     { "inPorts", new JArray(inputs) },
                                     { "outPorts", new JArray(outputs) },
                                     { "cmd", fbpNode.Cmd },
+                                    { "defaultConfig", fbpNode.DefaultConfigString },
                                 });
                             }
                             else
@@ -659,7 +684,8 @@ namespace BlazorDrawFBP.Pages
                                     "location",
                                     new JObject() { { "x", iipNode.Position.X }, { "y", iipNode.Position.Y } }
                                 },
-                                { "content", iipNode.Content }
+                                { "shortDescription", iipNode.ShortDescription ?? ""},
+                                { "content", iipNode.Content },
                             };
                             if (dia["nodes"] is JArray nodes) nodes.Add(jn);
                         }
@@ -852,7 +878,8 @@ namespace BlazorDrawFBP.Pages
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                         Cmd = cmd,
                         ShortDescription = component.Info.Description ?? "",
-                        DefaultConfigString = "",//component["default_config"]?.ToString() ?? "", //defaultConfig.ToString(),
+                        DefaultConfigString = component.DefaultConfig ?? "",
+                        ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                         ChannelStarterService = Shared.CurrentChannelStarterService != null
@@ -904,7 +931,8 @@ namespace BlazorDrawFBP.Pages
                     var node = new CapnpFbpIipModel(new Point(position.X, position.Y))
                     {
                         ComponentId = compId,
-                        Content = initNode?["content"]?.ToString() ?? ""
+                        ShortDescription = initNode?["shortDescription"]?.ToString() ?? "",
+                        Content = initNode?["content"]?.ToString() ?? "",
                     };
                     Diagram.Nodes.Add(node);
                     Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));

@@ -56,6 +56,11 @@
                         <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
                     </MudField>
                 }
+                <MudTextField T="string"
+                              @bind-Value="Node.ConfigString"
+                              Lines="3"
+                              Label="TOML config (Key=Value)"
+                              Variant="Variant.Outlined"/>
             </CardHeaderContent>
             @*<CardHeaderActions>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" 
@@ -67,13 +72,13 @@
         @if (Node.Editable || Node.DefaultConfigString.Length > 0)
         {
             <MudCardContent>
-                @if (!Node.Editable && Node.DefaultConfigString.Length > 0)
-                {
-                    <MudField Label="Default TOML config"
-                              Variant="Variant.Outlined">
-                        <MudText Typo="Typo.body2">@Node.DefaultConfigString</MudText>
-                    </MudField>
-                }
+                @* @if (!Node.Editable && Node.DefaultConfigString.Length > 0) *@
+                @* { *@
+                @*     <MudField Label="Default TOML config" *@
+                @*               Variant="Variant.Outlined"> *@
+                @*         <MudText Typo="Typo.body2">@Node.DefaultConfigString</MudText> *@
+                @*     </MudField> *@
+                @* } *@
                 @if (Node.Editable)
                 {
                     @if ((Node.DefaultConfigString ?? "") != "")
