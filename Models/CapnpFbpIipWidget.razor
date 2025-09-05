@@ -6,6 +6,11 @@
 <div>
     <MudCard>
         <MudCardContent>
+            <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
+                             @bind-Value="Node.DisplayNoOfLines"
+                             Label="#Lines"
+                             Variant="Variant.Outlined"
+                             Min="1" Max="10000"/>
             <MudIconButton Style="position: absolute; right: -5px; top: -5px;"
                            OnClick="SendIip"
                            Icon="@Icons.Material.Filled.Repeat"
@@ -14,7 +19,7 @@
                           @bind-Value="Node.ShortDescription"
                           Label="Description"
                           Variant="Variant.Outlined"/>
-            <MudTextField T="string" @bind-Value="Node.Content" Lines="3" Label="IIP content"
+            <MudTextField T="string" @bind-Value="Node.Content" Lines="@Node.DisplayNoOfLines" Label="IIP content"
                           Variant="Variant.Outlined"/>
         </MudCardContent>
 

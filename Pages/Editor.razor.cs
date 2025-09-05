@@ -686,6 +686,7 @@ namespace BlazorDrawFBP.Pages
                                 },
                                 { "shortDescription", iipNode.ShortDescription ?? ""},
                                 { "content", iipNode.Content },
+                                { "displayNoOfLines", iipNode.DisplayNoOfLines }
                             };
                             if (dia["nodes"] is JArray nodes) nodes.Add(jn);
                         }
@@ -933,6 +934,7 @@ namespace BlazorDrawFBP.Pages
                         ComponentId = compId,
                         ShortDescription = initNode?["shortDescription"]?.ToString() ?? "",
                         Content = initNode?["content"]?.ToString() ?? "",
+                        DisplayNoOfLines = initNode?["displayNoOfLines"]?.Value<int>() ?? 3,
                     };
                     Diagram.Nodes.Add(node);
                     Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));

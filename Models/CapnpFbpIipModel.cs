@@ -14,4 +14,6 @@ public class CapnpFbpIipModel : NodeModel
 
     public string ShortDescription { get; set; }
     public string Content { get; set; }
+
+    public int DisplayNoOfLines { get; set; } = 3;
 }
