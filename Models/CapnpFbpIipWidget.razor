@@ -2,6 +2,7 @@
 @using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
 @using System.Text
+@using Brism
 
 <div>
     <MudCard>
@@ -19,6 +20,10 @@
                           @bind-Value="Node.ShortDescription"
                           Label="Description"
                           Variant="Variant.Outlined"/>
+            @* <CodeBlock *@
+            @*     Code="@Node.Content" *@
+            @*     Language="@CodeLanguage.Toml" *@
+            @*     EnableLineNumbers="false" /> *@
             <MudTextField T="string" @bind-Value="Node.Content" Lines="@Node.DisplayNoOfLines" Label="IIP content"
                           Variant="Variant.Outlined"/>
         </MudCardContent>

@@ -264,7 +264,8 @@
         var parameters = new DialogParameters();
         parameters.Add("InterfaceId", typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
-        var res = await DialogService.Show<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options).Result;
+        var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
+        var res = await dia.Result;
         if (res is { Data: StoredSrData nb })// && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
@@ -279,7 +280,8 @@
         var parameters = new DialogParameters();
         parameters.Add("InterfaceId", typeof(Mas.Schema.Fbp.IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
-        var res = await DialogService.Show<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options).Result;
+        var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
+        var res = await dia.Result;
         if (res is { Data: StoredSrData nb })// && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
@@ -313,6 +315,6 @@
         parameters.Add("SturdyRef2Services", Shared.SturdyRef2Services);
         parameters.Add("ConnectedToInterfaceIdAndSturdyRefChanged", ecb);
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
-        DialogService.Show<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
+        await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
 }

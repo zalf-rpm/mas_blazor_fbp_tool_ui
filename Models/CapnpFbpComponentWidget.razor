@@ -27,20 +27,18 @@
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;"
                                      @bind-Toggled="@ParallelOn"
                                      Icon="@Icons.Material.Filled.PlaylistAddCircle" 
-                                     Color="@Color.Primary" 
-                                     Title="Parallel On"
+                                     Color="@Color.Primary"
+                                     title="@(ParallelOn ? "Parallel Off" : "Parallel On")"
                                      ToggledIcon="@Icons.Material.Filled.LooksOne" 
-                                     ToggledColor="@Color.Secondary" 
-                                     ToggledTitle="Parallel Off"/>
+                                     ToggledColor="@Color.Secondary"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
                                      Toggled="@ProcessStarted"
                                      ToggledChanged="@StartProcess"
                                      Icon="@Icons.Material.Filled.PlayCircle"
                                      Color="@Color.Primary" 
-                                     Title="Start process"
+                                     title="@(ProcessStarted ? "Stop process" : "Start process")"
                                      ToggledIcon="@Icons.Material.Filled.StopCircle" 
-                                     ToggledColor="@Color.Secondary" 
-                                     ToggledTitle="Stop process"/>
+                                     ToggledColor="@Color.Secondary"/>
                 @if (ParallelOn)
                 {
                     <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;" 
