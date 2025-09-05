@@ -47,6 +47,26 @@
                                      Variant="Variant.Outlined"
                                      Min="1" Max="10000"/>
                 }
+                <MudToggleIconButton Style="position: absolute; right: -5px; top: 55px;"
+                                     @bind-Toggled="@_linesOn"
+                                     Icon="@Icons.Material.Filled.MenuOpen"
+                                     Color="@Color.Primary"
+                                     title="@(_linesOn ? "Lines Off" : "Lines On")"
+                                     ToggledIcon="@Icons.Material.Filled.FormatLineSpacing"
+                                     ToggledColor="@Color.Secondary"/>
+                @if (_linesOn)
+                {
+                    <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
+                                     @bind-Value="Node.DisplayNoOfConfigLines"
+                                     Label="#Lines"
+                                     Variant="Variant.Outlined"
+                                     Min="1" Max="10000"/>
+                }
+                <MudTextField T="string"
+                              @bind-Value="Node.ConfigString"
+                              Lines="@Node.DisplayNoOfConfigLines"
+                              Label="TOML config (Key=Value)"
+                              Variant="Variant.Outlined"/>
                 @if (!Node.Editable && Node.ShortDescription.Length > 0)
                 {
                     <MudField Label="Description"
@@ -54,11 +74,6 @@
                         <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
                     </MudField>
                 }
-                <MudTextField T="string"
-                              @bind-Value="Node.ConfigString"
-                              Lines="3"
-                              Label="TOML config (Key=Value)"
-                              Variant="Variant.Outlined"/>
             </CardHeaderContent>
             @*<CardHeaderActions>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" 
@@ -188,6 +203,8 @@
                 return false;
             }) * 2 * 20 
         ))}px";
+
+    private bool _linesOn = false;
 
     private bool ParallelOn
     {

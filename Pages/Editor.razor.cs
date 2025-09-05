@@ -623,6 +623,7 @@ namespace BlazorDrawFBP.Pages
                                 { "editable", fbpNode.Editable },
                                 { "parallelProcesses", fbpNode.InParallelCount },
                                 { "config", fbpNode.ConfigString },
+                                { "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines }
                             };
                             if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
                                 !Shared.ComponentId2Component.ContainsKey(fbpNode.ComponentId))
@@ -881,6 +882,7 @@ namespace BlazorDrawFBP.Pages
                         ShortDescription = component.Info.Description ?? "",
                         DefaultConfigString = component.DefaultConfig ?? "",
                         ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
+                        DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                         ChannelStarterService = Shared.CurrentChannelStarterService != null

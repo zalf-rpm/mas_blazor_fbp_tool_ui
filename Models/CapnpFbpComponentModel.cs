@@ -27,6 +27,8 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public string DefaultConfigString { get; set; }
 
     public string ConfigString { get; set; }
+
+    public int DisplayNoOfConfigLines { get; set; } = 3;
     public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
     public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
     public bool ProcessStarted { get; private set; }

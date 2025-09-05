@@ -133,7 +133,8 @@
                             <MudStack Spacing="1">
                                 @foreach (var compId in compIds)
                                 {
-                                    var comp = Shared.ComponentId2Component[compId];
+
+                                    if (!Shared.ComponentId2Component.TryGetValue(compId, out var comp)) continue;
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
 
