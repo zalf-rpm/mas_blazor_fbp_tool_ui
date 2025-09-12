@@ -22,9 +22,11 @@ namespace BlazorDrawFBP.Shared
         public static readonly ulong RegistryInterfaceId = typeof(Mas.Schema.Registry.IRegistry)
             .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
 
-        public Dictionary<ulong, Mas.Schema.Registry.IRegistry> Registries { get; } = [];
+        public Dictionary<string, Mas.Schema.Registry.IRegistry> Registries { get; } = [];
+        public Dictionary<string, string> RegistryPetNameToSturdyRef { get; } = [];
 
-        public Dictionary<ulong, Mas.Schema.Fbp.IStartChannelsService> ChannelStarterServices { get; } = [];
+        public Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ChannelStarterServices { get; } = [];
+        public Dictionary<string, string> ChannelPetNameToSturdyRef { get; } = [];
 
         public Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
             { RegistryInterfaceId, typeof(Mas.Schema.Registry.IRegistry) },
@@ -34,7 +36,7 @@ namespace BlazorDrawFBP.Shared
         public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
 
         public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
-            ChannelStarterServices.FirstOrDefault(new KeyValuePair<ulong, IStartChannelsService>(0, null)).Value;
+            ChannelStarterServices.FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null)).Value;
 
         public readonly Dictionary<string, HashSet<string>> CatId2ComponentIds = new();
         public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
@@ -47,7 +49,32 @@ namespace BlazorDrawFBP.Shared
             return typeof(T).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
         }
 
-        public async Task<IStartChannelsService> ConnectToStartChannelsService(ConnectionManager conMan, string sturdyRef)
+        public static string MakeUniqueKey<T>(Dictionary<string, T> dict, string key)
+        {
+            var key2 = key;
+            while (dict.ContainsKey(key))
+            {
+                if (!int.TryParse(key2[^1..^1], out var i)) key += 2;
+                if (i < 9)
+                {
+                    key2 = key2[..^1] + (i + 1);
+                }
+                else
+                {
+                    if (int.TryParse(key2[^2..^1], out var i2))
+                    {
+                        key2 = key2[..^2] + (i2 + 1);
+                    }
+                }
+            }
+
+            return key2;
+        }
+
+        public async Task<IStartChannelsService> ConnectToStartChannelsService(
+            ConnectionManager conMan,
+            string petName,
+            string sturdyRef)
         {
             try
             {
@@ -55,8 +82,10 @@ namespace BlazorDrawFBP.Shared
                 if (service == null) return null;
                 Console.WriteLine("Connected to channel starter service @ " + sturdyRef);
                 var iid = GetInterfaceId<IStartChannelsService>();
-                ChannelStarterServices[iid] = Capnp.Rpc.Proxy.Share(service);
+                var petName2 = MakeUniqueKey(ChannelStarterServices, petName ?? "no_name");
+                ChannelStarterServices[petName2] = Capnp.Rpc.Proxy.Share(service);
                 SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(service) as Proxy;
+                ChannelPetNameToSturdyRef[petName2] = sturdyRef;
                 return service;
             }
             catch (Capnp.Rpc.RpcException)
@@ -66,7 +95,10 @@ namespace BlazorDrawFBP.Shared
             return null;
         }
 
-        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(ConnectionManager conMan, string sturdyRef)
+        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(
+            ConnectionManager conMan,
+            string petName,
+            string sturdyRef)
         {
             Mas.Schema.Registry.IRegistry reg = null;
             try
@@ -75,8 +107,10 @@ namespace BlazorDrawFBP.Shared
                 if  (reg == null) return null;
                 Console.WriteLine("Connected to components registry @ " + sturdyRef);
                 var iid = GetInterfaceId<IRegistry>();
-                Registries[iid] = Capnp.Rpc.Proxy.Share(reg);
+                var petName2 = MakeUniqueKey(Registries, petName ?? "no_name");
+                Registries[petName2] = Capnp.Rpc.Proxy.Share(reg);
                 SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(reg) as Proxy;
+                RegistryPetNameToSturdyRef[petName2] = sturdyRef;
             }
             catch (Capnp.Rpc.RpcException)
             {

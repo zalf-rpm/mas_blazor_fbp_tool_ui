@@ -1,8 +1,16 @@
 {
-  "version": "0.3",
-  "name": "",
-  "components": "/home/berg/GitHub/mas_python_fbp/local_components.json",
-  "cmds": "/home/berg/GitHub/mas_python_fbp/local_cmds.json",
-  "nodes": [],
-  "links": []
+    "version": "0.3",
+    "name": "",
+    "services": {
+        "channels": {
+
+        },
+        "components": {
+
+        }
+    },
+    "components": "/home/berg/GitHub/mas_python_fbp/configs/local_components.json",
+    "cmds": "/home/berg/GitHub/mas_python_fbp/configs/local_cmds.json",
+    "nodes": [],
+    "links": []
 }

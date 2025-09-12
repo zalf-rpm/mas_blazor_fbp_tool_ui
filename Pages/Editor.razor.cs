@@ -170,11 +170,11 @@ namespace BlazorDrawFBP.Pages
             {
                 if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
                 {
-                    await Shared.ConnectToStartChannelsService(ConMan, ssrd.SturdyRef);
+                    await Shared.ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
                 else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
                 {
-                    await Shared.ConnectToRegistryService(ConMan, ssrd.SturdyRef);
+                    await Shared.ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
             }
             StateHasChanged();
@@ -434,7 +434,7 @@ namespace BlazorDrawFBP.Pages
                     nodeObj["location"]?["x"]?.Value<double>() ?? 0,
                     nodeObj["location"]?["y"]?.Value<double>() ?? 0);
 
-                var compId = nodeObj["component_id"]?.ToString() ?? "";
+                var compId = nodeObj["componentId"]?.ToString() ?? nodeObj["component_id"]?.ToString() ?? "";
                 Component component;
                 var cmd = "";
                 if (string.IsNullOrEmpty(compId) && nodeObj.TryGetValue("component", out var compDesc))
@@ -516,7 +516,28 @@ namespace BlazorDrawFBP.Pages
                 : JObject.Parse(await File.ReadAllTextAsync("Data/diagram_template.json"));
             HashSet<string> linkSet = [];
             StringBuilder sb = new();
-            if (asMermaid) sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
+            if (asMermaid)
+            {
+                sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
+            }
+            else
+            {
+                // store references to used services
+                if (dia["services"]?["channels"] is JObject channels)
+                {
+                    foreach (var c in Shared.ChannelStarterServices)
+                    {
+                        channels[c.Key] = Shared.ChannelPetNameToSturdyRef[c.Key];
+                    }
+                }
+                if (dia["services"]?["components"] is JObject components)
+                {
+                    foreach (var c in Shared.Registries)
+                    {
+                        components[c.Key] = Shared.RegistryPetNameToSturdyRef[c.Key];
+                    }
+                }
+            }
 
             var procIdCount = 2;
             HashSet<string> shortProcIds = [];
