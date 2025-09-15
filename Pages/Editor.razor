@@ -125,7 +125,7 @@
                                   OnAdornmentClick="() => { _query = null; }"/>
                     @foreach (var catId in sortedCatIds)
                     {
-                        var compIds = Shared.CatId2ComponentIds[catId];
+                        var compIds = Shared.CatId2CompServiceIdAndComponentIds[catId];
                         <MudExpansionPanel Text="@(Shared.CatId2Info[catId].Name)"
                                            Expanded="@(!string.IsNullOrWhiteSpace(_query)
                                                      || _expandedPanels.GetValueOrDefault(catId, false))"
@@ -134,7 +134,7 @@
                                 @foreach (var compId in compIds)
                                 {
 
-                                    if (!Shared.ComponentId2Component.TryGetValue(compId, out var comp)) continue;
+                                    if (!Shared.ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
 
@@ -147,22 +147,31 @@
 
                                     if (string.IsNullOrEmpty(comp.Info.Description))
                                     {
-                                        <MudButton style="cursor: grab;"
-                                                   draggable="true"
-                                                   @ondragstart="() => OnNodeDragStart(comp)"
-                                                   Variant="Variant.Filled"
-                                                   StartIcon="@Icons.Material.Filled.DragIndicator"
-                                                   IconColor="Color.Primary"
-                                                   Color="Color.Default"
-                                                   FullWidth="true"
-                                                   Size="Size.Large">
-                                            @comp.Info.Name
-                                        </MudButton>
+                                        <MudButtonGroup>
+                                            <MudButton style="cursor: grab;"
+                                                       draggable="true"
+                                                       @ondragstart="() => OnNodeDragStart(comp)"
+                                                       Variant="Variant.Filled"
+                                                       StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                       IconColor="Color.Primary"
+                                                       Color="Color.Default"
+                                                       FullWidth="true"
+                                                       Size="Size.Large">
+                                                @comp.Info.Name
+                                            </MudButton>
+                                            <MudChip T="string">Default</MudChip>
+                                        </MudButtonGroup>
                                     }
                                     else
                                     {
                                         <MudTooltip>
                                             <ChildContent>
+                                                <MudChip Style="position: relative; top: +7px;"
+                                                         Variant="Variant.Text"
+                                                         Color="Color.Info"
+                                                         Label="true"
+                                                         Size="Size.Small"
+                                                         T="string">@(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)</MudChip>
                                                 <MudButton style="cursor: grab;"
                                                            draggable="true"
                                                            @ondragstart="() => OnNodeDragStart(comp)"
@@ -222,12 +231,12 @@
     public event Action<bool> InteractiveModeChanged;
 
     private IEnumerable<(string, Component)> catId2Component =>
-        Shared.CatId2ComponentIds.SelectMany(kv =>
+        Shared.CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
             kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
-                (catIdCompId.Key, Shared.ComponentId2Component[catIdCompId.compId]));
+                (catIdCompId.Key, Shared.ServiceIdAndComponentId2Component[catIdCompId.compId]));
 
     private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
-            .Concat(Shared.CatId2ComponentIds.Keys
+            .Concat(Shared.CatId2CompServiceIdAndComponentIds.Keys
             .Where(catId => catId != DefaultCatId)
             .ToImmutableSortedSet()
             .AsEnumerable());
@@ -301,15 +310,20 @@
             var petName = intIdAndSrAndPn.Item3;
             if (intId == Shared.ChannelStarterInterfaceId)
             {
-                var petName2 = Shared.MakeUniqueKey(Shared.ChannelStarterServices, petName);
-                Shared.ChannelStarterServices[petName2] = value as IStartChannelsService;
-                Shared.ChannelPetNameToSturdyRef[petName2] = sr;
+                if (value is IStartChannelsService service)
+                {
+                    var info = await service.Info();
+                    var petName2 = Shared.MakeUniqueKey(Shared.ServiceId2ChannelStarterServices, petName);
+                    Shared.ServiceId2ChannelStarterServices[info.Id] = service;
+                    Shared.ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
+                }
             }
             else if (intId == Shared.RegistryInterfaceId && value is IRegistry reg)
             {
-                var petName2 = Shared.MakeUniqueKey(Shared.Registries, petName);
-                Shared.Registries[petName2] = Proxy.Share(reg);
-                Shared.RegistryPetNameToSturdyRef[petName2] = sr;
+                var info = await reg.Info();
+                var petName2 = Shared.MakeUniqueKey(Shared.ServiceId2Registries, petName);
+                Shared.ServiceId2Registries[info.Id] = Proxy.Share(reg);
+                Shared.RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
                 await Shared.LoadComponentsFromRegistry(Proxy.Share(reg), sr);
                 StateHasChanged();
             }
@@ -319,7 +333,7 @@
         var parameters = new DialogParameters();
         parameters.Add("InterfaceIdToType", Shared.InterfaceIdToType);
         parameters.Add("SturdyRef2Services", Shared.SturdyRef2Services);
-        parameters.Add("ConnectedToInterfaceIdAndSturdyRefChanged", ecb);
+        parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", ecb);
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
         await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
