@@ -862,17 +862,20 @@ namespace BlazorDrawFBP.Pages
         
         //private JObject _draggedComponent;
         private Mas.Schema.Fbp.Component _draggedComponent;
+        private string _draggedComponentServiceId;
         
-        private void OnNodeDragStart(Mas.Schema.Fbp.Component component)//(JObject component)//string nodeType, string nodeName)
+        private void OnNodeDragStart(Mas.Schema.Fbp.Component component, string componentServiceId)//(JObject component)//string nodeType, string nodeName)
         {
             _draggedComponent = component;
+            _draggedComponentServiceId = componentServiceId;
         }
 
         private void OnNodeDrop(DragEventArgs e)
         {
             if (_draggedComponent == null) return;
             var position = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
-            AddFbpNode(position, _draggedComponent);
+            AddFbpNode(position, _draggedComponent,
+                new JObject {{"componentServiceId", _draggedComponentServiceId}});
             _draggedComponent = null;
         }
         

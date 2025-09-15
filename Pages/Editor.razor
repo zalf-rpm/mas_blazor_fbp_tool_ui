@@ -147,20 +147,25 @@
 
                                     if (string.IsNullOrEmpty(comp.Info.Description))
                                     {
-                                        <MudButtonGroup>
-                                            <MudButton style="cursor: grab;"
-                                                       draggable="true"
-                                                       @ondragstart="() => OnNodeDragStart(comp)"
-                                                       Variant="Variant.Filled"
-                                                       StartIcon="@Icons.Material.Filled.DragIndicator"
-                                                       IconColor="Color.Primary"
-                                                       Color="Color.Default"
-                                                       FullWidth="true"
-                                                       Size="Size.Large">
-                                                @comp.Info.Name
-                                            </MudButton>
-                                            <MudChip T="string">Default</MudChip>
-                                        </MudButtonGroup>
+                                        <MudChip Style="position: relative; top: +7px;"
+                                                 Variant="Variant.Text"
+                                                 Color="Color.Info"
+                                                 Label="true"
+                                                 Size="Size.Small"
+                                                 T="string">
+                                            @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
+                                        </MudChip>
+                                        <MudButton style="cursor: grab;"
+                                                   draggable="true"
+                                                   @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
+                                                   Variant="Variant.Filled"
+                                                   StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                   IconColor="Color.Primary"
+                                                   Color="Color.Default"
+                                                   FullWidth="true"
+                                                   Size="Size.Large">
+                                            @comp.Info.Name
+                                        </MudButton>
                                     }
                                     else
                                     {
@@ -171,10 +176,12 @@
                                                          Color="Color.Info"
                                                          Label="true"
                                                          Size="Size.Small"
-                                                         T="string">@(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)</MudChip>
+                                                         T="string">
+                                                    @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
+                                                </MudChip>
                                                 <MudButton style="cursor: grab;"
                                                            draggable="true"
-                                                           @ondragstart="() => OnNodeDragStart(comp)"
+                                                           @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
                                                            Variant="Variant.Filled"
                                                            StartIcon="@Icons.Material.Filled.DragIndicator"
                                                            IconColor="Color.Primary"
