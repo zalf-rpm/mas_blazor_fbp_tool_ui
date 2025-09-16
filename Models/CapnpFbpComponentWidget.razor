@@ -21,13 +21,20 @@
                            >@InterpreterShortcut(Node.PathToInterpreter)</MudAvatar>
             </CardHeaderAvatar>*@
             <CardHeaderContent>
-                <MudChip Style="position: absolute; left: 3px; top: -15px;"
-                         Color="Color.Info"
-                         Label="true"
-                         Size="Size.Small"
-                         T="string">
-                    @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("No Service", null)).Item1)
-                </MudChip>
+                @code {
+                    bool _changeComponentServiceId = false;
+                }
+                @if (!_changeComponentServiceId)
+                {
+                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
+                             Color="Color.Info"
+                             Label="true"
+                             Size="Size.Small"
+                             OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
+                             T="string">
+                        @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("No Service", null)).Item1)
+                    </MudChip>
+                }
                 <MudTextField Class="d-inline-flex pr-4"
                               @bind-Value="Node.ProcessName"
                               Label="Process name"
@@ -81,6 +88,29 @@
                               Variant="Variant.Outlined">
                         <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
                     </MudField>
+                }
+                @if (_changeComponentServiceId)
+                {
+                    <MudChipSet T="string"
+                                @bind-SelectedValue="Node.ComponentServiceId"
+                                CheckMark
+                                SelectionMode="SelectionMode.SingleSelection">
+                        @foreach (var (i, p) in Shared.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
+                        {
+                            var style = $"position: absolute; left: 3px; top: {-15 - (i * 25)}px;";
+                            <MudChip Style="@style"
+                                     Color="Color.Info"
+                                     SelectedColor="Color.Info"
+                                     Label="true"
+                                     Default="@(p.Key == Node.ComponentServiceId)"
+                                     OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
+                                     Size="Size.Small"
+                                     Value="@p.Key"
+                                     T="string">
+                                @p.Value.Item1
+                            </MudChip>
+                        }
+                    </MudChipSet>
                 }
             </CardHeaderContent>
             @*<CardHeaderActions>
