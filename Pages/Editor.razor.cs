@@ -654,9 +654,7 @@ namespace BlazorDrawFBP.Pages
                                 { "config", fbpNode.ConfigString },
                                 { "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines }
                             };
-                            if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
-                                string.IsNullOrEmpty(fbpNode.ComponentServiceId) ||
-                                !Shared.ServiceIdAndComponentId2Component.ContainsKey((fbpNode.ComponentServiceId, fbpNode.ComponentId)))
+                            if (string.IsNullOrEmpty(fbpNode.ComponentId))
                             {
                                 // create inputs
                                 var inputs = fbpNode.Ports.Where(p => p is CapnpFbpPortModel cp
@@ -692,7 +690,10 @@ namespace BlazorDrawFBP.Pages
                             else
                             {
                                 jn.Add("componentId", fbpNode.ComponentId);
-                                jn.Add("componentServiceId", fbpNode.ComponentId);
+                                if (!string.IsNullOrEmpty(fbpNode.ComponentServiceId))
+                                {
+                                    jn.Add("componentServiceId", fbpNode.ComponentServiceId);
+                                }
                             }
 
                             if (dia["nodes"] is JArray nodes) nodes.Add(jn);
