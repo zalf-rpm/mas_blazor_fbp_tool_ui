@@ -34,6 +34,8 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
     public bool ProcessStarted { get; private set; }
 
+    public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
+
     public async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try

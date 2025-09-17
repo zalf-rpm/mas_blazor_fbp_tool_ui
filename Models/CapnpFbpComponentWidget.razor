@@ -1,5 +1,4 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
-@inject Shared Shared
 
 @using System.Collections.Generic;
 @using Blazor.Diagrams.Components.Renderers;
@@ -21,20 +20,6 @@
                            >@InterpreterShortcut(Node.PathToInterpreter)</MudAvatar>
             </CardHeaderAvatar>*@
             <CardHeaderContent>
-                @code {
-                    bool _changeComponentServiceId = false;
-                }
-                @if (!_changeComponentServiceId)
-                {
-                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
-                             Color="Color.Info"
-                             Label="true"
-                             Size="Size.Small"
-                             OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
-                             T="string">
-                        @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("No Service", null)).Item1)
-                    </MudChip>
-                }
                 <MudTextField Class="d-inline-flex pr-4"
                               @bind-Value="Node.ProcessName"
                               Label="Process name"
@@ -77,17 +62,20 @@
                                      Variant="Variant.Outlined"
                                      Min="1" Max="10000"/>
                 }
-                <MudTextField T="string"
-                              @bind-Value="Node.ConfigString"
+                <MudTextField @bind-Value="Node.ConfigString"
                               Lines="@Node.DisplayNoOfConfigLines"
                               Label="TOML config (Key=Value)"
                               Variant="Variant.Outlined"/>
-                @if (!Node.Editable && Node.ShortDescription.Length > 0)
+                @if (!Node.Editable && !string.IsNullOrWhiteSpace(Node.ShortDescription))
                 {
-                    <MudField Label="Description"
-                              Variant="Variant.Outlined">
-                        <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
-                    </MudField>
+                    <MudTextField @bind-Value="Node.ShortDescription"
+                                  Lines="2"
+                                  Label="Description"
+                                  Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
+                                  Variant="Variant.Outlined"/>
+                }
+                @code {
+                    bool _changeComponentServiceId = false;
                 }
                 @if (_changeComponentServiceId)
                 {
@@ -95,15 +83,15 @@
                                 @bind-SelectedValue="Node.ComponentServiceId"
                                 CheckMark
                                 SelectionMode="SelectionMode.SingleSelection">
-                        @foreach (var (i, p) in Shared.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
+                        @foreach (var (i, p) in Node.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
                         {
-                            var style = $"position: absolute; left: 3px; top: {-15 - (i * 25)}px;";
+                            var style = $"position: absolute; left: 3px; top: {-15 - i*25}px;";
                             <MudChip Style="@style"
                                      Color="Color.Info"
                                      SelectedColor="Color.Info"
                                      Label="true"
                                      Default="@(p.Key == Node.ComponentServiceId)"
-                                     OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
+                                     OnClick="() => { _changeComponentServiceId = false; }"
                                      Size="Size.Small"
                                      Value="@p.Key"
                                      T="string">
@@ -111,6 +99,17 @@
                             </MudChip>
                         }
                     </MudChipSet>
+                }
+                else
+                {
+                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
+                             Color="Color.Info"
+                             Label="true"
+                             Size="Size.Small"
+                             OnClick="() => { _changeComponentServiceId = true; }"
+                             T="string">
+                        @(Node.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
+                    </MudChip>
                 }
             </CardHeaderContent>
             @*<CardHeaderActions>
@@ -132,30 +131,44 @@
                 @* } *@
                 @if (Node.Editable)
                 {
-                    @if ((Node.DefaultConfigString ?? "") != "")
-                    {
-                        <MudTextField T="string"
-                                      @bind-Value="Node.DefaultConfigString"
-                                      Lines="2"
-                                      Label="Default TOML config (Key=Value)"
-                                      Variant="Variant.Outlined"/>
-                    }
                     <MudField Label="Component data"
                               Variant="Variant.Outlined">
                         <MudTextField @bind-Value="Node.ComponentId"
                                       Label="Id"
                                       Variant="Variant.Outlined"/>
-                        <MudTextField @bind-Value="Node.ComponentName"
-                                      Label="Name"
+
+                        <MudTextField @bind-Value="Node.ComponentServiceId"
+                                      Label="Service Id"
+                                      Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
                                       Variant="Variant.Outlined"/>
-                        <MudTextField @bind-Value="Node.ShortDescription"
-                                      Label="Description"
-                                      Variant="Variant.Outlined"/>
-                        @if (Node.Runnable == null)
+                        @if (!string.IsNullOrEmpty(Node.ComponentName) || string.IsNullOrWhiteSpace(Node.ComponentId))
+                        {
+                            <MudTextField @bind-Value="Node.ComponentName"
+                                          Label="Name"
+                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
+                                          Variant="Variant.Outlined"/>
+                        }
+                        @if (!string.IsNullOrEmpty(Node.ShortDescription) || string.IsNullOrWhiteSpace(Node.ComponentId))
+                        {
+                            <MudTextField @bind-Value="Node.ShortDescription"
+                                          Lines="2"
+                                          Label="Description"
+                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
+                                          Variant="Variant.Outlined"/>
+                        }
+                        @if (!string.IsNullOrEmpty(Node.DefaultConfigString) || string.IsNullOrWhiteSpace(Node.ComponentId))
+                        {
+                            <MudTextField @bind-Value="Node.DefaultConfigString"
+                                          Lines="3"
+                                          Label="Default TOML config (Key=Value)"
+                                          Variant="Variant.Outlined"/>
+                        }
+                        @if (Node.Runnable == null && (!string.IsNullOrEmpty(Node.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentId)))
                         {
                             <MudTextField T="string"
                                           @bind-Value="Node.Cmd"
                                           Label="Commandline"
+                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
                                           Variant="Variant.Outlined"/>
                         }
                     </MudField>
@@ -222,6 +235,8 @@
 
 @code {
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
+
+
 
     private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
