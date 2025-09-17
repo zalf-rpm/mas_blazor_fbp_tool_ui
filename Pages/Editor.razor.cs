@@ -52,6 +52,131 @@ namespace BlazorDrawFBP.Pages
 
         private const string NoRegistryServiceId = "no_service";
 
+        public Dictionary<string, Mas.Schema.Registry.IRegistry> ServiceId2Registries { get; } = [];
+        public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
+
+        public Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
+        public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
+
+        public Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
+            { Shared.Shared.RegistryInterfaceId, typeof(Mas.Schema.Registry.IRegistry) },
+            { Shared.Shared.ChannelStarterInterfaceId, typeof(Mas.Schema.Fbp.IStartChannelsService) },
+        };
+
+        public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
+
+        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
+            ServiceId2ChannelStarterServices.FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null)).Value;
+
+        public readonly Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds = new();
+        public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
+        public readonly Dictionary<(string, string), Mas.Schema.Fbp.Component> ServiceIdAndComponentId2Component = new();
+
+
+        public async Task<IStartChannelsService> ConnectToStartChannelsService(
+            ConnectionManager conMan,
+            string petName,
+            string sturdyRef)
+        {
+            try
+            {
+                var service = await conMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(sturdyRef);
+                if (service == null) return null;
+                var info = await service.Info();
+                Console.WriteLine("Connected to channel starter service @ " + sturdyRef);
+                //var iid = GetInterfaceId<IStartChannelsService>();
+                var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName ?? "chan_start_serv");
+                ServiceId2ChannelStarterServices[info.Id] = Capnp.Rpc.Proxy.Share(service);
+                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(service) as Proxy;
+                ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+                return service;
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Couldn't connect to channel starter service @ " + sturdyRef);
+            }
+            return null;
+        }
+
+        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(
+            ConnectionManager conMan,
+            string petName,
+            string sturdyRef)
+        {
+            Mas.Schema.Registry.IRegistry reg = null;
+            try
+            {
+                reg = await conMan.Connect<Mas.Schema.Registry.IRegistry>(sturdyRef);
+                if  (reg == null) return null;
+                var info = await reg.Info();
+                Console.WriteLine("Connected to components registry @ " + sturdyRef);
+                //var iid = GetInterfaceId<IRegistry>();
+                var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2Registries, petName ?? "reg_serv");
+                ServiceId2Registries[info.Id] = Capnp.Rpc.Proxy.Share(reg);
+                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(reg) as Proxy;
+                RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+                Console.WriteLine("added petName2: " + petName2 + " and sturdyRef: " + sturdyRef);
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Couldn't connect to components registry @ " + sturdyRef);
+                return null;
+            }
+
+            await LoadComponentsFromRegistry(reg, sturdyRef);
+            return reg;
+        }
+
+        public async Task LoadComponentsFromRegistry(Mas.Schema.Registry.IRegistry reg, string sturdyRef)
+        {
+            if (reg ==  null) return;
+            try
+            {
+                var categories = await reg.SupportedCategories();
+                foreach (var cat in categories)
+                {
+                    if (!CatId2Info.ContainsKey(cat.Id))
+                        CatId2Info[cat.Id] = new IdInformation
+                        {
+                            Id = cat.Id, Name = cat.Name ?? cat.Id,
+                            Description = cat.Description ?? cat.Name ?? cat.Id
+                        };
+                }
+                Console.WriteLine("Loaded supported categories from " + sturdyRef);
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Error loading supported categories from " + sturdyRef);
+            }
+
+            try
+            {
+                var info = await reg.Info();
+                var entries = await reg.Entries(null);
+                foreach (var e in entries)
+                {
+                    if (!CatId2CompServiceIdAndComponentIds.ContainsKey(e.CategoryId)) CatId2CompServiceIdAndComponentIds[e.CategoryId] = [];
+                    CatId2CompServiceIdAndComponentIds[e.CategoryId].Add((info.Id, e.Id));
+                    if (e.Ref is not Proxy p) continue;
+                    var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
+                    try
+                    {
+                        ServiceIdAndComponentId2Component.Add((info.Id, e.Id), await holder.Value());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                }
+                Console.WriteLine("Loaded entries from " + sturdyRef);
+            }
+            catch (Capnp.Rpc.RpcException)
+            {
+                Console.WriteLine("Error loading entries from " + sturdyRef);
+            }
+        }
+
+
         private static Component CreateFromJson(JToken jComp)
         {
             if (jComp is not JObject comp) return null;
@@ -107,12 +232,12 @@ namespace BlazorDrawFBP.Pages
             ksb?.SetShortcut("Delete", false, true, false, KeyboardShortcutsDefaults.DeleteSelection);
             
             var defComps = JObject.Parse(File.ReadAllText("Data/default_components.json"));
-            Shared.RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
+            RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
             foreach (var cat in defComps["categories"] ?? new JArray())
             {
                 var catId = cat["id"]?.ToString() ?? "";
                 if (catId.Length == 0) continue;
-                Shared.CatId2Info[catId] = new IdInformation
+                CatId2Info[catId] = new IdInformation
                 {
                     Id = catId,
                     Name = cat["name"]?.ToString() ?? catId,
@@ -125,12 +250,12 @@ namespace BlazorDrawFBP.Pages
                 if (catId.Length == 0) continue;
                 if (entry["component"] is not JObject comp) continue;
 
-                if (!Shared.CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var value))
+                if (!CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var value))
                 {
                     value = [];
-                    Shared.CatId2CompServiceIdAndComponentIds[catId] = value;
+                    CatId2CompServiceIdAndComponentIds[catId] = value;
                 }
-                if (!Shared.CatId2Info.ContainsKey(catId)) Shared.CatId2Info[catId] = new IdInformation
+                if (!CatId2Info.ContainsKey(catId)) CatId2Info[catId] = new IdInformation
                 {
                     Id = catId, Name = catId
                 };
@@ -138,7 +263,7 @@ namespace BlazorDrawFBP.Pages
                 var component = CreateFromJson(entry["component"]);
                 if (component == null) continue;
                 value.Add((NoRegistryServiceId, component.Info.Id));
-                Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, component.Info.Id)] = component;
+                ServiceIdAndComponentId2Component[(NoRegistryServiceId, component.Info.Id)] = component;
             }
 
             Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
@@ -177,11 +302,11 @@ namespace BlazorDrawFBP.Pages
             {
                 if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
                 {
-                    await Shared.ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
+                    await ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
                 else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
                 {
-                    await Shared.ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
+                    await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
             }
             StateHasChanged();
@@ -193,8 +318,8 @@ namespace BlazorDrawFBP.Pages
 
         private void CreateChannel(PortModel outPort, CapnpFbpPortModel inPort)
         {
-            if (Shared.CurrentChannelStarterService == null) return;
-            BlazorDrawFBP.Shared.Shared.CreateChannel(ConMan, Shared.CurrentChannelStarterService, outPort, inPort);
+            if (CurrentChannelStarterService == null) return;
+            BlazorDrawFBP.Shared.Shared.CreateChannel(ConMan, CurrentChannelStarterService, outPort, inPort);
         }
 
         private void RegisterEvents()
@@ -450,11 +575,11 @@ namespace BlazorDrawFBP.Pages
                     component = CreateFromJson(compDesc);
                     cmd = compDesc["cmd"]?.ToString() ?? "";
                 }
-                else if (!Shared.ServiceIdAndComponentId2Component.TryGetValue((compServiceId, compId), out component))
+                else if (!ServiceIdAndComponentId2Component.TryGetValue((compServiceId, compId), out component))
                 {
                     component = nodeObj.ContainsKey("content")
-                        ? Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
-                        : Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, "empty_component")];
+                        ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
+                        : ServiceIdAndComponentId2Component[(NoRegistryServiceId, "empty_component")];
                 }
                 var diaNode = AddFbpNode(position, component, nodeObj, cmd);
                 oldNodeIdToNewNode.Add(nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "", diaNode);
@@ -533,16 +658,16 @@ namespace BlazorDrawFBP.Pages
                 // store references to used services
                 if (dia["services"]?["channels"] is JObject channels)
                 {
-                    foreach (var p in Shared.ServiceId2ChannelStarterServices)
+                    foreach (var p in ServiceId2ChannelStarterServices)
                     {
-                        channels[p.Key] = Shared.ChannelServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+                        channels[p.Key] = ChannelServiceIdToPetNameAndSturdyRef[p.Key].Item2;
                     }
                 }
                 if (dia["services"]?["components"] is JObject components)
                 {
-                    foreach (var p in Shared.ServiceId2Registries)
+                    foreach (var p in ServiceId2Registries)
                     {
-                        components[p.Key] = Shared.RegistryServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+                        components[p.Key] = RegistryServiceIdToPetNameAndSturdyRef[p.Key].Item2;
                     }
                 }
             }
@@ -654,7 +779,7 @@ namespace BlazorDrawFBP.Pages
                                 { "config", fbpNode.ConfigString },
                                 { "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines }
                             };
-                            if (string.IsNullOrEmpty(fbpNode.ComponentId))
+                            if (string.IsNullOrWhiteSpace(fbpNode.ComponentId))
                             {
                                 // create inputs
                                 var inputs = fbpNode.Ports.Where(p => p is CapnpFbpPortModel cp
@@ -690,7 +815,8 @@ namespace BlazorDrawFBP.Pages
                             else
                             {
                                 jn.Add("componentId", fbpNode.ComponentId);
-                                if (!string.IsNullOrEmpty(fbpNode.ComponentServiceId))
+                                if (!string.IsNullOrWhiteSpace(fbpNode.ComponentServiceId)
+                                    && fbpNode.ComponentServiceId != NoRegistryServiceId)
                                 {
                                     jn.Add("componentServiceId", fbpNode.ComponentServiceId);
                                 }
@@ -887,12 +1013,20 @@ namespace BlazorDrawFBP.Pages
             {
                 case Component.ComponentType.standard:
                 {
-                    var compId = component.Info.Id;
-                    var initNodeCompId = initNode?["componentId"]?.Value<string>() ?? "";
-                    //preserve componentId from flow file, even if no service is connected right now
-                    if (!string.IsNullOrEmpty(initNodeCompId))
+                    var componentId = component.Info.Id;
+                    var componentServiceId =
+                        initNode?.GetValue("componentServiceId")?.Value<string>() ?? NoRegistryServiceId;
+                    var unavailableService = false;
+                    if (!RegistryServiceIdToPetNameAndSturdyRef.ContainsKey(componentServiceId))
                     {
-                        compId = initNodeCompId;
+                        unavailableService = true;
+                        RegistryServiceIdToPetNameAndSturdyRef.Add(componentServiceId, ($"Service '{componentServiceId[..3]}..{componentServiceId[^3..]}' unavailable!", null));
+                    }
+                    var initNodeComponentId = initNode?["componentId"]?.Value<string>() ?? "";
+                    //preserve componentId from flow file, even if no service is connected right now
+                    if (!string.IsNullOrEmpty(initNodeComponentId))
+                    {
+                        componentId = initNodeComponentId;
                     }
                     var procName = initNode?["processName"]?.ToString() ?? initNode?["process_name"]?.ToString();
                     
@@ -900,20 +1034,21 @@ namespace BlazorDrawFBP.Pages
                         initNode?.GetValue("nodeId")?.Value<string>() ?? initNode?.GetValue("node_id")?.Value<string>() ?? Guid.NewGuid().ToString(),
                         new Point(position.X, position.Y))
                     {
-                        ComponentId = compId,
-                        ComponentServiceId = initNode?.GetValue("componentServiceId")?.Value<string>() ?? NoRegistryServiceId,
-                        ComponentName = component.Info.Name ?? compId,
+                        ComponentId = componentId,
+                        ComponentServiceId = componentServiceId,
+                        ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                         Cmd = cmd,
-                        ShortDescription = component.Info.Description ?? "",
-                        DefaultConfigString = component.DefaultConfig ?? "",
+                        ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
+                        DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
                         ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
                         DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
-                        ChannelStarterService = Shared.CurrentChannelStarterService != null
-                            ? Capnp.Rpc.Proxy.Share(Shared.CurrentChannelStarterService)
+                        ChannelStarterService = CurrentChannelStarterService != null
+                            ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
                             : null,
+                        RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
                     };
                     if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
 

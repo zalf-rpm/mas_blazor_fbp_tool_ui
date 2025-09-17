@@ -22,26 +22,6 @@ namespace BlazorDrawFBP.Shared
         public static readonly ulong RegistryInterfaceId = typeof(Mas.Schema.Registry.IRegistry)
             .GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0;
 
-        public Dictionary<string, Mas.Schema.Registry.IRegistry> ServiceId2Registries { get; } = [];
-        public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
-
-        public Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
-        public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
-
-        public Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
-            { RegistryInterfaceId, typeof(Mas.Schema.Registry.IRegistry) },
-            { ChannelStarterInterfaceId, typeof(Mas.Schema.Fbp.IStartChannelsService) },
-        };
-
-        public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
-
-        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
-            ServiceId2ChannelStarterServices.FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null)).Value;
-
-        public readonly Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds = new();
-        public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
-        public readonly Dictionary<(string, string), Mas.Schema.Fbp.Component> ServiceIdAndComponentId2Component = new();
-
         public static ulong GetInterfaceId<T>()
             where T : class
         {
@@ -69,109 +49,6 @@ namespace BlazorDrawFBP.Shared
             }
 
             return key2;
-        }
-
-        public async Task<IStartChannelsService> ConnectToStartChannelsService(
-            ConnectionManager conMan,
-            string petName,
-            string sturdyRef)
-        {
-            try
-            {
-                var service = await conMan.Connect<Mas.Schema.Fbp.IStartChannelsService>(sturdyRef);
-                if (service == null) return null;
-                var info = await service.Info();
-                Console.WriteLine("Connected to channel starter service @ " + sturdyRef);
-                //var iid = GetInterfaceId<IStartChannelsService>();
-                var petName2 = MakeUniqueKey(ServiceId2ChannelStarterServices, petName ?? "chan_start_serv");
-                ServiceId2ChannelStarterServices[info.Id] = Capnp.Rpc.Proxy.Share(service);
-                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(service) as Proxy;
-                ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
-                return service;
-            }
-            catch (Capnp.Rpc.RpcException)
-            {
-                Console.WriteLine("Couldn't connect to channel starter service @ " + sturdyRef);
-            }
-            return null;
-        }
-
-        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(
-            ConnectionManager conMan,
-            string petName,
-            string sturdyRef)
-        {
-            Mas.Schema.Registry.IRegistry reg = null;
-            try
-            {
-                reg = await conMan.Connect<Mas.Schema.Registry.IRegistry>(sturdyRef);
-                if  (reg == null) return null;
-                var info = await reg.Info();
-                Console.WriteLine("Connected to components registry @ " + sturdyRef);
-                //var iid = GetInterfaceId<IRegistry>();
-                var petName2 = MakeUniqueKey(ServiceId2Registries, petName ?? "reg_serv");
-                ServiceId2Registries[info.Id] = Capnp.Rpc.Proxy.Share(reg);
-                SturdyRef2Services[sturdyRef] = Capnp.Rpc.Proxy.Share(reg) as Proxy;
-                RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
-                Console.WriteLine("added petName2: " + petName2 + " and sturdyRef: " + sturdyRef);
-            }
-            catch (Capnp.Rpc.RpcException)
-            {
-                Console.WriteLine("Couldn't connect to components registry @ " + sturdyRef);
-                return null;
-            }
-
-            await LoadComponentsFromRegistry(reg, sturdyRef);
-            return reg;
-        }
-
-        public async Task LoadComponentsFromRegistry(Mas.Schema.Registry.IRegistry reg, string sturdyRef)
-        {
-            if (reg ==  null) return;
-            try
-            {
-                var categories = await reg.SupportedCategories();
-                foreach (var cat in categories)
-                {
-                    if (!CatId2Info.ContainsKey(cat.Id))
-                        CatId2Info[cat.Id] = new IdInformation
-                        {
-                            Id = cat.Id, Name = cat.Name ?? cat.Id,
-                            Description = cat.Description ?? cat.Name ?? cat.Id
-                        };
-                }
-                Console.WriteLine("Loaded supported categories from " + sturdyRef);
-            }
-            catch (Capnp.Rpc.RpcException)
-            {
-                Console.WriteLine("Error loading supported categories from " + sturdyRef);
-            }
-
-            try
-            {
-                var info = await reg.Info();
-                var entries = await reg.Entries(null);
-                foreach (var e in entries)
-                {
-                    if (!CatId2CompServiceIdAndComponentIds.ContainsKey(e.CategoryId)) CatId2CompServiceIdAndComponentIds[e.CategoryId] = [];
-                    CatId2CompServiceIdAndComponentIds[e.CategoryId].Add((info.Id, e.Id));
-                    if (e.Ref is not Proxy p) continue;
-                    var holder = p.Cast<Mas.Schema.Common.IIdentifiableHolder<Mas.Schema.Fbp.Component>>(true);
-                    try
-                    {
-                        ServiceIdAndComponentId2Component.Add((info.Id, e.Id), await holder.Value());
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Console.WriteLine(ex);
-                    }
-                }
-                Console.WriteLine("Loaded entries from " + sturdyRef);
-            }
-            catch (Capnp.Rpc.RpcException)
-            {
-                Console.WriteLine("Error loading entries from " + sturdyRef);
-            }
         }
 
         public static string NodeNameFromPort(PortModel port)
