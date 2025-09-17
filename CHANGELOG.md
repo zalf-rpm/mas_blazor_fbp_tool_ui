@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.3.0...v1.3.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* explicitly add dockerhub token and dont run the workflow on forks ([#5](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/issues/5)) ([942d2ca](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/942d2ca066f931867a13c3eb9c3dd10d71e6d7a4))
+
 ## [1.3.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.2.1...v1.3.0) (2025-09-16)
 
 
