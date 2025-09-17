@@ -494,6 +494,7 @@ namespace BlazorDrawFBP.Pages
                 StateHasChanged();
             };
 
+
             Diagram.PointerDoubleClick += (m, e) =>
             {
                 if (m is LinkModel link)
