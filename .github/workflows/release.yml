@@ -9,5 +9,8 @@ permissions:
   issues: write
 jobs:
   release-please:
+    if: ${{ !github.event.repository.fork }}
+    name: Trigger release-please and docker image creation on release
     uses: dakispro/.github/.github/workflows/release.yml@main
-    secrets: inherit
+    secrets:
+      DOCKERHUB_TOKEN: ${{secrets.DOCKERHUB_TOKEN}}
