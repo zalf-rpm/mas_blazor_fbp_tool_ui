@@ -1,4 +1,5 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
+@inject Shared Shared
 
 @using System.Collections.Generic;
 @using Blazor.Diagrams.Components.Renderers;
@@ -20,28 +21,42 @@
                            >@InterpreterShortcut(Node.PathToInterpreter)</MudAvatar>
             </CardHeaderAvatar>*@
             <CardHeaderContent>
+                @code {
+                    bool _changeComponentServiceId = false;
+                }
+                @if (!_changeComponentServiceId)
+                {
+                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
+                             Color="Color.Info"
+                             Label="true"
+                             Size="Size.Small"
+                             OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
+                             T="string">
+                        @(Shared.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("No Service", null)).Item1)
+                    </MudChip>
+                }
                 <MudTextField Class="d-inline-flex pr-4"
                               @bind-Value="Node.ProcessName"
                               Label="Process name"
                               Variant="Variant.Outlined"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;"
                                      @bind-Toggled="@ParallelOn"
-                                     Icon="@Icons.Material.Filled.PlaylistAddCircle" 
+                                     Icon="@Icons.Material.Filled.PlaylistAddCircle"
                                      Color="@Color.Primary"
                                      title="@(ParallelOn ? "Parallel Off" : "Parallel On")"
-                                     ToggledIcon="@Icons.Material.Filled.LooksOne" 
+                                     ToggledIcon="@Icons.Material.Filled.LooksOne"
                                      ToggledColor="@Color.Secondary"/>
                 <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
                                      Toggled="@ProcessStarted"
                                      ToggledChanged="@StartProcess"
                                      Icon="@Icons.Material.Filled.PlayCircle"
-                                     Color="@Color.Primary" 
+                                     Color="@Color.Primary"
                                      title="@(ProcessStarted ? "Stop process" : "Start process")"
-                                     ToggledIcon="@Icons.Material.Filled.StopCircle" 
+                                     ToggledIcon="@Icons.Material.Filled.StopCircle"
                                      ToggledColor="@Color.Secondary"/>
                 @if (ParallelOn)
                 {
-                    <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;" 
+                    <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
                                      @bind-Value="Node.InParallelCount"
                                      Label="#Procs"
                                      Variant="Variant.Outlined"
@@ -73,6 +88,29 @@
                               Variant="Variant.Outlined">
                         <MudText Typo="Typo.body2">@Node.ShortDescription</MudText>
                     </MudField>
+                }
+                @if (_changeComponentServiceId)
+                {
+                    <MudChipSet T="string"
+                                @bind-SelectedValue="Node.ComponentServiceId"
+                                CheckMark
+                                SelectionMode="SelectionMode.SingleSelection">
+                        @foreach (var (i, p) in Shared.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
+                        {
+                            var style = $"position: absolute; left: 3px; top: {-15 - (i * 25)}px;";
+                            <MudChip Style="@style"
+                                     Color="Color.Info"
+                                     SelectedColor="Color.Info"
+                                     Label="true"
+                                     Default="@(p.Key == Node.ComponentServiceId)"
+                                     OnClick="() => { _changeComponentServiceId = !_changeComponentServiceId; }"
+                                     Size="Size.Small"
+                                     Value="@p.Key"
+                                     T="string">
+                                @p.Value.Item1
+                            </MudChip>
+                        }
+                    </MudChipSet>
                 }
             </CardHeaderContent>
             @*<CardHeaderActions>

@@ -18,7 +18,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
 builder.Services.AddSingleton<Mas.Infrastructure.Common.ConnectionManager>();
-builder.Services.AddTransient<Shared>();
+builder.Services.AddSingleton<Shared>();
 //builder.Services.AddSingleton<SharedDemo.LayoutData>();
 builder.Services.AddBlazoredLocalStorage();
 //builder.Services.AddTransient<Allegiance.Blazor.Highcharts.Services.IChartService, Allegiance.Blazor.Highcharts.Services.ChartService>();

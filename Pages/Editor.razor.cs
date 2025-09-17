@@ -50,7 +50,9 @@ namespace BlazorDrawFBP.Pages
 
         private readonly Restorer _restorer = new() { TcpHost = ConnectionManager.GetLocalIPAddress() };
 
-        static Component CreateFromJson(JToken jComp)
+        private const string NoRegistryServiceId = "no_service";
+
+        private static Component CreateFromJson(JToken jComp)
         {
             if (jComp is not JObject comp) return null;
             var info = comp["info"];
@@ -105,6 +107,7 @@ namespace BlazorDrawFBP.Pages
             ksb?.SetShortcut("Delete", false, true, false, KeyboardShortcutsDefaults.DeleteSelection);
             
             var defComps = JObject.Parse(File.ReadAllText("Data/default_components.json"));
+            Shared.RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
             foreach (var cat in defComps["categories"] ?? new JArray())
             {
                 var catId = cat["id"]?.ToString() ?? "";
@@ -122,7 +125,11 @@ namespace BlazorDrawFBP.Pages
                 if (catId.Length == 0) continue;
                 if (entry["component"] is not JObject comp) continue;
 
-                if (!Shared.CatId2ComponentIds.ContainsKey(catId)) Shared.CatId2ComponentIds[catId] = [];
+                if (!Shared.CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var value))
+                {
+                    value = [];
+                    Shared.CatId2CompServiceIdAndComponentIds[catId] = value;
+                }
                 if (!Shared.CatId2Info.ContainsKey(catId)) Shared.CatId2Info[catId] = new IdInformation
                 {
                     Id = catId, Name = catId
@@ -130,8 +137,8 @@ namespace BlazorDrawFBP.Pages
 
                 var component = CreateFromJson(entry["component"]);
                 if (component == null) continue;
-                Shared.CatId2ComponentIds[catId].Add(component.Info.Id);
-                Shared.ComponentId2Component[component.Info.Id] = component;
+                value.Add((NoRegistryServiceId, component.Info.Id));
+                Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, component.Info.Id)] = component;
             }
 
             Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
@@ -170,11 +177,11 @@ namespace BlazorDrawFBP.Pages
             {
                 if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
                 {
-                    await Shared.ConnectToStartChannelsService(ConMan, ssrd.SturdyRef);
+                    await Shared.ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
                 else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
                 {
-                    await Shared.ConnectToRegistryService(ConMan, ssrd.SturdyRef);
+                    await Shared.ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
                 }
             }
             StateHasChanged();
@@ -434,7 +441,8 @@ namespace BlazorDrawFBP.Pages
                     nodeObj["location"]?["x"]?.Value<double>() ?? 0,
                     nodeObj["location"]?["y"]?.Value<double>() ?? 0);
 
-                var compId = nodeObj["component_id"]?.ToString() ?? "";
+                var compId = nodeObj["componentId"]?.ToString() ?? nodeObj["component_id"]?.ToString() ?? "";
+                var compServiceId = nodeObj["componentServiceId"]?.ToString() ?? NoRegistryServiceId;
                 Component component;
                 var cmd = "";
                 if (string.IsNullOrEmpty(compId) && nodeObj.TryGetValue("component", out var compDesc))
@@ -442,11 +450,11 @@ namespace BlazorDrawFBP.Pages
                     component = CreateFromJson(compDesc);
                     cmd = compDesc["cmd"]?.ToString() ?? "";
                 }
-                else if (!Shared.ComponentId2Component.TryGetValue(compId, out component))
+                else if (!Shared.ServiceIdAndComponentId2Component.TryGetValue((compServiceId, compId), out component))
                 {
                     component = nodeObj.ContainsKey("content")
-                        ? Shared.ComponentId2Component["iip"]
-                        : Shared.ComponentId2Component["empty_component"];
+                        ? Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
+                        : Shared.ServiceIdAndComponentId2Component[(NoRegistryServiceId, "empty_component")];
                 }
                 var diaNode = AddFbpNode(position, component, nodeObj, cmd);
                 oldNodeIdToNewNode.Add(nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "", diaNode);
@@ -516,7 +524,28 @@ namespace BlazorDrawFBP.Pages
                 : JObject.Parse(await File.ReadAllTextAsync("Data/diagram_template.json"));
             HashSet<string> linkSet = [];
             StringBuilder sb = new();
-            if (asMermaid) sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
+            if (asMermaid)
+            {
+                sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
+            }
+            else
+            {
+                // store references to used services
+                if (dia["services"]?["channels"] is JObject channels)
+                {
+                    foreach (var p in Shared.ServiceId2ChannelStarterServices)
+                    {
+                        channels[p.Key] = Shared.ChannelServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+                    }
+                }
+                if (dia["services"]?["components"] is JObject components)
+                {
+                    foreach (var p in Shared.ServiceId2Registries)
+                    {
+                        components[p.Key] = Shared.RegistryServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+                    }
+                }
+            }
 
             var procIdCount = 2;
             HashSet<string> shortProcIds = [];
@@ -625,8 +654,7 @@ namespace BlazorDrawFBP.Pages
                                 { "config", fbpNode.ConfigString },
                                 { "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines }
                             };
-                            if (string.IsNullOrEmpty(fbpNode.ComponentId) ||
-                                !Shared.ComponentId2Component.ContainsKey(fbpNode.ComponentId))
+                            if (string.IsNullOrEmpty(fbpNode.ComponentId))
                             {
                                 // create inputs
                                 var inputs = fbpNode.Ports.Where(p => p is CapnpFbpPortModel cp
@@ -662,6 +690,10 @@ namespace BlazorDrawFBP.Pages
                             else
                             {
                                 jn.Add("componentId", fbpNode.ComponentId);
+                                if (!string.IsNullOrEmpty(fbpNode.ComponentServiceId))
+                                {
+                                    jn.Add("componentServiceId", fbpNode.ComponentServiceId);
+                                }
                             }
 
                             if (dia["nodes"] is JArray nodes) nodes.Add(jn);
@@ -831,17 +863,20 @@ namespace BlazorDrawFBP.Pages
         
         //private JObject _draggedComponent;
         private Mas.Schema.Fbp.Component _draggedComponent;
+        private string _draggedComponentServiceId;
         
-        private void OnNodeDragStart(Mas.Schema.Fbp.Component component)//(JObject component)//string nodeType, string nodeName)
+        private void OnNodeDragStart(Mas.Schema.Fbp.Component component, string componentServiceId)//(JObject component)//string nodeType, string nodeName)
         {
             _draggedComponent = component;
+            _draggedComponentServiceId = componentServiceId;
         }
 
         private void OnNodeDrop(DragEventArgs e)
         {
             if (_draggedComponent == null) return;
             var position = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
-            AddFbpNode(position, _draggedComponent);
+            AddFbpNode(position, _draggedComponent,
+                new JObject {{"componentServiceId", _draggedComponentServiceId}});
             _draggedComponent = null;
         }
         
@@ -852,30 +887,21 @@ namespace BlazorDrawFBP.Pages
             {
                 case Component.ComponentType.standard:
                 {
-                    // var defaultConfig = new StringBuilder();
-                    // var compDefaultConfig = component["default_config"] as JObject ?? new JObject();
-                    // var paramNames = ((IDictionary<string, JToken>)compDefaultConfig).Keys.ToHashSet();
-                    // foreach(var paramName in paramNames)
-                    // {
-                    //     defaultConfig.Append(paramName);
-                    //     defaultConfig.Append('=');
-                    //     //if(initCmdParams[paramName])
-                    //     defaultConfig.Append(compDefaultConfig.GetValue(paramName) ?? compDefaultConfig["default"] ?? "");
-                    //     defaultConfig.AppendLine();
-                    // }
-
                     var compId = component.Info.Id;
-                    var procName = (initNode?.GetValue("processName")?.Type ?? initNode?.GetValue("process_name")?.Type) switch
+                    var initNodeCompId = initNode?["componentId"]?.Value<string>() ?? "";
+                    //preserve componentId from flow file, even if no service is connected right now
+                    if (!string.IsNullOrEmpty(initNodeCompId))
                     {
-                        JTokenType.Null => null,
-                        _ => initNode?.GetValue("processName")?.ToString() ?? initNode?.GetValue("process_name")?.ToString()
-                    };
+                        compId = initNodeCompId;
+                    }
+                    var procName = initNode?["processName"]?.ToString() ?? initNode?["process_name"]?.ToString();
                     
                     var node = new CapnpFbpComponentModel(
                         initNode?.GetValue("nodeId")?.Value<string>() ?? initNode?.GetValue("node_id")?.Value<string>() ?? Guid.NewGuid().ToString(),
                         new Point(position.X, position.Y))
                     {
                         ComponentId = compId,
+                        ComponentServiceId = initNode?.GetValue("componentServiceId")?.Value<string>() ?? NoRegistryServiceId,
                         ComponentName = component.Info.Name ?? compId,
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                         Cmd = cmd,
@@ -890,12 +916,7 @@ namespace BlazorDrawFBP.Pages
                             : null,
                     };
                     if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
-                    // var pcbRegistrar = new PcbRegistrar(node);
-                    // var res = _restorer.SaveStr(BareProxy.FromImpl(pcbRegistrar));
-                    // var pcbRegistrarSr = res.Item1;
-                    // node.PortCallbackRegistarSr = pcbRegistrarSr;
-                    // _pcbRegistrars.Add(pcbRegistrar);
-                    
+
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
                         Label = "IN",
@@ -914,7 +935,7 @@ namespace BlazorDrawFBP.Pages
                         NodeModel = node
                     });
                     
-                    var portLocations = initNode?["location"]?["ports"] as JObject;
+                    //var portLocations = initNode?["location"]?["ports"] as JObject;
 
                     foreach(var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
                     {
@@ -947,6 +968,10 @@ namespace BlazorDrawFBP.Pages
                     node.RefreshAll();
                     return node;
                 }
+                case Component.ComponentType.subflow:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
             return null;

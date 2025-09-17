@@ -17,6 +17,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public CapnpFbpComponentModel(string id, Point position = null) : base(id, position) {}
 
     public string ComponentId { get; set; }
+    public string ComponentServiceId { get; set; }
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
     public string ShortDescription { get; set; }
