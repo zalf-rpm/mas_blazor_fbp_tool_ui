@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.3.1...v1.3.2) (2025-09-17)
+
+
+### Bug Fixes
+
+* bug and removed wrong shared state ([bce4077](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/bce407708c70fe04553d8b944272c6d3efade831))
+
 ## [1.3.1](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.3.0...v1.3.1) (2025-09-17)
 
 
