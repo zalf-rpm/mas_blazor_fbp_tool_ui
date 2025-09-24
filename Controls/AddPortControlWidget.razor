@@ -1,5 +1,4 @@
-@using Blazor.Diagrams.Core.Models.Base;
-
+@using Blazor.Diagrams.Core.Models.Base
 <div>
     @if (Control.NodeModel.Editable)
     {
@@ -12,9 +11,7 @@
 
 @code
 {
-    [Parameter]
-    public AddPortControl Control { get; set; } = null!;
+    [Parameter] public AddPortControl Control { get; set; } = null!;
 
-    [Parameter]
-    public Model Model { get; set; } = null!;
+    [Parameter] public Model Model { get; set; } = null!;
 }

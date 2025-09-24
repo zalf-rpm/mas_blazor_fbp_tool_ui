@@ -1,9 +1,5 @@
-@using Blazor.Diagrams.Components.Renderers;
-@using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
-@using System.Text
-@using Brism
-
+@using Mas.Schema.Fbp
 <div>
     <MudCard>
         <MudCardContent>
@@ -48,7 +44,7 @@
 </div>
 *@
 
-@code 
+@code
 {
     [Parameter] public CapnpFbpIipModel Node { get; set; }
 
@@ -61,9 +57,9 @@
                 if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
                 if (rcplm.OutPortModel is not CapnpFbpIipPortModel iippm) continue;
                 if (iippm.Writer == null) return;
-                await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
+                await iippm.Writer.Write(new Channel<IP>.Msg
                 {
-                    Value = new Mas.Schema.Fbp.IP { Content = Node.Content }
+                    Value = new IP { Content = Node.Content }
                 });
             }
         }

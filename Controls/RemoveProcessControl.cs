@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Controls;
-using Blazor.Diagrams.Core.Controls.Default;
 using Blazor.Diagrams.Core.Events;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -21,10 +20,13 @@ public class RemoveProcessControl : ExecutableControl
 
     public RemoveProcessControl(IPositionProvider positionProvider)
     {
-        this._positionProvider = positionProvider;
+        _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model) => this._positionProvider.GetPosition(model);
+    public override Point GetPosition(Model model)
+    {
+        return _positionProvider.GetPosition(model);
+    }
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {

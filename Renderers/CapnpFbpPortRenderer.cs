@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams;
-using Blazor.Diagrams.Components.Renderers;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
@@ -34,7 +33,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     [Parameter] public string Class { get; set; }
 
     [Parameter] public string Style { get; set; }
-    
+
     [Parameter] public RenderFragment ChildContent { get; set; }
 
     public void Dispose()
@@ -68,7 +67,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         if (!Port.Visible)
             return;
-        
+
         var visibility = Port.Visibility switch
         {
             CapnpFbpPortModel.VisibilityState.Hidden => "display: none;",
@@ -76,11 +75,11 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             CapnpFbpPortModel.VisibilityState.Visible => "",
             _ => throw new ArgumentOutOfRangeException()
         };
-        
+
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
         builder.AddAttribute(1, "style", Style + visibility);
         builder.AddAttribute(2, "class",
-            "diagram-port " + (Port.Alignment.ToString().ToLower() ?? "") + " " + 
+            "diagram-port " + (Port.Alignment.ToString().ToLower() ?? "") + " " +
             Port.ThePortType.ToString().ToLower() + " " +
             //offsetString + " " + 
             (Port.Links.Count > 0 ? "has-links" : "") + " " + Class);
@@ -105,14 +104,14 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     private void OnPointerDown(PointerEventArgs e)
     {
-        BlazorDiagram.TriggerPointerDown(Port, EventsExtensions.ToCore(e));
+        BlazorDiagram.TriggerPointerDown(Port, e.ToCore());
     }
 
     private void OnPointerUp(PointerEventArgs e)
     {
         BlazorDiagram.TriggerPointerUp(
             e.PointerType == "mouse" ? Port : FindPortOn(e.ClientX, e.ClientY),
-            EventsExtensions.ToCore(e));
+            e.ToCore());
     }
 
     private PortModel FindPortOn(double clientX, double clientY)
@@ -128,7 +127,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
                 return portOn;
         }
 
-        return (PortModel)null;
+        return null;
     }
 
     private async Task UpdateDimensions()
@@ -174,6 +173,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             await portRenderer.InvokeAsync(portRenderer.StateHasChanged);
         }
         else
+        {
             await portRenderer.UpdateDimensions();
+        }
     }
 }

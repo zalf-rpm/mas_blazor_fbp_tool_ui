@@ -17,12 +17,12 @@ public class ChannelLinkLabelModel : LinkLabelModel
     }
 
     public ChannelLinkLabelModel(BaseLinkModel parent, string content, double? distance = null, Point offset = null)
-    : base(parent, content, distance, offset)
+        : base(parent, content, distance, offset)
     {
     }
 
-    public bool InteractiveMode { get; set; } = false;
-    
+    public bool InteractiveMode { get; set; }
+
     public void ToggleInteractiveMode(bool interactiveMode)
     {
         InteractiveMode = interactiveMode;

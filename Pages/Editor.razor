@@ -1,23 +1,22 @@
 @page "/"
 @page "/editor"
+@using System.Collections.Immutable
+@using System.Reflection
+@using System.Timers
+@using Blazor.Diagrams.Components.Widgets
+@using Blazored.LocalStorage
+@using Capnp
+@using Capnp.Rpc
+@using Mas.Infrastructure.BlazorComponents
+@using Mas.Infrastructure.Common
+@using Mas.Schema.Fbp
+@using Mas.Schema.Registry
 @namespace BlazorDrawFBP.Pages
 
 @inject IDialogService DialogService
-@inject Mas.Infrastructure.Common.ConnectionManager ConMan
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ConnectionManager ConMan
+@inject ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
-
-@using System.Collections.Immutable
-@using System.Reflection
-@using Blazor.Diagrams.Components.Widgets
-@using BlazorDrawFBP.Models
-@using Newtonsoft.Json.Linq
-@using MudBlazor
-@using System.Timers
-@using Capnp.Rpc
-@using Mas.Infrastructure.BlazorComponents
-@using Mas.Schema.Fbp
-@using Mas.Schema.Registry
 
 <MudDialogProvider/>
 <MudPopoverProvider/>
@@ -26,6 +25,7 @@
     <MudGrid>
         <MudItem xs="12">
             @code { private static string HeaderStyle => $"background-color: {Color.Primary}; width: 100%"; }
+
             <MudPaper Class="pa-2 align-start d-flex" Style="@HeaderStyle">
                 <MudIconButton Icon="@Icons.Material.Filled.Menu"
                                Color="Color.Inherit"
@@ -132,14 +132,13 @@
                             <MudStack Spacing="1">
                                 @foreach (var compId in compIds)
                                 {
-
                                     if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
 
                                     if (!string.IsNullOrWhiteSpace(_query) &&
                                         comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
-                                        desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
+                                        !desc.Contains(_query, StringComparison.OrdinalIgnoreCase))
                                     {
                                         continue;
                                     }
@@ -225,24 +224,28 @@
     private Editor _editor;
     private string _query;
     private const string DefaultCatId = "default";
-    private Dictionary<string, bool> _expandedPanels = new() { {DefaultCatId, true} };
-    private bool _interactiveMode = false;
-    private bool InteractiveMode { 
-        get => _interactiveMode; 
-        set { 
-            _interactiveMode = value; 
-            InteractiveModeChanged?.Invoke(value); 
+    private readonly Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
+    private bool _interactiveMode;
+
+    private bool InteractiveMode
+    {
+        get => _interactiveMode;
+        set
+        {
+            _interactiveMode = value;
+            InteractiveModeChanged?.Invoke(value);
         }
     }
+
     public event Action<bool> InteractiveModeChanged;
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
             kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
-                (catIdCompId.Key, ServiceIdAndComponentId2Component[catIdCompId.compId]));
+            (catIdCompId.Key, ServiceIdAndComponentId2Component[catIdCompId.compId]));
 
     private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
-            .Concat(CatId2CompServiceIdAndComponentIds.Keys
+        .Concat(CatId2CompServiceIdAndComponentIds.Keys
             .Where(catId => catId != DefaultCatId)
             .ToImmutableSortedSet()
             .AsEnumerable());
@@ -258,6 +261,7 @@
                 ClearButtonTimer = new Timer(2000) { AutoReset = false };
                 ClearButtonTimer.Elapsed += ClearButtonTimerElapsed;
             }
+
             ClearButtonTimer.Start();
             ClearButtonDisabled = false;
         }
@@ -278,27 +282,28 @@
     private async Task AddComponentServiceSturdyRef()
     {
         var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("InterfaceId", typeof(IRegistry).GetCustomAttribute<TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })// && editData == null)
+        if (res is { Data: StoredSrData nb }) // && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
             if (nb.AutoConnect) await ConnectToRegistryService(ConMan, nb.PetName, nb.SturdyRef);
         }
+
         StateHasChanged();
     }
 
     private async Task AddChannelServiceSturdyRef()
     {
         var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Fbp.IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("InterfaceId", typeof(IStartChannelsService).GetCustomAttribute<TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })// && editData == null)
+        if (res is { Data: StoredSrData nb }) // && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -340,7 +345,8 @@
         parameters.Add("InterfaceIdToType", InterfaceIdToType);
         parameters.Add("SturdyRef2Services", SturdyRef2Services);
         parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", ecb);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
         await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
+
 }

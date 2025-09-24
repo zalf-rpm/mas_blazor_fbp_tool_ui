@@ -15,10 +15,8 @@ public class NodeInformationControl : Control
             if (node.Size == null) return null;
             return node.Position.Add(0, node.Size!.Height + 10);
         }
-        else if (model is LinkModel link)
-        {
-            return link.GetBounds()?.Center.Add(0, 10);
-        }
+
+        if (model is LinkModel link) return link.GetBounds()?.Center.Add(0, 10);
         return null;
     }
 }

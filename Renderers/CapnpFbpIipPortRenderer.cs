@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams;
-using Blazor.Diagrams.Components.Renderers;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Extensions;
 using Blazor.Diagrams.Models;
-using BlazorDrawFBP.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -34,7 +32,7 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
     [Parameter] public string Class { get; set; }
 
     [Parameter] public string Style { get; set; }
-    
+
     [Parameter] public RenderFragment ChildContent { get; set; }
 
     public void Dispose()
@@ -68,19 +66,23 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
     {
         if (!Port.Visible)
             return;
-        
+
         var visibility = Port.Parent.Links.Count > 0 ? "display: none;" : "";
-        
+
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
         builder.AddAttribute(1, "style", (Style ?? "") + visibility);
-        builder.AddAttribute(2, "class", "diagram-port " + this.Port.Alignment.ToString().ToLower() + " " + (this.Port.Links.Count > 0 ? "has-links" : "") + " " + this.Class);
-        builder.AddAttribute(3, "data-port-id", this.Port.Id);
-        builder.AddAttribute<PointerEventArgs>(4, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>((object) this, new Action<PointerEventArgs>(this.OnPointerDown)));
+        builder.AddAttribute(2, "class",
+            "diagram-port " + Port.Alignment.ToString().ToLower() + " " + (Port.Links.Count > 0 ? "has-links" : "") +
+            " " + Class);
+        builder.AddAttribute(3, "data-port-id", Port.Id);
+        builder.AddAttribute(4, "onpointerdown",
+            EventCallback.Factory.Create(this, new Action<PointerEventArgs>(OnPointerDown)));
         builder.AddEventStopPropagationAttribute(5, "onpointerdown", true);
-        builder.AddAttribute<PointerEventArgs>(6, "onpointerup", EventCallback.Factory.Create<PointerEventArgs>((object) this, new Action<PointerEventArgs>(this.OnPointerUp)));
+        builder.AddAttribute(6, "onpointerup",
+            EventCallback.Factory.Create(this, new Action<PointerEventArgs>(OnPointerUp)));
         builder.AddEventStopPropagationAttribute(7, "onpointerup", true);
-        builder.AddElementReferenceCapture(8, (Action<ElementReference>) (__value => this._element = __value));
-        builder.AddContent(9, this.ChildContent);
+        builder.AddElementReferenceCapture(8, (Action<ElementReference>)(__value => _element = __value));
+        builder.AddContent(9, ChildContent);
         builder.CloseElement();
     }
 
@@ -93,14 +95,14 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
 
     private void OnPointerDown(PointerEventArgs e)
     {
-        BlazorDiagram.TriggerPointerDown(Port, EventsExtensions.ToCore(e));
+        BlazorDiagram.TriggerPointerDown(Port, e.ToCore());
     }
 
     private void OnPointerUp(PointerEventArgs e)
     {
         BlazorDiagram.TriggerPointerUp(
             e.PointerType == "mouse" ? Port : FindPortOn(e.ClientX, e.ClientY),
-            EventsExtensions.ToCore(e));
+            e.ToCore());
     }
 
     private PortModel FindPortOn(double clientX, double clientY)
@@ -116,7 +118,7 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
                 return portOn;
         }
 
-        return (PortModel)null;
+        return null;
     }
 
     private async Task UpdateDimensions()
@@ -162,6 +164,8 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
             await portRenderer.InvokeAsync(portRenderer.StateHasChanged);
         }
         else
+        {
             await portRenderer.UpdateDimensions();
+        }
     }
 }

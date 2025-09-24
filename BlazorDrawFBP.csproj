@@ -1,182 +1,182 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <version>1.3.2</version> <!-- x-release-please-version -->
-    <TargetFramework>net9.0</TargetFramework>
-  </PropertyGroup>
+    <PropertyGroup>
+        <version>1.3.2</version> <!-- x-release-please-version -->
+        <TargetFramework>net9.0</TargetFramework>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
-    <PackageReference Include="Brism" Version="1.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.19" />
-    <PackageReference Include="MudBlazor" Version="8.12.0" />
-    <PackageReference Include="Z.Blazor.Diagrams" Version="3.0.3" />
-    <PackageReference Include="Z.Blazor.Diagrams.Algorithms" Version="3.0.3" />
-    <PackageReference Include="Z.Blazor.Diagrams.Core" Version="3.0.3" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Blazored.LocalStorage" Version="4.5.0"/>
+        <PackageReference Include="Brism" Version="1.0.1"/>
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.9"/>
+        <PackageReference Include="MudBlazor" Version="8.12.0"/>
+        <PackageReference Include="Z.Blazor.Diagrams" Version="3.0.3"/>
+        <PackageReference Include="Z.Blazor.Diagrams.Algorithms" Version="3.0.3"/>
+        <PackageReference Include="Z.Blazor.Diagrams.Core" Version="3.0.3"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Anchors\" />
-  </ItemGroup>
+    <ItemGroup>
+        <Folder Include="Anchors\"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="capnproto-dotnetcore\**" />
-    <Compile Remove="mas_blazor_components\**" />
-    <Compile Remove="mas_csharp_common\**" />
-    <Compile Remove="mas_capnproto_schemas\**" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="capnproto-dotnetcore\**"/>
+        <Compile Remove="mas_blazor_components\**"/>
+        <Compile Remove="mas_csharp_common\**"/>
+        <Compile Remove="mas_capnproto_schemas\**"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Remove="capnproto-dotnetcore\**" />
-    <EmbeddedResource Remove="mas_blazor_components\**" />
-    <EmbeddedResource Remove="mas_csharp_common\**" />
-    <EmbeddedResource Remove="mas_capnproto_schemas\**" />
-  </ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Remove="capnproto-dotnetcore\**"/>
+        <EmbeddedResource Remove="mas_blazor_components\**"/>
+        <EmbeddedResource Remove="mas_csharp_common\**"/>
+        <EmbeddedResource Remove="mas_capnproto_schemas\**"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <Content Remove="capnproto-dotnetcore\**" />
-    <Content Remove="mas_blazor_components\**" />
-    <Content Remove="mas_csharp_common\**" />
-    <Content Remove="mas_capnproto_schemas\**" />
-    <Content Update="Data\diagram_template.mmd">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
+    <ItemGroup>
+        <Content Remove="capnproto-dotnetcore\**"/>
+        <Content Remove="mas_blazor_components\**"/>
+        <Content Remove="mas_csharp_common\**"/>
+        <Content Remove="mas_capnproto_schemas\**"/>
+        <Content Update="Data\diagram_template.mmd">
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="capnproto-dotnetcore\**" />
-    <None Remove="mas_blazor_components\**" />
-    <None Remove="mas_csharp_common\**" />
-    <None Remove="mas_capnproto_schemas\**" />
-  </ItemGroup>
+    <ItemGroup>
+        <None Remove="capnproto-dotnetcore\**"/>
+        <None Remove="mas_blazor_components\**"/>
+        <None Remove="mas_csharp_common\**"/>
+        <None Remove="mas_capnproto_schemas\**"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\nuget.config" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Benchmarking\EchoServiceGrpc\appsettings.Development.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Benchmarking\EchoServiceGrpc\appsettings.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\Capnp.Net.Runtime.csproj.nuget.dgspec.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\project.assets.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\project.packagespec.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\annotated.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\pretty.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\short.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\annotated.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\pretty.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\short.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.deps.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.runtimeconfig.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\annotated.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\pretty.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\short.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\version.json" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\obj\BlazorComponents.csproj.nuget.dgspec.json" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\obj\project.assets.json" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\obj\project.packagespec.json" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateDataset.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateService.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateTimeSeries.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\ConnectToSturdyRef.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\GeoposPicker.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\GeoRegionPicker.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\Highchart.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\KA5SoilTypeTriangle.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\KA5SoilTypeTriangleDialog.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\LocallyStoredSturdyRefsDialog.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\NewSturdyRefDialog.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\SoilService.razor" />
-    <_ContentIncludedByDefault Remove="mas_blazor_components\_Imports.razor" />
-    <_ContentIncludedByDefault Remove="mas_csharp_common\obj\common.csproj.nuget.dgspec.json" />
-    <_ContentIncludedByDefault Remove="mas_csharp_common\obj\project.assets.json" />
-    <_ContentIncludedByDefault Remove="mas_csharp_common\obj\project.packagespec.json" />
-    <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\project.assets.json" />
-    <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\project.packagespec.json" />
-    <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\zalfmas_capnpschemas.csproj.nuget.dgspec.json" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\.gitignore" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\.npmignore" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.d.ts" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\CODE_OF_CONDUCT.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\CONTRIBUTING.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\i18n\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\css\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\forms\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\js\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE.CC-BY-SA-4.0" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE.CC0-1.0" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\custom\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\esm\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\nuxt\nuxt-demo-screenshot.png" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\nuxt\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\vue\vue-demo-screenshot.png" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\vue\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\prism\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\plugins\new\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\plugins\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\README.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\theory\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\_index.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\.gitignore" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\.npmignore" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\generate.mjs" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\generate.sh" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\README.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\LICENSE" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\package.json" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\auto-close-brackets.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\auto-close-brackets.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autodetect.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autodetect.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\indent.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\indent.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\prism-line-numbers.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\prism-line-numbers.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\README.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\select-token-callbacks.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\select-token-callbacks.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.min.css" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\test.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\test.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\README.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\SECURITY.md" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\afterform.html" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\hljs.html" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\i18n.html" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism-match-braces-compatibility.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism-match-braces-compatibility.min.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism.html" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\tester.js" />
-    <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\tester.min.js" />
-  </ItemGroup>
+    <ItemGroup>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\nuget.config"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Benchmarking\EchoServiceGrpc\appsettings.Development.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Benchmarking\EchoServiceGrpc\appsettings.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\Capnp.Net.Runtime.csproj.nuget.dgspec.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\project.assets.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\Capnp.Net.Runtime\obj\project.packagespec.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\annotated.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\pretty.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpC.CSharp.Generator.Tests\No Resources\testdata\short.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\annotated.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\pretty.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\short.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.deps.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.runtimeconfig.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\annotated.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\pretty.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\short.json"/>
+        <_ContentIncludedByDefault Remove="capnproto-dotnetcore\version.json"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\obj\BlazorComponents.csproj.nuget.dgspec.json"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\obj\project.assets.json"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\obj\project.packagespec.json"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateDataset.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateService.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\ClimateTimeSeries.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\ConnectToSturdyRef.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\GeoposPicker.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\GeoRegionPicker.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\Highchart.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\KA5SoilTypeTriangle.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\KA5SoilTypeTriangleDialog.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\LocallyStoredSturdyRefsDialog.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\NewSturdyRefDialog.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\SoilService.razor"/>
+        <_ContentIncludedByDefault Remove="mas_blazor_components\_Imports.razor"/>
+        <_ContentIncludedByDefault Remove="mas_csharp_common\obj\common.csproj.nuget.dgspec.json"/>
+        <_ContentIncludedByDefault Remove="mas_csharp_common\obj\project.assets.json"/>
+        <_ContentIncludedByDefault Remove="mas_csharp_common\obj\project.packagespec.json"/>
+        <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\project.assets.json"/>
+        <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\project.packagespec.json"/>
+        <_ContentIncludedByDefault Remove="mas_capnproto_schemas\gen\csharp\obj\zalfmas_capnpschemas.csproj.nuget.dgspec.json"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\.gitignore"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\.npmignore"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.d.ts"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\code-input.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\CODE_OF_CONDUCT.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\CONTRIBUTING.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\i18n\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\css\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\forms\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\js\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\interface\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE.CC-BY-SA-4.0"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\LICENSE.CC0-1.0"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\custom\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\esm\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\nuxt\nuxt-demo-screenshot.png"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\nuxt\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\vue\vue-demo-screenshot.png"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\vue\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\hljs\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\prism\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\modules-and-frameworks\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\plugins\new\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\plugins\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\README.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\theory\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\docs\_index.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\.gitignore"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\.npmignore"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\generate.mjs"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\generate.sh"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\esm\README.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\LICENSE"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\package.json"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\auto-close-brackets.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\auto-close-brackets.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autocomplete.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autodetect.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\autodetect.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\find-and-replace.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\go-to-line.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\indent.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\indent.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\prism-line-numbers.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\prism-line-numbers.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\README.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\select-token-callbacks.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\select-token-callbacks.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.min.css"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\special-chars.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\test.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\plugins\test.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\README.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\SECURITY.md"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\afterform.html"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\hljs.html"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\i18n.html"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism-match-braces-compatibility.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism-match-braces-compatibility.min.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\prism.html"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\tester.js"/>
+        <_ContentIncludedByDefault Remove="wwwroot\code-input-2.6.7\tests\tester.min.js"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../../lib/capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj" />
-    <ProjectReference Include="../../lib/mas_blazor_components\BlazorComponents.csproj" />
-    <ProjectReference Include="../../lib/mas_capnproto_schemas/gen/csharp/Mas.Schema.csproj" />
-    <ProjectReference Include="../mas_csharp_common/Mas.Infrastructure.Common.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="../../lib/capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj"/>
+        <ProjectReference Include="../../lib/mas_blazor_components\BlazorComponents.csproj"/>
+        <ProjectReference Include="../../lib/mas_capnproto_schemas/gen/csharp/Mas.Schema.csproj"/>
+        <ProjectReference Include="../mas_csharp_common/Mas.Infrastructure.Common.csproj"/>
+    </ItemGroup>
 
 </Project>

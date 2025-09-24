@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Blazor.Diagrams.Core.Geometry;
+using Blazor.Diagrams.Core.Models;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Fbp;
 
 namespace BlazorDrawFBP.Models;
 
-using Blazor.Diagrams.Core.Geometry;
-using Blazor.Diagrams.Core.Models;
-
 public class CapnpFbpComponentModel : NodeModel, IDisposable
 {
-    public CapnpFbpComponentModel(Point position = null) : base(position) {}
+    public CapnpFbpComponentModel(Point position = null) : base(position)
+    {
+    }
 
-    public CapnpFbpComponentModel(string id, Point position = null) : base(id, position) {}
+    public CapnpFbpComponentModel(string id, Point position = null) : base(id, position)
+    {
+    }
 
     public string ComponentId { get; set; }
     public string ComponentServiceId { get; set; }
@@ -30,11 +32,22 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public string ConfigString { get; set; }
 
     public int DisplayNoOfConfigLines { get; set; } = 3;
-    public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
-    public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
+    public Component.IRunnable Runnable { get; set; }
+    public IStartChannelsService ChannelStarterService { get; init; }
     public bool ProcessStarted { get; private set; }
 
     public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
+
+
+    public void Dispose()
+    {
+        Console.WriteLine($"{ProcessName}: Disposing");
+        if (Runnable != null) Task.Run(async () => await Runnable.Stop()).ContinueWith(t => Runnable.Dispose());
+        ChannelStarterService?.Dispose();
+        foreach (var port in Ports)
+            if (port is IDisposable disposable)
+                disposable.Dispose();
+    }
 
     public async Task StartProcess(ConnectionManager conMan, bool start)
     {
@@ -46,8 +59,9 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
             if (start)
             {
-                List<Mas.Schema.Fbp.PortInfos.NameAndSR> inPortSRs = [];
-                List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
+                List<PortInfos.NameAndSR> inPortSRs = [];
+                List<PortInfos.NameAndSR> outPortSRs = [];
+
                 async Task CollectPortSrs(CapnpFbpPortModel port)
                 {
                     if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null)
@@ -55,13 +69,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                         Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
                         await port.ChannelTask;
                     }
+
                     switch (port.ThePortType)
                     {
                         case CapnpFbpPortModel.PortType.In:
-                            inPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
+                            inPortSRs.Add(new PortInfos.NameAndSR
+                                { Name = port.Name, Sr = port.ReaderWriterSturdyRef });
                             break;
                         case CapnpFbpPortModel.PortType.Out:
-                            outPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
+                            outPortSRs.Add(
+                                new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef });
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
@@ -81,6 +98,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                         if (inPort.Parent is not CapnpFbpComponentModel m) return;
                         await Shared.Shared.CreateChannel(conMan, m.ChannelStarterService, rcplm.OutPortModel, inPort);
                     }
+
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
 
                     // deal with OUT port
@@ -101,9 +119,11 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             Task.Run(async () =>
                             {
                                 var content = iipModel.Content;
-                                Console.WriteLine($"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
-                                iipPort.Writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
-                                await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
+                                Console.WriteLine(
+                                    $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
+                                iipPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(iipPort.WriterSturdyRef);
+                                await iipPort.Writer.Write(new Channel<IP>.Msg
+                                    { Value = new IP { Content = content } });
                                 Console.WriteLine($"{ProcessName}: after connecting to writer for iip");
                             });
                             break;
@@ -117,18 +137,19 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 {
                     Name = $"config_{ProcessName}"
                 });
-                Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
+                Console.WriteLine(
+                    $"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
                 if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0) return;
                 ProcessStarted = await Runnable.Start(si.Item1[0].ReaderSRs[0], ProcessName);
                 if (!ProcessStarted) return;
                 Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
-                using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
+                using var writer = await conMan.Connect<Channel<PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
                 await writer.Write(new Channel<PortInfos>.Msg
                 {
                     Value = new PortInfos
                     {
                         InPorts = inPortSRs,
-                        OutPorts = outPortSRs,
+                        OutPorts = outPortSRs
                     }
                 });
                 Console.WriteLine($"{ProcessName}: Wrote port infos to port info channel");
@@ -152,21 +173,6 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         catch (Exception e)
         {
             Console.WriteLine($"{ProcessName}: Caught exception: " + e);
-        }
-    }
-
-
-    public void Dispose()
-    {
-        Console.WriteLine($"{ProcessName}: Disposing");
-        if (Runnable != null)
-        {
-            Task.Run(async () => await Runnable.Stop()).ContinueWith(t => Runnable.Dispose());
-        }
-        ChannelStarterService?.Dispose();
-        foreach (var port in Ports)
-        {
-            if (port is IDisposable disposable) disposable.Dispose();
         }
     }
 }

@@ -1,14 +1,11 @@
 ﻿@inherits LayoutComponentBase
 
-@using System.Reflection
-@using Mas.Infrastructure.BlazorComponents
-
 @* @inject IDialogService DialogService *@
 @* @inject Blazored.LocalStorage.ILocalStorageService LocalStorage *@
 @* @inject Mas.Infrastructure.Common.ConnectionManager ConMan *@
 @* @inject Shared Shared *@
 
-<MudThemeProvider Theme="_currentTheme" />
+<MudThemeProvider Theme="_currentTheme"/>
 @* <MudDialogProvider/> *@
 @* <MudPopoverProvider/> *@
 @* <MudSnackbarProvider/> *@
@@ -55,6 +52,7 @@
 @*         </MudContainer> *@
 @*     </MudMainContent> *@
 @* </MudLayout> *@
+
 @code {
     // bool _drawerOpen = false;
 
@@ -77,7 +75,7 @@
 
     readonly MudTheme _defaultTheme = new()
     {
-        PaletteLight = new PaletteLight()
+        PaletteLight = new PaletteLight
         {
             Black = "#272c34",
             Primary = "#4da950",
@@ -89,7 +87,7 @@
     // The dark theme is just placed here for later use if needed
     readonly MudTheme _darkTheme = new()
     {
-        PaletteDark = new PaletteDark()
+        PaletteDark = new PaletteDark
         {
             Black = "#27272f",
             Background = "#32333d",

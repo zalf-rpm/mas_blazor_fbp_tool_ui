@@ -1,5 +1,4 @@
-@using Blazor.Diagrams.Core.Models.Base;
-
+@using Blazor.Diagrams.Core.Models.Base
 <div>
     <MudFab Size="Size.Small"
             Color="Color.Primary"
@@ -11,9 +10,7 @@
 
 @code
 {
-    [Parameter]
-    public ToggleEditNodeControl Control { get; set; } = null!;
+    [Parameter] public ToggleEditNodeControl Control { get; set; } = null!;
 
-    [Parameter]
-    public Model Model { get; set; } = null!;
+    [Parameter] public Model Model { get; set; } = null!;
 }

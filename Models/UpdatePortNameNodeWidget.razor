@@ -1,12 +1,9 @@
-@using Blazor.Diagrams.Components.Renderers;
-@using BlazorDrawFBP.Models;
-
 <div>
-    <MudTextField Required 
-                  T="@string" 
+    <MudTextField Required
+                  T="@string"
                   @bind-Value="@Node.LabelModel.Content"
                   AutoFocus="@true"
-                  Label="@Node.Label" 
+                  Label="@Node.Label"
                   Variant="@Variant.Outlined"
                   OnBlur="@OnBlur"
                   OnKeyUp="@OnKeyUp"/>
@@ -15,8 +12,8 @@
 @code {
     [Parameter] public UpdatePortNameNode Node { get; set; } = null!;
 
-    bool _alreadyRemoved = false;
-    
+    bool _alreadyRemoved;
+
     void OnBlur(FocusEventArgs e)
     {
         // Console.WriteLine("OnBlur");
@@ -37,4 +34,5 @@
         Node.PortModel.Refresh();
         _alreadyRemoved = true;
     }
+
 }

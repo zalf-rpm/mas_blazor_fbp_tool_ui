@@ -2,7 +2,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Controls;
-using Blazor.Diagrams.Core.Controls.Default;
 using Blazor.Diagrams.Core.Events;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -26,7 +25,10 @@ public class RemoveLinkControl : ExecutableControl
         _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model) => _positionProvider.GetPosition(model);
+    public override Point GetPosition(Model model)
+    {
+        return _positionProvider.GetPosition(model);
+    }
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {
@@ -49,39 +51,32 @@ public class RemoveLinkControl : ExecutableControl
                 if (baseLinkModel.Source.Model is NodeModel sourceNode)
                 {
                     foreach (var p in sourceNode.Ports)
-                    {
                         if (p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out } ocp &&
                             ocp.Name == baseLinkModel.Labels.First().Content)
-                        {
                             ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
-                        }
-                    }
-                    
+
                     /*if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
                     {
                         foreach (var p in iipModel.Ports) p.Visible = true;
                     }*/
                     sourceNode.RefreshAll();
                 }
+
                 if (baseLinkModel.Target.Model is NodeModel targetNode)
                 {
                     var noOfLinksToInPort = diagram.Links.Count(l => l.Target.Model == targetNode
-                    && l.Labels.Last().Content == baseLinkModel.Labels.Last().Content);
+                                                                     && l.Labels.Last().Content ==
+                                                                     baseLinkModel.Labels.Last().Content);
 
                     if (noOfLinksToInPort == 1)
-                    {
                         foreach (var p in targetNode.Ports)
-                        {
                             if (p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In } ocp &&
                                 ocp.Name == baseLinkModel.Labels.Last().Content)
-                            {
                                 ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
-                            }
-                        }
-                    }
+
                     targetNode.RefreshAll();
                 }
-                
+
                 diagram.Links.Remove(baseLinkModel);
                 break;
         }
@@ -91,7 +86,7 @@ public class RemoveLinkControl : ExecutableControl
     {
         if (model.Locked)
             return false;
-        bool flag = model switch
+        var flag = model switch
         {
             GroupModel groupModel => await diagram.Options.Constraints.ShouldDeleteGroup(groupModel),
             NodeModel nodeModel => await diagram.Options.Constraints.ShouldDeleteNode(nodeModel),

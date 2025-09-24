@@ -1,19 +1,20 @@
 <div class="channel-link-label" style="@(Visibility)">
-    <MudCarousel Class="mud-width-full" 
-                 Style="height:50px;" 
-                 ShowArrows="@true" 
-                 ShowBullets="@false" 
-                 EnableSwipeGesture="@true" 
-                 AutoCycle="@false" 
+    <MudCarousel Class="mud-width-full"
+                 Style="height:50px;"
+                 ShowArrows="@true"
+                 ShowBullets="@false"
+                 EnableSwipeGesture="@true"
+                 AutoCycle="@false"
                  TData="object">
         <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default">
-                    <MudChip T="string" Color="Color.Default">113 Msgs</MudChip>
-                </MudCarouselItem>
+            <MudChip T="string" Color="Color.Default">113 Msgs</MudChip>
+        </MudCarouselItem>
         <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default">
             <MudChip T="string"
                      Icon="@Icons.Material.Filled.OpenInNew"
-                     OnClick="OpenChannelInfo" 
-                     Color="Color.Default">Channel</MudChip>
+                     OnClick="OpenChannelInfo"
+                     Color="Color.Default">Channel
+            </MudChip>
         </MudCarouselItem>
         @*<MudCarouselItem Transition="@Transition.Slide">
             <div class="d-flex" style="height:100%">
@@ -23,16 +24,15 @@
     </MudCarousel>
 </div>
 
-@code 
+@code
 {
-    [Parameter] 
-    public ChannelLinkLabelModel Label { get; set; }
-    
+    [Parameter] public ChannelLinkLabelModel Label { get; set; }
+
     private string Visibility => Label.InteractiveMode ? "" : "display: none";
-    
+
     private void OpenChannelInfo()
     {
         Console.WriteLine("Open Channel Info");
     }
-    
+
 }
