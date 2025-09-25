@@ -173,10 +173,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../../lib/capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj"/>
-        <ProjectReference Include="../../lib/mas_blazor_components\BlazorComponents.csproj"/>
-        <ProjectReference Include="../../lib/mas_capnproto_schemas/gen/csharp/Mas.Schema.csproj"/>
-        <ProjectReference Include="../mas_csharp_common/Mas.Infrastructure.Common.csproj"/>
+        <ProjectReference Include="./capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj"/>
+        <ProjectReference Include="./mas_blazor_components\BlazorComponents.csproj"/>
+        <ProjectReference Include="./mas_capnproto_schemas/gen/csharp/Mas.Schema.csproj"/>
+        <ProjectReference Include="./mas_csharp_common/Mas.Infrastructure.Common.csproj"/>
     </ItemGroup>
 
 </Project>
