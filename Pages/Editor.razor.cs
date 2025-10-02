@@ -52,28 +52,28 @@ namespace BlazorDrawFBP.Pages
 
         private const string NoRegistryServiceId = "no_service";
 
-        public Dictionary<string, Mas.Schema.Registry.IRegistry> ServiceId2Registries { get; } = [];
-        public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
+        private Dictionary<string, Mas.Schema.Registry.IRegistry> ServiceId2Registries { get; } = [];
+        private Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
 
-        public Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
-        public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
+        private Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
+        private Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
 
-        public Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
+        private Dictionary<ulong, System.Type> InterfaceIdToType { get; } = new () {
             { Shared.Shared.RegistryInterfaceId, typeof(Mas.Schema.Registry.IRegistry) },
             { Shared.Shared.ChannelStarterInterfaceId, typeof(Mas.Schema.Fbp.IStartChannelsService) },
         };
 
-        public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
+        private Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
 
-        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
+        private Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
             ServiceId2ChannelStarterServices.FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null)).Value;
 
-        public readonly Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds = new();
-        public readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
-        public readonly Dictionary<(string, string), Mas.Schema.Fbp.Component> ServiceIdAndComponentId2Component = new();
+        private readonly Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds = new();
+        private readonly Dictionary<string, Mas.Schema.Common.IdInformation> CatId2Info = new();
+        private readonly Dictionary<(string, string), Mas.Schema.Fbp.Component> ServiceIdAndComponentId2Component = new();
 
 
-        public async Task<IStartChannelsService> ConnectToStartChannelsService(
+        private async Task<IStartChannelsService> ConnectToStartChannelsService(
             ConnectionManager conMan,
             string petName,
             string sturdyRef)
@@ -98,7 +98,7 @@ namespace BlazorDrawFBP.Pages
             return null;
         }
 
-        public async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(
+        private async Task<Mas.Schema.Registry.IRegistry> ConnectToRegistryService(
             ConnectionManager conMan,
             string petName,
             string sturdyRef)
@@ -127,7 +127,7 @@ namespace BlazorDrawFBP.Pages
             return reg;
         }
 
-        public async Task LoadComponentsFromRegistry(Mas.Schema.Registry.IRegistry reg, string sturdyRef)
+        private async Task LoadComponentsFromRegistry(Mas.Schema.Registry.IRegistry reg, string sturdyRef)
         {
             if (reg ==  null) return;
             try
@@ -533,7 +533,7 @@ namespace BlazorDrawFBP.Pages
             AddNode(x, y);
         }
 
-        protected void AddNode(double x, double y)
+        private void AddNode(double x, double y)
         {
             var node = new CapnpFbpComponentModel(new Point(x, y));
             Diagram.Nodes.Add(node);
@@ -967,7 +967,7 @@ namespace BlazorDrawFBP.Pages
                 Convert.ToBase64String(Encoding.UTF8.GetBytes(asMermaid ? sb.ToString() : dia?.ToString())));
         }
 
-        public async Task ClearDiagram()
+        private async Task ClearDiagram()
         {
             foreach(var node in Diagram.Nodes)
             {
@@ -977,7 +977,7 @@ namespace BlazorDrawFBP.Pages
             Diagram.Refresh();
         }
 
-        public async Task ExecuteFlow()
+        private async Task ExecuteFlow()
         {
             foreach(var node in Diagram.Nodes)
             {
