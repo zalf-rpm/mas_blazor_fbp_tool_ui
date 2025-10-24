@@ -3,3 +3,5 @@
 /obj
 /GeneratedNuGetPackages
 BlazorDrawFBP.sln.DotSettings.user
+.idea
+Folder.DotSettings.user

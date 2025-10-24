@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "inputs": [
+        {
+            "id": "containerName",
+            "type": "promptString",
+            "description": "Docker container name for the dev instance",
+            "default": "dakis-dev-blazor_fbp_tool_ui-1"
+        }
+    ],
+    "configurations": [
+        {
+            "name": "Attach to Blazor dev container",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:pickRemoteProcess}",
+            "pipeTransport": {
+                "pipeProgram": "docker",
+                "pipeArgs": [
+                    "exec",
+                    "-i",
+                    "${input:containerName}"
+                ],
+                "pipeCwd": "${workspaceFolder}",
+                "debuggerPath": "/vsdbg/vsdbg",
+                "quoteArgs": false
+            },
+            "sourceFileMap": {
+                "/src": "${workspaceFolder}"
+            }
+        }
+    ]
+}
