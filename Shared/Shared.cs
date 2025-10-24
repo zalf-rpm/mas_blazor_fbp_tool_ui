@@ -93,6 +93,8 @@ namespace BlazorDrawFBP.Shared
                             break;
                         case CapnpFbpIipPortModel iipPort:
                             iipPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
+                            iipPort.Writer = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)?.
+                                Cast<Channel<IP>.IWriter>(false);
                             break;
                     }
 

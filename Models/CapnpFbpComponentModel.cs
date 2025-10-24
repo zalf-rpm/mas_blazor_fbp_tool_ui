@@ -101,8 +101,14 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             Task.Run(async () =>
                             {
                                 var content = iipModel.Content;
-                                Console.WriteLine($"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
-                                iipPort.Writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(iipPort.WriterSturdyRef);
+                                if (iipPort.Writer == null)
+                                {
+                                    Console.WriteLine(
+                                        $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
+                                    iipPort.Writer =
+                                        await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
+                                            iipPort.WriterSturdyRef);
+                                }
                                 await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
                                 Console.WriteLine($"{ProcessName}: after connecting to writer for iip");
                             });
@@ -122,18 +128,27 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 ProcessStarted = await Runnable.Start(si.Item1[0].ReaderSRs[0], ProcessName);
                 if (!ProcessStarted) return;
                 Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
-                using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
-                await writer.Write(new Channel<PortInfos>.Msg
+                //using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
+                var writer = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)?.
+                    Cast<Channel<PortInfos>.IWriter>(false);
+                if (writer != null)
                 {
-                    Value = new PortInfos
+                    await writer.Write(new Channel<PortInfos>.Msg
                     {
-                        InPorts = inPortSRs,
-                        OutPorts = outPortSRs,
-                    }
-                });
-                Console.WriteLine($"{ProcessName}: Wrote port infos to port info channel");
-                //close writer
-                await writer.Close();
+                        Value = new PortInfos
+                        {
+                            InPorts = inPortSRs,
+                            OutPorts = outPortSRs,
+                        }
+                    });
+                    Console.WriteLine($"{ProcessName}: Wrote port infos to port info channel");
+                    //close writer
+                    await writer.Close();
+                }
+                else
+                {
+                    Console.WriteLine($"{ProcessName}: Error: Couldn't write PortInfos, writer was null!");
+                }
 
                 //commented out because closing the channel at this point will make it unavailable for the component
                 //we have to rely on closing the writer will close down the channel properly after last message being read
