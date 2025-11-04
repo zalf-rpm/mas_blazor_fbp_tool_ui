@@ -100,13 +100,13 @@ namespace BlazorDrawFBP.Shared
 
                     inPort.ReaderWriterSturdyRef = si.Item1[0].ReaderSRs[0];
                     // attach channel cap to IN port (target port)
-                    inPort.Channel =
-                        await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP>>(si.Item1[0].ChannelSR);
+                    inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(false);
                     // attach stop channel cap to IN port
                     inPort.StopChannel = si.Item2;
                 }
                 else
                 {
+                    Console.WriteLine($"CreateChannel: inPort.channel was not null");
                     var writerSr =
                         Restorer.SturdyRefStr((await inPort.Channel.Writer().Result.Save(null)).SturdyRef);
                     switch (outPort)

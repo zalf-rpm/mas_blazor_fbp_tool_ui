@@ -50,6 +50,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
                 async Task CollectPortSrs(CapnpFbpPortModel port)
                 {
+                    Console.WriteLine($"{ProcessName}: collecting port srs");
                     if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null)
                     {
                         Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
@@ -79,6 +80,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     if (inPort.ReaderWriterSturdyRef == null && inPort.ChannelTask == null)
                     {
                         if (inPort.Parent is not CapnpFbpComponentModel m) return;
+                        Console.WriteLine($"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
                         await Shared.Shared.CreateChannel(conMan, m.ChannelStarterService, rcplm.OutPortModel, inPort);
                     }
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
@@ -101,6 +103,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             Task.Run(async () =>
                             {
                                 var content = iipModel.Content;
+                                Console.WriteLine($"{ProcessName}: async code for sending IIP: '{content}'");
                                 if (iipPort.Writer == null)
                                 {
                                     Console.WriteLine(
@@ -110,7 +113,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                                             iipPort.WriterSturdyRef);
                                 }
                                 await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
-                                Console.WriteLine($"{ProcessName}: after connecting to writer for iip");
+                                Console.WriteLine($"{ProcessName}: sent IIP to writer");
                             });
                             break;
                         }
@@ -133,6 +136,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     Cast<Channel<PortInfos>.IWriter>(false);
                 if (writer != null)
                 {
+                    Console.WriteLine($"{ProcessName}: Writing port infos to port info channel");
                     await writer.Write(new Channel<PortInfos>.Msg
                     {
                         Value = new PortInfos
