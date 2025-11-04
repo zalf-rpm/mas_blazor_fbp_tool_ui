@@ -1,6 +1,7 @@
 {
   "categories": [
-    {"id": "default", "name": "Default"}
+    {"id": "default", "name": "Default"},
+    {"id": "view", "name":  "View"}
   ],
   "entries": [
     {
@@ -33,6 +34,20 @@
           {"name": "out"}
         ]
       }
-    }
+    },
+      {
+          "categoryId": "view",
+          "component": {
+              "info": {
+                  "id": "d5603568-5ce0-45a3-900d-77c8b3b894f5",
+                  "name": "Debug output",
+                  "description": "Output string to embedded window."
+              },
+              "type": "view",
+              "inPorts": [
+                  {"name": "in", "contentType": "Text"}
+              ]
+          }
+      }
   ]
 }

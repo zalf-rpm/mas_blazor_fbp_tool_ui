@@ -195,6 +195,7 @@ namespace BlazorDrawFBP.Pages
                     "iip" => Component.ComponentType.iip,
                     "standard" => Component.ComponentType.standard,
                     "subflow" => Component.ComponentType.subflow,
+                    "view" => Component.ComponentType.view,
                     _ => Component.ComponentType.standard,
                 },
                 InPorts = comp["inPorts"]?.Select(p => new Component.Port()
@@ -267,6 +268,7 @@ namespace BlazorDrawFBP.Pages
             }
 
             Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
+            Diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
             Diagram.RegisterComponent<CapnpFbpIipModel, CapnpFbpIipWidget>();
             Diagram.RegisterComponent<UpdatePortNameNode, UpdatePortNameNodeWidget>();
             Diagram.RegisterComponent<PortOptionsNode, PortOptionsNodeWidget>();
@@ -1106,6 +1108,79 @@ namespace BlazorDrawFBP.Pages
                 }
                 case Component.ComponentType.subflow:
                     break;
+                case Component.ComponentType.view:
+                {
+                    var componentId = component.Info.Id;
+                    var componentServiceId =
+                        initNode?.GetValue("componentServiceId")?.Value<string>() ?? NoRegistryServiceId;
+                    var unavailableService = false;
+                    if (!RegistryServiceIdToPetNameAndSturdyRef.ContainsKey(componentServiceId))
+                    {
+                        unavailableService = true;
+                        RegistryServiceIdToPetNameAndSturdyRef.Add(componentServiceId, ($"Service '{componentServiceId[..3]}..{componentServiceId[^3..]}' unavailable!", null));
+                    }
+                    var initNodeComponentId = initNode?["componentId"]?.Value<string>() ?? "";
+                    //preserve componentId from flow file, even if no service is connected right now
+                    if (!string.IsNullOrEmpty(initNodeComponentId))
+                    {
+                        componentId = initNodeComponentId;
+                    }
+                    var procName = initNode?["processName"]?.ToString() ?? initNode?["process_name"]?.ToString();
+
+                    var node = new CapnpFbpViewComponentModel(
+                        initNode?.GetValue("nodeId")?.Value<string>() ?? initNode?.GetValue("node_id")?.Value<string>() ?? Guid.NewGuid().ToString(),
+                        new Point(position.X, position.Y))
+                    {
+                        ComponentId = componentId,
+                        ComponentServiceId = componentServiceId,
+                        ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                        ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
+                        Cmd = cmd,
+                        ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
+                        DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
+                        ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
+                        DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
+                        InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
+                        ChannelStarterService = CurrentChannelStarterService != null
+                            ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
+                            : null,
+                        RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
+                    };
+                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
+
+                    Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
+                    {
+                        Label = "IN",
+                        PortType = CapnpFbpPortModel.PortType.In,
+                        NodeModel = node,
+                    });
+                    Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
+                    {
+                        Label = "OUT",
+                        PortType = CapnpFbpPortModel.PortType.Out,
+                        NodeModel = node,
+                    });
+                    Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
+                    Diagram.Controls.AddFor(node).Add(new ToggleEditNodeControl(1.1, 0, -20, -50)
+                    {
+                        NodeModel = node
+                    });
+
+                    //var portLocations = initNode?["location"]?["ports"] as JObject;
+
+                    foreach(var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
+                    {
+                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.In, i, input.Name);
+                    }
+
+                    foreach(var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
+                    {
+                        AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.Out, i, output.Name);
+                    }
+                    Diagram.Nodes.Add(node);
+                    return node;
+                }
                 default:
                     throw new ArgumentOutOfRangeException();
             }

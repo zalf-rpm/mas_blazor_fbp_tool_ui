@@ -29,6 +29,9 @@ public class CapnpFbpPortModel : PortModel, IDisposable
     public Task ChannelTask { get; set; }
     public string ReaderWriterSturdyRef { get; set; }
 
+    public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
+    public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IReader Reader { get; set; }
+
     public Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.IP> Channel { get; set; }
     public Mas.Schema.Service.IStoppable StopChannel { get; set; }
 

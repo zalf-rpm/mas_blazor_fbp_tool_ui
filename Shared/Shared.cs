@@ -11,6 +11,7 @@ using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
+using Exception = System.Exception;
 using Restorer = Mas.Infrastructure.Common.Restorer;
 
 namespace BlazorDrawFBP.Shared
@@ -90,6 +91,8 @@ namespace BlazorDrawFBP.Shared
                     {
                         case CapnpFbpPortModel sPort:
                             sPort.ReaderWriterSturdyRef = si.Item1[0].WriterSRs[0];
+                            sPort.Writer = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)?.
+                                Cast<Channel<IP>.IWriter>(false);
                             break;
                         case CapnpFbpIipPortModel iipPort:
                             iipPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
@@ -99,6 +102,8 @@ namespace BlazorDrawFBP.Shared
                     }
 
                     inPort.ReaderWriterSturdyRef = si.Item1[0].ReaderSRs[0];
+                    inPort.Reader = (si.Item1[0].Readers[0] as Channel<object>.Reader_Proxy)?.
+                        Cast<Channel<IP>.IReader>(false);
                     // attach channel cap to IN port (target port)
                     inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(false);
                     // attach stop channel cap to IN port
@@ -107,6 +112,7 @@ namespace BlazorDrawFBP.Shared
                 else
                 {
                     Console.WriteLine($"CreateChannel: inPort.channel was not null");
+                    throw new Exception("CreateChannel: inPort.channel was null");
                     var writerSr =
                         Restorer.SturdyRefStr((await inPort.Channel.Writer().Result.Save(null)).SturdyRef);
                     switch (outPort)

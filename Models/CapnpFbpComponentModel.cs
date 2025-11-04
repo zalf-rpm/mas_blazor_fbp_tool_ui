@@ -32,11 +32,11 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
     public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
-    public bool ProcessStarted { get; private set; }
+    public bool ProcessStarted { get; protected set; }
 
     public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
 
-    public async Task StartProcess(ConnectionManager conMan, bool start)
+    public virtual async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
