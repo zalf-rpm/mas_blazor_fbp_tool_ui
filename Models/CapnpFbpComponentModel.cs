@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BlazorDrawFBP.Pages;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Fbp;
 
@@ -16,6 +17,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
     public CapnpFbpComponentModel(string id, Point position = null) : base(id, position) {}
 
+    public Editor Editor { get; set; }
     public string ComponentId { get; set; }
     public string ComponentServiceId { get; set; }
     public string ComponentName { get; set; }
@@ -31,16 +33,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
-    public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
+    // public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
     public bool ProcessStarted { get; protected set; }
 
-    public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
+    // public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
 
     public virtual async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
-            if (ChannelStarterService == null || Runnable == null) return;
+            if (Editor.CurrentChannelStarterService == null || Runnable == null) return;
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
@@ -81,7 +83,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     {
                         if (inPort.Parent is not CapnpFbpComponentModel m) return;
                         Console.WriteLine($"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
-                        await Shared.Shared.CreateChannel(conMan, m.ChannelStarterService, rcplm.OutPortModel, inPort);
+                        await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm.OutPortModel, inPort);
                     }
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
 
@@ -122,7 +124,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
                 //start temporary port info channel and send port infos to component
                 Console.WriteLine($"{ProcessName}: Trying to start port info channel");
-                var si = await ChannelStarterService.Start(new StartChannelsService.Params
+                var si = await Editor.CurrentChannelStarterService.Start(new StartChannelsService.Params
                 {
                     Name = $"config_{ProcessName}"
                 });
@@ -182,7 +184,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         {
             Task.Run(async () => await Runnable.Stop()).ContinueWith(t => Runnable.Dispose());
         }
-        ChannelStarterService?.Dispose();
+        // ChannelStarterService?.Dispose();
         foreach (var port in Ports)
         {
             if (port is IDisposable disposable) disposable.Dispose();

@@ -83,7 +83,7 @@
                                 @bind-SelectedValue="Node.ComponentServiceId"
                                 CheckMark
                                 SelectionMode="SelectionMode.SingleSelection">
-                        @foreach (var (i, p) in Node.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
+                        @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
                         {
                             var style = $"position: absolute; left: 3px; top: {-15 - i*25}px;";
                             <MudChip Style="@style"
@@ -108,7 +108,7 @@
                              Size="Size.Small"
                              OnClick="() => { _changeComponentServiceId = true; }"
                              T="string">
-                        @(Node.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
+                        @(Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
                     </MudChip>
                 }
             </CardHeaderContent>

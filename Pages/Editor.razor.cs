@@ -53,7 +53,7 @@ namespace BlazorDrawFBP.Pages
         private const string NoRegistryServiceId = "no_service";
 
         private Dictionary<string, Mas.Schema.Registry.IRegistry> ServiceId2Registries { get; } = [];
-        private Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
+        public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
 
         private Dictionary<string, Mas.Schema.Fbp.IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
         private Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
@@ -65,7 +65,7 @@ namespace BlazorDrawFBP.Pages
 
         private Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
 
-        private Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
+        public Mas.Schema.Fbp.IStartChannelsService CurrentChannelStarterService =>
             ServiceId2ChannelStarterServices.FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null)).Value;
 
         private readonly Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds = new();
@@ -353,7 +353,7 @@ namespace BlazorDrawFBP.Pages
                         {
                             case CapnpFbpPortModel.PortType.In:
                                 l.Labels.Add(new LinkLabelModel(l, sourcePort.Name, 0.2));
-                                l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "OUT", 0.8));
+                                l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "out", 0.8));
                                 l.SourceMarker = LinkMarker.Arrow;
                                 l.TargetChanged += (link, oldTarget, newTarget) =>
                                 {
@@ -380,7 +380,7 @@ namespace BlazorDrawFBP.Pages
                                 break;
                             case CapnpFbpPortModel.PortType.Out:
                                 l.Labels.Add(new LinkLabelModel(l, sourcePort.Name, 0.2));
-                                l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "IN", 0.8));
+                                l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
                                 l.TargetMarker = LinkMarker.Arrow;
                                 l.TargetChanged += (link, oldTarget, newTarget) =>
                                 {
@@ -415,7 +415,7 @@ namespace BlazorDrawFBP.Pages
                     case CapnpFbpIipPortModel iipPortModel:
                     {
                         var targetPort = l.Target.Model as CapnpFbpPortModel;
-                        l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "IN", 0.8));
+                        l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
                         l.TargetMarker = LinkMarker.Arrow;
                         l.TargetChanged += (link, oldTarget, newTarget) =>
                         {
@@ -1037,6 +1037,7 @@ namespace BlazorDrawFBP.Pages
                         initNode?.GetValue("nodeId")?.Value<string>() ?? initNode?.GetValue("node_id")?.Value<string>() ?? Guid.NewGuid().ToString(),
                         new Point(position.X, position.Y))
                     {
+                        Editor = this,
                         ComponentId = componentId,
                         ComponentServiceId = componentServiceId,
                         ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
@@ -1048,22 +1049,22 @@ namespace BlazorDrawFBP.Pages
                         DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                         Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
-                        ChannelStarterService = CurrentChannelStarterService != null
-                            ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
-                            : null,
-                        RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
+                        // ChannelStarterService = CurrentChannelStarterService != null
+                        //     ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
+                        //     : null,
+                        // RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
                     };
                     if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
-                        Label = "IN",
+                        Label = "in",
                         PortType = CapnpFbpPortModel.PortType.In,
                         NodeModel = node,
                     });
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
                     {
-                        Label = "OUT",
+                        Label = "out",
                         PortType = CapnpFbpPortModel.PortType.Out,
                         NodeModel = node,
                     });
@@ -1111,14 +1112,6 @@ namespace BlazorDrawFBP.Pages
                 case Component.ComponentType.view:
                 {
                     var componentId = component.Info.Id;
-                    var componentServiceId =
-                        initNode?.GetValue("componentServiceId")?.Value<string>() ?? NoRegistryServiceId;
-                    var unavailableService = false;
-                    if (!RegistryServiceIdToPetNameAndSturdyRef.ContainsKey(componentServiceId))
-                    {
-                        unavailableService = true;
-                        RegistryServiceIdToPetNameAndSturdyRef.Add(componentServiceId, ($"Service '{componentServiceId[..3]}..{componentServiceId[^3..]}' unavailable!", null));
-                    }
                     var initNodeComponentId = initNode?["componentId"]?.Value<string>() ?? "";
                     //preserve componentId from flow file, even if no service is connected right now
                     if (!string.IsNullOrEmpty(initNodeComponentId))
@@ -1131,33 +1124,22 @@ namespace BlazorDrawFBP.Pages
                         initNode?.GetValue("nodeId")?.Value<string>() ?? initNode?.GetValue("node_id")?.Value<string>() ?? Guid.NewGuid().ToString(),
                         new Point(position.X, position.Y))
                     {
+                        Editor = this,
                         ComponentId = componentId,
-                        ComponentServiceId = componentServiceId,
-                        ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                        ComponentName = component.Info.Name ?? componentId,
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
-                        Cmd = cmd,
-                        ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
-                        DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
-                        ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
-                        DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
-                        InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
-                        ChannelStarterService = CurrentChannelStarterService != null
-                            ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
-                            : null,
-                        RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
                     };
                     if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
-                        Label = "IN",
+                        Label = "in",
                         PortType = CapnpFbpPortModel.PortType.In,
                         NodeModel = node,
                     });
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
                     {
-                        Label = "OUT",
+                        Label = "out",
                         PortType = CapnpFbpPortModel.PortType.Out,
                         NodeModel = node,
                     });

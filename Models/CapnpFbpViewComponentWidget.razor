@@ -1,267 +1,61 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
 
-@using System.Collections.Generic;
-@using Blazor.Diagrams.Components.Renderers;
-@using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
-@using System.Text
-@using System.Diagnostics.Metrics
-@using _Imports = MudBlazor._Imports
-@using System.Diagnostics
-@using System.Reflection
-@using System.Threading
-@using Mas.Schema.Fbp
 
 <div>
     <MudCard Style="@CardStyle">
-        <MudCardHeader>
-            @*<CardHeaderAvatar>
-                <MudAvatar Color="Color.Secondary"
-                           >@InterpreterShortcut(Node.PathToInterpreter)</MudAvatar>
-            </CardHeaderAvatar>*@
-            <CardHeaderContent>
-                <MudTextField Class="d-inline-flex pr-4"
-                              @bind-Value="Node.ProcessName"
-                              Label="Process name"
-                              Variant="Variant.Outlined"/>
-                @* <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;" *@
-                @*                      @bind-Toggled="@ParallelOn" *@
-                @*                      Icon="@Icons.Material.Filled.PlaylistAddCircle" *@
-                @*                      Color="@Color.Primary" *@
-                @*                      title="@(ParallelOn ? "Parallel Off" : "Parallel On")" *@
-                @*                      ToggledIcon="@Icons.Material.Filled.LooksOne" *@
-                @*                      ToggledColor="@Color.Secondary"/> *@
-                <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
-                                     Toggled="@ProcessStarted"
-                                     ToggledChanged="@StartProcess"
-                                     Icon="@Icons.Material.Filled.PlayCircle"
-                                     Color="@Color.Primary"
-                                     title="@(ProcessStarted ? "Stop process" : "Start process")"
-                                     ToggledIcon="@Icons.Material.Filled.StopCircle"
-                                     ToggledColor="@Color.Secondary"/>
-                @* @if (ParallelOn) *@
-                @* { *@
-                @*     <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;" *@
-                @*                      @bind-Value="Node.InParallelCount" *@
-                @*                      Label="#Procs" *@
-                @*                      Variant="Variant.Outlined" *@
-                @*                      Min="1" Max="10000"/> *@
-                @* } *@
-                <MudToggleIconButton Style="position: absolute; right: -5px; top: 55px;"
-                                     @bind-Toggled="@_linesOn"
-                                     Icon="@Icons.Material.Filled.MenuOpen"
-                                     Color="@Color.Primary"
-                                     title="@(_linesOn ? "Lines Off" : "Lines On")"
-                                     ToggledIcon="@Icons.Material.Filled.FormatLineSpacing"
-                                     ToggledColor="@Color.Secondary"/>
-                @if (_linesOn)
-                {
-                    <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
-                                     @bind-Value="Node.DisplayNoOfConfigLines"
-                                     Label="#Lines"
-                                     Variant="Variant.Outlined"
-                                     Min="1" Max="10000"/>
-                }
-                <MudTextField @bind-Value="Node.ConfigString"
-                              Lines="@Node.DisplayNoOfConfigLines"
-                              Label="TOML config (Key=Value)"
-                              Variant="Variant.Outlined"/>
-                @* @if (!Node.Editable && !string.IsNullOrWhiteSpace(Node.ShortDescription)) *@
-                @* { *@
-                @*     <MudTextField @bind-Value="Node.ShortDescription" *@
-                @*                   Lines="2" *@
-                @*                   Label="Description" *@
-                @*                   Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))" *@
-                @*                   Variant="Variant.Outlined"/> *@
-                @* } *@
-                @code {
-                    bool _changeComponentServiceId = false;
-                }
-                @if (_changeComponentServiceId)
-                {
-                    <MudChipSet T="string"
-                                @bind-SelectedValue="Node.ComponentServiceId"
-                                CheckMark
-                                SelectionMode="SelectionMode.SingleSelection">
-                        @foreach (var (i, p) in Node.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
-                        {
-                            var style = $"position: absolute; left: 3px; top: {-15 - i*25}px;";
-                            <MudChip Style="@style"
-                                     Color="Color.Info"
-                                     SelectedColor="Color.Info"
-                                     Label="true"
-                                     Default="@(p.Key == Node.ComponentServiceId)"
-                                     OnClick="() => { _changeComponentServiceId = false; }"
-                                     Size="Size.Small"
-                                     Value="@p.Key"
-                                     T="string">
-                                @p.Value.Item1
-                            </MudChip>
-                        }
-                    </MudChipSet>
-                }
-                else
-                {
-                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
-                             Color="Color.Info"
-                             Label="true"
-                             Size="Size.Small"
-                             OnClick="() => { _changeComponentServiceId = true; }"
-                             T="string">
-                        @(Node.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
-                    </MudChip>
-                }
-            </CardHeaderContent>
-            @*<CardHeaderActions>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                               Color="Color.Default"
-                               OnClick="() => Node.Editable = !Node.Editable"/>
-            </CardHeaderActions>*@
-        </MudCardHeader>
-        @* <MudCardMedia Image="images/pilars.jpg" Height="250" /> *@
-        @if (false && (Node.Editable || Node.DefaultConfigString.Length > 0))
-        {
-            <MudCardContent>
-                @* @if (!Node.Editable && Node.DefaultConfigString.Length > 0) *@
-                @* { *@
-                @*     <MudField Label="Default TOML config" *@
-                @*               Variant="Variant.Outlined"> *@
-                @*         <MudText Typo="Typo.body2">@Node.DefaultConfigString</MudText> *@
-                @*     </MudField> *@
-                @* } *@
-                @if (Node.Editable)
-                {
-                    <MudField Label="Component data"
-                              Variant="Variant.Outlined">
-                        <MudTextField @bind-Value="Node.ComponentId"
-                                      Label="Id"
-                                      Variant="Variant.Outlined"/>
-
-                        <MudTextField @bind-Value="Node.ComponentServiceId"
-                                      Label="Service Id"
-                                      Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
-                                      Variant="Variant.Outlined"/>
-                        @if (!string.IsNullOrEmpty(Node.ComponentName) || string.IsNullOrWhiteSpace(Node.ComponentId))
-                        {
-                            <MudTextField @bind-Value="Node.ComponentName"
-                                          Label="Name"
-                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
-                                          Variant="Variant.Outlined"/>
-                        }
-                        @if (!string.IsNullOrEmpty(Node.ShortDescription) || string.IsNullOrWhiteSpace(Node.ComponentId))
-                        {
-                            <MudTextField @bind-Value="Node.ShortDescription"
-                                          Lines="2"
-                                          Label="Description"
-                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
-                                          Variant="Variant.Outlined"/>
-                        }
-                        @if (!string.IsNullOrEmpty(Node.DefaultConfigString) || string.IsNullOrWhiteSpace(Node.ComponentId))
-                        {
-                            <MudTextField @bind-Value="Node.DefaultConfigString"
-                                          Lines="3"
-                                          Label="Default TOML config (Key=Value)"
-                                          Variant="Variant.Outlined"/>
-                        }
-                        @if (Node.Runnable == null && (!string.IsNullOrEmpty(Node.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentId)))
-                        {
-                            <MudTextField T="string"
-                                          @bind-Value="Node.Cmd"
-                                          Label="Commandline"
-                                          Disabled="@(!string.IsNullOrWhiteSpace(Node.ComponentId))"
-                                          Variant="Variant.Outlined"/>
-                        }
-                    </MudField>
-                }
-            </MudCardContent>
-        }
+        @* <MudCardHeader> *@
+        @*     <CardHeaderContent> *@
+        @*         <MudTextField Class="d-inline-flex pr-4" *@
+        @*                       @bind-Value="Node.ProcessName" *@
+        @*                       Label="Process name" *@
+        @*                       Variant="Variant.Outlined"/> *@
+        @*         <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;" *@
+        @*                              Toggled="@ProcessStarted" *@
+        @*                              ToggledChanged="@StartProcess" *@
+        @*                              Icon="@Icons.Material.Filled.PlayCircle" *@
+        @*                              Color="@Color.Primary" *@
+        @*                              title="@(ProcessStarted ? "Stop process" : "Start process")" *@
+        @*                              ToggledIcon="@Icons.Material.Filled.StopCircle" *@
+        @*                              ToggledColor="@Color.Secondary"/> *@
+        @*     </CardHeaderContent> *@
+        @* </MudCardHeader> *@
+        <MudCardContent>
+            <MudTextField Class="d-inline-flex pr-4"
+                          @bind-Value="Node.ProcessName"
+                          Label="Process name"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"/>
+            <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
+                                 Toggled="@ProcessStarted"
+                                 ToggledChanged="@StartProcess"
+                                 Icon="@Icons.Material.Filled.PlayCircle"
+                                 Color="@Color.Primary"
+                                 title="@(ProcessStarted ? "Stop process" : "Start process")"
+                                 ToggledIcon="@Icons.Material.Filled.StopCircle"
+                                 ToggledColor="@Color.Secondary"/>
+            <Display WidthPx="@Node.DisplayWidthPx"
+                     HeightPx="@Node.DisplayHeightPx">
+                @Node.ViewContent
+            </Display>
+        </MudCardContent>
     </MudCard>
 
-    @foreach (var port in Node.Ports)
+    @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
     {
-        if (port is not CapnpFbpPortModel capnpPort) continue;
-
-        /*var orderNo = Node.Ports.Where(p =>
-        {
-            if (p is CapnpFbpPortModel cp) return cp.ThePortType == capnpPort.ThePortType;
-            return false;
-        }).TakeWhile(p => p != port).Count();
-        */
-        
-        var portCount = Node.Ports.Where(p =>
-        {
-            if (p is CapnpFbpPortModel cp) return cp.ThePortType == capnpPort.ThePortType;
-            return false;
-        }).Count();
-
-        var offsets = capnpPort.Alignment switch
-        {
-            PortAlignment.Left => _leftRightOffsetsMap[Math.Min(portCount, 11)],
-            PortAlignment.Right => _leftRightOffsetsMap[Math.Min(portCount, 11)],
-            PortAlignment.Top => _topBottomOffsets,
-            PortAlignment.Bottom => _topBottomOffsets,
-            _ => []
-        };
-        if (capnpPort.Alignment is PortAlignment.Right or PortAlignment.Bottom)
-        {
-            offsets = new List<int>(offsets);
-            offsets.Reverse();
-        }
-
-        var capnpPortOffset = capnpPort.Alignment switch
-        {
-            PortAlignment.Left => offsets[capnpPort.OrderNo],
-            PortAlignment.Top => offsets[capnpPort.OrderNo - 11],
-            PortAlignment.Right => offsets[capnpPort.OrderNo],
-            PortAlignment.Bottom => offsets[capnpPort.OrderNo - 11],
-            _ => 0
-        };
-
-        var style = capnpPort.Alignment switch
-        {
-            PortAlignment.Left => $"top: {50 + capnpPortOffset}%;",
-            PortAlignment.Top => $"left: {50 + capnpPortOffset}%;",
-            PortAlignment.Right => $"top: {50 + capnpPortOffset}%;",
-            PortAlignment.Bottom => $"left: {50 + capnpPortOffset}%;",
-            _ => ""
-        };
-        
-        // Console.WriteLine(capnpPort.ThePortType.ToString() + " OrderNo: " + capnpPort.OrderNo + " -> " + style);
-        <CapnpFbpPortRenderer @key="port" Port="capnpPort" Style="@style">
-            @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
+        <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="top: 50%;">
+            in
         </CapnpFbpPortRenderer>
     }
 </div>
 
 @code {
-    [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
+    [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
+    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; {FrameWidth}; {FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
-    private string FrameColor => $@"border-color: {(Node.Runnable == null ? "#6e9fd4" : (ProcessStarted ? "#1ac12e" : "#ff0000"))}";
-
-    private string MinHeight =>
-        $@"min-height: {Math.Max(100, Math.Max(
-            Node.Ports.Count(p =>
-            {
-                if (p is CapnpFbpPortModel cp) return cp.ThePortType == CapnpFbpPortModel.PortType.In;
-                return false;
-            }) * 2 * 20, 
-            Node.Ports.Count(p =>
-            {
-                if (p is CapnpFbpPortModel cp) return cp.ThePortType == CapnpFbpPortModel.PortType.Out;
-                return false;
-            }) * 2 * 20 
-        ))}px";
-
-    private bool _linesOn = false;
-
-    private bool ParallelOn
-    {
-        get => Node.InParallelCount > 1;
-        set => Node.InParallelCount = value ? 2 : 1;
-    }
+    private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private async Task StartProcess(bool start)
     {
@@ -270,21 +64,4 @@
     }
 
     private bool ProcessStarted => Node.ProcessStarted;
-
-    private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new()
-    {
-        { 1, [0] },
-        { 2, [30, -30] },
-        { 3, [30, 0, -30] },
-        { 4, [30, 10, -10, -30] },
-        { 5, [30, 15, 0, -15, -30] },
-        { 6, [30, 15, 0, -15, -30, -45] },
-        { 7, [30, 20, 10, 0, -10, -20, -30] },
-        { 8, [35, 25, 15, 5, -5, -15, -25, -35] },
-        { 9, [40, 30, 20, 10, 0, -10, -20, -30, -40] },
-        { 10, [-45, -35, -25, -15, -5, 5, 15, 25, 35, 45] },
-        { 11, [50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50] },
-    };
-
-    private readonly List<int> _topBottomOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
 }

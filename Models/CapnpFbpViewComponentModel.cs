@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BlazorDrawFBP.Pages;
 using Capnp;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Fbp;
+using Microsoft.AspNetCore.Components;
+using OneOf.Types;
 
 namespace BlazorDrawFBP.Models;
 
@@ -19,39 +22,23 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
 
     public Task ViewMsgReceiveTask { get; set; }
 
+    public int DisplayWidthPx { get; set; } = 100;
+    public int DisplayHeightPx { get; set; } = 100;
+
+    public bool AppendMode { get; set; } = false;
+
+    public MarkupString ViewContent { get; set; }
+
     public override async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
-            if (ChannelStarterService == null) return;
+            if (Editor.CurrentChannelStarterService == null) return;
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
             if (start)
             {
-                // List<Mas.Schema.Fbp.PortInfos.NameAndSR> inPortSRs = [];
-                // List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
-                // async Task CollectPortSrs(CapnpFbpPortModel port)
-                // {
-                //     Console.WriteLine($"{ProcessName}: collecting port srs");
-                //     if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null)
-                //     {
-                //         Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
-                //         await port.ChannelTask;
-                //     }
-                //     switch (port.ThePortType)
-                //     {
-                //         case CapnpFbpPortModel.PortType.In:
-                //             inPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
-                //             break;
-                //         case CapnpFbpPortModel.PortType.Out:
-                //             outPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
-                //             break;
-                //         default:
-                //             throw new ArgumentOutOfRangeException();
-                //     }
-                // }
-
                 Channel<IP>.IReader reader = null;
 
                 // collect SRs from IN and OUT ports and for IIPs send it into the channel
@@ -66,7 +53,7 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                     {
                         if (inPort.Parent is not CapnpFbpViewComponentModel m) return;
                         Console.WriteLine($"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
-                        await Shared.Shared.CreateChannel(conMan, m.ChannelStarterService, rcplm.OutPortModel, inPort);
+                        await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm.OutPortModel, inPort);
                     }
                     //if (inPort.Parent == this) await CollectPortSrs(inPort);
                     if (inPort.Parent == this) reader = Capnp.Rpc.Proxy.Share(inPort.Reader);
@@ -106,14 +93,6 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                     }
                 }
 
-                //start temporary port info channel and send port infos to component
-                // Console.WriteLine($"{ProcessName}: Trying to start port info channel");
-                // var si = await ChannelStarterService.Start(new StartChannelsService.Params
-                // {
-                //     Name = $"config_{ProcessName}"
-                // });
-                // Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
-                // if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0) return;
                 ViewMsgReceiveTask = Task.Run(async () =>
                 {
                     Console.WriteLine($"{ProcessName}: starting view's receive loop");
@@ -137,8 +116,9 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                     if (str != null)
                                     {
                                         Console.WriteLine($"{ProcessName}: received msg: '{str}'");
-                                        ConfigString += str;
-                                        ConfigString += "\n";
+                                        ViewContent = new MarkupString(str);
+                                        //ConfigString += str;
+                                        //ConfigString += "\n";
                                     }
                                     Refresh();
                                 }
