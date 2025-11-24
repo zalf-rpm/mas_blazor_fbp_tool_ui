@@ -561,6 +561,8 @@ namespace BlazorDrawFBP.Pages
             if (s.Length > 1*1024*1024) return; // 1 MB
             var dia = JObject.Parse(await new StreamReader(s).ReadToEndAsync());
             var oldNodeIdToNewNode = new Dictionary<string, NodeModel>();
+
+            Diagram.SuspendRefresh = true;
             foreach (var node in dia["nodes"] ?? new JArray())
             {
                 if (node is not JObject nodeObj) continue;
@@ -642,6 +644,20 @@ namespace BlazorDrawFBP.Pages
                 l.TargetMarker = LinkMarker.Arrow;
                 Diagram.Links.Add(l);
             }
+            Diagram.SuspendRefresh = true;
+            Diagram.Refresh();
+
+            InvokeAsync(async () =>
+            {
+                await Task.Delay(500);
+                Diagram.SuspendRefresh = true;
+                Diagram.SetPan(
+                    dia["pan"]?["x"]?.Value<double>() ?? 0.0,
+                    dia["pan"]?["y"]?.Value<double>() ?? 0.0);
+                Diagram.SetZoom(dia["zoom"]?.Value<double>() ?? 1.0);
+                Diagram.SuspendRefresh = false;
+                Diagram.Refresh();
+            });
         }
 
         private const int IipIdLength = 10;
@@ -658,6 +674,9 @@ namespace BlazorDrawFBP.Pages
             }
             else
             {
+                dia["pan"] = new JObject { { "x", Diagram.Pan.X }, { "y", Diagram.Pan.Y } };
+                dia["zoom"] = Diagram.Zoom;
+
                 // store references to used services
                 if (dia["services"]?["channels"] is JObject channels)
                 {
