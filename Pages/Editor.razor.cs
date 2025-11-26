@@ -1066,14 +1066,10 @@ namespace BlazorDrawFBP.Pages
                         DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
                         ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
                         DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.RunFactory == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
-                        // ChannelStarterService = CurrentChannelStarterService != null
-                        //     ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
-                        //     : null,
-                        // RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
                     };
-                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
+                    if (component.RunFactory != null) node.RunnableFactory = Proxy.Share(component.RunFactory);
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
@@ -1148,7 +1144,6 @@ namespace BlazorDrawFBP.Pages
                         ComponentName = component.Info.Name ?? componentId,
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                     };
-                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {

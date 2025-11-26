@@ -1,12 +1,15 @@
-<div style="width: 100%; height: 100%; background-color: lightgrey">
-    @ChildContent
-</div>
-
+<MudPaper Class="pa-2 mt-2" Elevation="3">
+    <div style="@Style">
+        @ChildContent
+    </div>
+</MudPaper>
 @code {
     [Parameter]
     public RenderFragment ChildContent { get; set; }
 
     [Parameter] public int WidthPx { get; set; } = 100;
     [Parameter] public int HeightPx { get; set; } = 100;
+
+    private string Style => $"width: 100%; height: {HeightPx}px; overflow: auto;";
 
 }

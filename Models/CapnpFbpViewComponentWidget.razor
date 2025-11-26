@@ -4,28 +4,19 @@
 
 <div>
     <MudCard Style="@CardStyle">
-        @* <MudCardHeader> *@
-        @*     <CardHeaderContent> *@
-        @*         <MudTextField Class="d-inline-flex pr-4" *@
-        @*                       @bind-Value="Node.ProcessName" *@
-        @*                       Label="Process name" *@
-        @*                       Variant="Variant.Outlined"/> *@
-        @*         <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;" *@
-        @*                              Toggled="@ProcessStarted" *@
-        @*                              ToggledChanged="@StartProcess" *@
-        @*                              Icon="@Icons.Material.Filled.PlayCircle" *@
-        @*                              Color="@Color.Primary" *@
-        @*                              title="@(ProcessStarted ? "Stop process" : "Start process")" *@
-        @*                              ToggledIcon="@Icons.Material.Filled.StopCircle" *@
-        @*                              ToggledColor="@Color.Secondary"/> *@
-        @*     </CardHeaderContent> *@
-        @* </MudCardHeader> *@
         <MudCardContent>
             <MudTextField Class="d-inline-flex pr-4"
                           @bind-Value="Node.ProcessName"
                           Label="Process name"
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense"/>
+            <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;"
+                                 @bind-Toggled="Node.AppendMode"
+                                 Icon="@Icons.Material.Filled.DoneAll"
+                                 Color="@Color.Primary"
+                                 title="@(Node.AppendMode ? "Replace old content" : "Append new content")"
+                                 ToggledIcon="@Icons.Material.Filled.Done"
+                                 ToggledColor="@Color.Secondary"/>
             <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
                                  Toggled="@ProcessStarted"
                                  ToggledChanged="@StartProcess"
@@ -36,7 +27,7 @@
                                  ToggledColor="@Color.Secondary"/>
             <Display WidthPx="@Node.DisplayWidthPx"
                      HeightPx="@Node.DisplayHeightPx">
-                @Node.ViewContent
+                    @Node.ViewContent
             </Display>
         </MudCardContent>
     </MudCard>

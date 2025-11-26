@@ -32,17 +32,18 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public string ConfigString { get; set; }
 
     public int DisplayNoOfConfigLines { get; set; } = 3;
-    public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
-    // public Mas.Schema.Fbp.IStartChannelsService ChannelStarterService { get; init; }
-    public bool ProcessStarted { get; protected set; }
 
-    // public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; set; }
+    public Mas.Schema.Fbp.Component.IRunnable Runnable { get; set; }
+
+    public Mas.Schema.Fbp.Component.IRunnableFactory RunnableFactory { get; set; }
+
+    public bool ProcessStarted { get; protected set; }
 
     public virtual async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
-            if (Editor.CurrentChannelStarterService == null || Runnable == null) return;
+            if (Editor.CurrentChannelStarterService == null || RunnableFactory == null) return;
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
@@ -129,11 +130,19 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     Name = $"config_{ProcessName}"
                 });
                 Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
-                if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0) return;
+                if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0)
+                {
+                    return;
+                }
+
+                if (Runnable == null)
+                {
+                    Runnable = await RunnableFactory.Create();
+                    if (Runnable == null) return;
+                }
                 ProcessStarted = await Runnable.Start(si.Item1[0].ReaderSRs[0], ProcessName);
                 if (!ProcessStarted) return;
                 Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
-                //using var writer = await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.PortInfos>.IWriter>(si.Item1[0].WriterSRs[0]);
                 var writer = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)?.
                     Cast<Channel<PortInfos>.IWriter>(false);
                 if (writer != null)
@@ -155,15 +164,6 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 {
                     Console.WriteLine($"{ProcessName}: Error: Couldn't write PortInfos, writer was null!");
                 }
-
-                //commented out because closing the channel at this point will make it unavailable for the component
-                //we have to rely on closing the writer will close down the channel properly after last message being read
-                //from the reader
-                //close port infos channel
-                //await si.Item1[0].Channel.Close(true);
-                //si.Item2.Dispose();
-                //using var channel = await conMan.Connect<Mas.Schema.Fbp.IChannel<Mas.Schema.Fbp.PortInfos>>(si.Item1[0].ChannelSR);
-                //await channel.Close(true);
             }
             else // stop
             {
@@ -176,18 +176,29 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         }
     }
 
+    public void FreeRemoteComponentResources()
+    {
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::FreeComponentResources");
+        if (Runnable != null)
+        {
+            Task.Run(async () => await Runnable.Stop()).ContinueWith(t =>
+            {
+                Runnable.Dispose();
+                Runnable = null;
+            });
+        }
+        RunnableFactory?.Dispose();
+        RunnableFactory = null;
+        foreach (var port in Ports)
+        {
+            //will also free channels
+            if (port is IDisposable disposable) disposable.Dispose();
+        }
+    }
 
     public void Dispose()
     {
-        Console.WriteLine($"{ProcessName}: Disposing");
-        if (Runnable != null)
-        {
-            Task.Run(async () => await Runnable.Stop()).ContinueWith(t => Runnable.Dispose());
-        }
-        // ChannelStarterService?.Dispose();
-        foreach (var port in Ports)
-        {
-            if (port is IDisposable disposable) disposable.Dispose();
-        }
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
+        FreeRemoteComponentResources();
     }
 }

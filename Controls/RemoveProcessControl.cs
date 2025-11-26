@@ -7,6 +7,7 @@ using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.Positions;
+using BlazorDrawFBP.Models;
 
 namespace BlazorDrawFBP.Controls;
 
@@ -41,6 +42,7 @@ public class RemoveProcessControl : ExecutableControl
                 diagram.Groups.Delete(group);
                 break;
             case NodeModel nodeModel:
+                if (nodeModel is CapnpFbpComponentModel cfcm) cfcm.FreeRemoteComponentResources();
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
