@@ -27,7 +27,7 @@
                                  ToggledColor="@Color.Secondary"/>
             <Display WidthPx="@Node.DisplayWidthPx"
                      HeightPx="@Node.DisplayHeightPx">
-                    @Node.ViewContent
+                @Node.ViewContent
             </Display>
         </MudCardContent>
     </MudCard>
@@ -43,9 +43,7 @@
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; {FrameWidth}; {FrameColor}";
-
-    private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
+    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; border-width: 1px; {FrameColor}";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private async Task StartProcess(bool start)

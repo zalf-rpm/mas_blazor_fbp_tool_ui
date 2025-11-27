@@ -57,6 +57,7 @@ namespace BlazorDrawFBP.Shared
             return port.Parent switch
             {
                 CapnpFbpComponentModel m => m.ProcessName,
+                CapnpFbpViewComponentModel m2 => m2.ProcessName,
                 CapnpFbpIipModel m2 => m2.Id,
                 _ => "unknown_process"
             };

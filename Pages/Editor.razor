@@ -57,71 +57,66 @@
             </MudPaper>
         </MudItem>
         <MudItem xs="2">
-            <MudPaper Height="90vh" Class="overflow-scroll">
+            <MudPaper>
+                <MudExpansionPanel Text="Actions" Expanded="true">
+                    <MudStack Spacing="1">
+                        <MudFileUpload T="IBrowserFile"
+                                       FilesChanged="LoadFlow"
+                                       Style="margin-top:0;">
+                            <ActivatorContent>
+                                <MudButton StartIcon="@Icons.Material.Filled.Upload"
+                                           Variant="@Variant.Filled"
+                                           Color="@Color.Primary"
+                                           FullWidth="true">
+                                    Load Flow
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                   Variant="@Variant.Filled"
+                                   Color="@Color.Primary"
+                                   FullWidth="true"
+                                   @onclick="() => SaveFlow(false)">
+                            Save Flow
+                        </MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                   Variant="@Variant.Filled"
+                                   Color="@Color.Primary"
+                                   FullWidth="true"
+                                   @onclick="() => SaveFlow(true)">
+                            Export as Mermaid Flow
+                        </MudButton>
+                        <MudButton
+                            StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+                            Variant="@Variant.Filled"
+                            Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+                            FullWidth="true"
+                            OnClick="ClearButtonClicked">
+                            @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+                        </MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                                   Variant="@Variant.Filled"
+                                   Color="@Color.Default"
+                                   FullWidth="true"
+                                   @onclick="@ExecuteFlow">
+                            Execute flow
+                        </MudButton>
+                    </MudStack>
+                </MudExpansionPanel>
+                <MudSwitch @bind-Value="@InteractiveMode"
+                           Label="Interactive"
+                           Color="Color.Success"
+                           Style="padding-left: 10px"/>
+                <MudTextField @bind-Value="@_query"
+                              Label="Search component ..."
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Cancel"
+                              OnAdornmentClick="() => { _query = null; }"/>
+            </MudPaper>
+            <MudPaper Height="50vh" Class="overflow-scroll">
                 <MudExpansionPanels MultiExpansion="true">
-                    <MudExpansionPanel Text="Actions" Expanded="true">
-                        <MudStack Spacing="1">
-                            @* <MudButton StartIcon="@Icons.Material.Filled.Delete" *@
-                            @*            Variant="@Variant.Filled" *@
-                            @*            Color="@Color.Warning" *@
-                            @*            FullWidth="true" *@
-                            @*            @onclick="RemoveNode"> *@
-                            @*     Remove Node *@
-                            @* </MudButton> *@
-                            <MudFileUpload T="IBrowserFile"
-                                           FilesChanged="LoadFlow"
-                                           Style="margin-top:0;">
-                                <ActivatorContent>
-                                    <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                                               Variant="@Variant.Filled"
-                                               Color="@Color.Primary"
-                                               FullWidth="true">
-                                        Load Flow
-                                    </MudButton>
-                                </ActivatorContent>
-                            </MudFileUpload>
-                            <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                       Variant="@Variant.Filled"
-                                       Color="@Color.Primary"
-                                       FullWidth="true"
-                                       @onclick="() => SaveFlow(false)">
-                                Save Flow
-                            </MudButton>
-                            <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                       Variant="@Variant.Filled"
-                                       Color="@Color.Primary"
-                                       FullWidth="true"
-                                       @onclick="() => SaveFlow(true)">
-                                Export as Mermaid Flow
-                            </MudButton>
-                            <MudButton
-                                StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                                Variant="@Variant.Filled"
-                                Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                                FullWidth="true"
-                                OnClick="ClearButtonClicked">
-                                @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
-                            </MudButton>
-                            <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
-                                       Variant="@Variant.Filled"
-                                       Color="@Color.Default"
-                                       FullWidth="true"
-                                       @onclick="@ExecuteFlow">
-                                Execute flow
-                            </MudButton>
-                        </MudStack>
-                    </MudExpansionPanel>
-                    <MudSwitch @bind-Value="@InteractiveMode"
-                               Label="Interactive"
-                               Color="Color.Success"
-                               Style="padding-left: 10px"/>
-                    <MudTextField @bind-Value="@_query"
-                                  Label="Search component ..."
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Cancel"
-                                  OnAdornmentClick="() => { _query = null; }"/>
                     @foreach (var catId in sortedCatIds)
                     {
                         var compIds = CatId2CompServiceIdAndComponentIds[catId];

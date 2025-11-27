@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BlazorDrawFBP.Pages;
 using Mas.Infrastructure.Common;
@@ -39,7 +40,33 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
     public bool ProcessStarted { get; protected set; }
 
-    public virtual async Task StartProcess(ConnectionManager conMan, bool start)
+    private CancellationTokenSource _cancellationTokenSource = null;
+    private CapnpFbpPortModel _configInPort = null;
+    private CapnpFbpIipPortModel _confIipOutPort = null;
+    private Channel<PortInfos>.IWriter _portConfigWriter = null;
+    private string _portConfigReaderSr = null;
+
+    private Task CreateTaskAndSendIip(ConnectionManager conMan, CapnpFbpIipPortModel confIipOutPort, string content,
+        CancellationToken cancelToken = default)
+    {
+        return Task.Run(async () =>
+        {
+            Console.WriteLine($"{ProcessName}: async code for sending configIIP: '{ConfigString}'");
+            if (confIipOutPort.Writer == null)
+            {
+                Console.WriteLine(
+                    $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {confIipOutPort.ChannelTask?.IsCompletedSuccessfully}");
+                confIipOutPort.Writer =
+                    await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
+                        confIipOutPort.WriterSturdyRef);
+            }
+            await confIipOutPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } },
+                cancelToken);
+            Console.WriteLine($"{ProcessName}: sent IIP to writer");
+        }, cancelToken);
+    }
+
+    public async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
@@ -49,6 +76,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
             if (start)
             {
+                _cancellationTokenSource = new CancellationTokenSource();
+                var cancelToken = _cancellationTokenSource.Token;
+
+                //get a fresh runnable
+                if (Runnable == null)
+                {
+                    Runnable = await RunnableFactory.Create(cancelToken);
+                    if (Runnable == null) return;
+                }
+
                 List<Mas.Schema.Fbp.PortInfos.NameAndSR> inPortSRs = [];
                 List<Mas.Schema.Fbp.PortInfos.NameAndSR> outPortSRs = [];
                 async Task CollectPortSrs(CapnpFbpPortModel port)
@@ -72,6 +109,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     }
                 }
 
+                var configInPortConnected = false;
                 // collect SRs from IN and OUT ports and for IIPs send it into the channel
                 foreach (var pl in Links)
                 {
@@ -87,6 +125,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                         await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm.OutPortModel, inPort);
                     }
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
+                    if (inPort.Name == "config") configInPortConnected = true;
 
                     // deal with OUT port
                     switch (rcplm.OutPortModel)
@@ -102,72 +141,110 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                                 Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
                                 await iipPort.ChannelTask;
                             }
-
-                            Task.Run(async () =>
+                            if (iipPort.Writer == null)
                             {
-                                var content = iipModel.Content;
-                                Console.WriteLine($"{ProcessName}: async code for sending IIP: '{content}'");
-                                if (iipPort.Writer == null)
-                                {
-                                    Console.WriteLine(
-                                        $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
-                                    iipPort.Writer =
-                                        await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
-                                            iipPort.WriterSturdyRef);
-                                }
-                                await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
-                                Console.WriteLine($"{ProcessName}: sent IIP to writer");
-                            });
+                                Console.WriteLine(
+                                    $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}");
+                                iipPort.Writer =
+                                    await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
+                                        iipPort.WriterSturdyRef);
+                            }
+                            await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = iipModel.Content } },
+                                cancelToken);
+                            Console.WriteLine($"{ProcessName}: sent IIP to writer");
+                            //CreateTaskAndSendIip(conMan, iipPort, iipModel.Content, cancelToken);
                             break;
                         }
                     }
                 }
 
-                //start temporary port info channel and send port infos to component
-                Console.WriteLine($"{ProcessName}: Trying to start port info channel");
-                var si = await Editor.CurrentChannelStarterService.Start(new StartChannelsService.Params
+                //there is no config port connected, so we setup up a config channel and send the process config on the fly
+                Console.WriteLine($"{ProcessName}: configInPort connected: {configInPortConnected} ConfigString: {ConfigString}");
+                if (!configInPortConnected && !string.IsNullOrWhiteSpace(ConfigString))
                 {
-                    Name = $"config_{ProcessName}"
-                });
-                Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
-                if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0)
-                {
-                    return;
+                    Console.WriteLine($"{ProcessName}: sending config on the fly");
+
+                    //create ports, if this is the first time
+                    if (_configInPort == null) _configInPort = new(null, CapnpFbpPortModel.PortType.In);
+                    if (_confIipOutPort == null) _confIipOutPort = new(null);
+
+                    //create channel, if not done before
+                    if (_configInPort.ReaderWriterSturdyRef == null && _configInPort.ChannelTask == null)
+                    {
+                        Console.WriteLine($"{ProcessName}: creating config channel");
+                        await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, _confIipOutPort,
+                            _configInPort);
+                    }
+
+                    Console.WriteLine($"{ProcessName}: _configInPort: {_configInPort}");
+                    //insert config port sturdy ref into collections for port info message later
+                    await CollectPortSrs(_configInPort);
+
+                    //now insert the current toml configuration into the config channel
+                    //check if channel creation task has been finished
+                    if (_confIipOutPort.WriterSturdyRef == null && _confIipOutPort.ChannelTask != null)
+                    {
+                        Console.WriteLine($"{ProcessName}: awaiting configIipOutPort.ChannelTask");
+                        await _confIipOutPort.ChannelTask;
+                    }
+
+                    //if we didn't connect yet to the writer, do so
+                    if (_confIipOutPort.Writer == null)
+                    {
+                        Console.WriteLine(
+                            $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {_confIipOutPort.ChannelTask?.IsCompletedSuccessfully}");
+                        _confIipOutPort.Writer =
+                            await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
+                                _confIipOutPort.WriterSturdyRef);
+                    }
+
+                    //send actual config string into channel
+                    await _confIipOutPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = ConfigString } },
+                        cancelToken);
+                    Console.WriteLine($"{ProcessName}: sent config IIP to config port");
+                    //_configSendTask = CreateTaskAndSendIip(conMan, _confIipOutPort, ConfigString, cancelToken);
                 }
 
-                if (Runnable == null)
+                //start temporary port info channel and send port infos to component
+                if (_portConfigWriter == null)
                 {
-                    Runnable = await RunnableFactory.Create();
-                    if (Runnable == null) return;
+                    Console.WriteLine($"{ProcessName}: Trying to start port info channel");
+                    var si = await Editor.CurrentChannelStarterService.Start(new StartChannelsService.Params
+                    {
+                        Name = $"config_{ProcessName}"
+                    }, cancelToken);
+                    Console.WriteLine($"{ProcessName}: Port info channel started si.Count={si.Item1.Count}, si[0].ReaderSRs.Count={si.Item1[0].ReaderSRs.Count}, si[0].WriterSRs.Count={si.Item1[0].WriterSRs.Count}");
+                    if (si.Item1.Count == 0 || si.Item1[0].ReaderSRs.Count == 0 || si.Item1[0].WriterSRs.Count == 0)
+                    {
+                        return;
+                    }
+                    _portConfigReaderSr = si.Item1[0].ReaderSRs[0];
+                    _portConfigWriter = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)
+                        ?.Cast<Channel<PortInfos>.IWriter>(false);
                 }
-                ProcessStarted = await Runnable.Start(si.Item1[0].ReaderSRs[0], ProcessName);
+                if (_portConfigWriter == null || string.IsNullOrEmpty(_portConfigReaderSr)) return;
+
+                ProcessStarted = await Runnable.Start(_portConfigReaderSr, ProcessName);
                 if (!ProcessStarted) return;
                 Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
-                var writer = (si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy)?.
-                    Cast<Channel<PortInfos>.IWriter>(false);
-                if (writer != null)
+                Console.WriteLine($"{ProcessName}: Writing port infos to port info channel");
+                Console.WriteLine($"{ProcessName}: inPortSRs: {inPortSRs} outPortSRs: {outPortSRs}");
+                await _portConfigWriter.Write(new Channel<PortInfos>.Msg
                 {
-                    Console.WriteLine($"{ProcessName}: Writing port infos to port info channel");
-                    await writer.Write(new Channel<PortInfos>.Msg
+                    Value = new PortInfos
                     {
-                        Value = new PortInfos
-                        {
-                            InPorts = inPortSRs,
-                            OutPorts = outPortSRs,
-                        }
-                    });
-                    Console.WriteLine($"{ProcessName}: Wrote port infos to port info channel");
-                    //close writer
-                    await writer.Close();
-                }
-                else
-                {
-                    Console.WriteLine($"{ProcessName}: Error: Couldn't write PortInfos, writer was null!");
-                }
+                        InPorts = inPortSRs,
+                        OutPorts = outPortSRs,
+                    }
+                }, cancelToken);
+                Console.WriteLine($"{ProcessName}: Wrote port infos to port info channel");
+                //don't close writer to reuse channel for further restarts
+                //close writer
+                //await writer.Close(cancelToken);
             }
             else // stop
             {
-                ProcessStarted = await Runnable.Stop();
+                ProcessStarted = await CancelAndDisposeRemoteComponent();
             }
         }
         catch (Exception e)
@@ -176,29 +253,46 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         }
     }
 
-    public void FreeRemoteComponentResources()
+    public async Task<bool> CancelAndDisposeRemoteComponent()
     {
-        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::FreeComponentResources");
-        if (Runnable != null)
-        {
-            Task.Run(async () => await Runnable.Stop()).ContinueWith(t =>
-            {
-                Runnable.Dispose();
-                Runnable = null;
-            });
-        }
-        RunnableFactory?.Dispose();
-        RunnableFactory = null;
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent");
+
+        if (Runnable == null) return false;
+        //cancel task
+        if (_cancellationTokenSource != null) await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+
+        //stop remote process
+        Console.WriteLine(
+            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopping runnable");
+        var success = await Runnable.Stop();
+        Console.WriteLine(
+            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable");
+        Runnable.Dispose();
+        Runnable = null;
+        return success;
+    }
+
+    public void FreeRemoteChannelsAttachedToPorts()
+    {
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::FreeRemoteChannelsAttachedToPorts");
         foreach (var port in Ports)
         {
-            //will also free channels
             if (port is IDisposable disposable) disposable.Dispose();
         }
+        _configInPort?.Dispose();
+        _configInPort = null;
+        _confIipOutPort?.Dispose();
+        _confIipOutPort = null;
     }
 
     public void Dispose()
     {
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
-        FreeRemoteComponentResources();
+        Task.Run(CancelAndDisposeRemoteComponent);
+        RunnableFactory?.Dispose();
+        FreeRemoteChannelsAttachedToPorts();
+        _portConfigWriter?.Dispose();
     }
 }

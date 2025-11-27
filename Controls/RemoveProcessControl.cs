@@ -42,7 +42,7 @@ public class RemoveProcessControl : ExecutableControl
                 diagram.Groups.Delete(group);
                 break;
             case NodeModel nodeModel:
-                if (nodeModel is CapnpFbpComponentModel cfcm) cfcm.FreeRemoteComponentResources();
+                if (nodeModel is CapnpFbpComponentModel cfcm) cfcm.CancelAndDisposeRemoteComponent();
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:

@@ -59,8 +59,10 @@ public class CapnpFbpPortModel : PortModel, IDisposable
         Console.WriteLine($"Port {Name}: FreeRemoteChannelResources");
         if (StopChannel != null && ThePortType == PortType.In)
         {
+            Console.WriteLine($"Port {Name}: FreeRemoteChannelResources: Stop Channel");
             Task.Run(async () => await StopChannel.Stop()).ContinueWith(t =>
             {
+                Console.WriteLine($"Port {Name}: FreeRemoteChannelResources: Stopped and disposing port now.");
                 StopChannel.Dispose();
                 StopChannel = null;
             });
@@ -84,5 +86,8 @@ public class CapnpFbpPortModel : PortModel, IDisposable
     {
         Console.WriteLine($"Port {Name}: CapnpFbpPortModel::Dispose");
         FreeRemoteChannelResources();
+        Reader?.Dispose();
+        Writer?.Dispose();
+        ChannelTask.ContinueWith(t => t.Dispose());
     }
 }

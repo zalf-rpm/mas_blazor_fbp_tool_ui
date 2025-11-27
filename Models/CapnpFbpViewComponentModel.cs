@@ -15,17 +15,22 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
+public class CapnpFbpViewComponentModel : NodeModel, IDisposable// : CapnpFbpComponentModel
 {
     public CapnpFbpViewComponentModel(Point position = null) : base(position) {}
 
     public CapnpFbpViewComponentModel(string id, Point position = null) : base(id, position) {}
 
+    public Editor Editor { get; set; }
+    public string ComponentId { get; set; }
+    public string ComponentName { get; set; }
+    public string ProcessName { get; set; }
+
+    public bool ProcessStarted { get; protected set; }
     public Task ViewMsgReceiveTask { get; set; }
-    private CancellationTokenSource _viewTaskCts = null;
+    private CancellationTokenSource _cancellationTokenSource = null;
 
     private List<Task> _iipTasks = [];
-    private List<CancellationTokenSource> _iipCtss = [];
 
     public int DisplayWidthPx { get; set; } = 100;
     public int DisplayHeightPx { get; set; } = 100;
@@ -41,7 +46,7 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
             : value;
     }
 
-    public override async Task StartProcess(ConnectionManager conMan, bool start)
+    public async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
@@ -51,6 +56,9 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
 
             if (start)
             {
+                _cancellationTokenSource = new CancellationTokenSource();
+                var cancelToken = _cancellationTokenSource.Token;
+                
                 Channel<IP>.IReader reader = null;
 
                 // collect SRs from IN and OUT ports and for IIPs send it into the channel
@@ -85,8 +93,6 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                 await iipPort.ChannelTask;
                             }
 
-                            _iipCtss.Add(new CancellationTokenSource());
-                            var iipt = _iipCtss.Last().Token;
                             _iipTasks.Add(Task.Run(async () =>
                             {
                                 var content = iipModel.Content;
@@ -100,16 +106,15 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                             iipPort.WriterSturdyRef);
                                 }
                                 await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } },
-                                    iipt);
+                                    cancelToken);
                                 Console.WriteLine($"{ProcessName}: sent IIP to writer");
-                            }, iipt));
+                            }, cancelToken));
                             break;
                         }
                     }
                 }
 
-                _viewTaskCts = new CancellationTokenSource();
-                var viewTaskCtsToken = _viewTaskCts.Token;
+                //run loop to receive messages on in-port
                 ViewMsgReceiveTask = Task.Run(async () =>
                 {
                     Console.WriteLine($"{ProcessName}: starting view's receive loop");
@@ -117,7 +122,7 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                     while (!leave && reader != null)
                     {
                         //Console.WriteLine($"{ProcessName}: trying to read msg");
-                        var msg = await reader.Read(viewTaskCtsToken);
+                        var msg = await reader.Read(cancelToken);
                         //Console.WriteLine($"{ProcessName}: read msg: {msg}");
                         switch (msg.which)
                         {
@@ -129,15 +134,11 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                 //Console.WriteLine($"{ProcessName}: received value msg");
                                 if (msg.Value.Content is DeserializerState ds)
                                 {
-                                    var str = CapnpSerializable.Create<string>(ds);
-                                    if (str != null)
+                                    if (CapnpSerializable.Create<string>(ds) is { } str)
                                     {
                                         //Console.WriteLine($"{ProcessName}: received msg: '{str}'");
                                         ViewContent = new MarkupString(str);
-                                        //Console.WriteLine(AppendMode);
-                                        //Console.WriteLine(ViewContent.Value);
                                     }
-
                                     Refresh();
                                 }
 
@@ -153,24 +154,15 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                         }
                     }
                     //Console.WriteLine($"{ProcessName}: left view's receive loop");
-                }, viewTaskCtsToken);
+                }, cancelToken);
 
                 ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
             }
             else // stop
             {
-                foreach (var cts in _iipCtss)
-                {
-                    await cts.CancelAsync();
-                    cts.Dispose();
-                }
-                foreach (var t in _iipTasks) t.Dispose();
-
-                await FreeRemoteComponentResources();
-                // await _viewTaskCts.CancelAsync();
-                // _viewTaskCts.Dispose();
-                // ViewMsgReceiveTask.ContinueWith(t => ViewMsgReceiveTask.Dispose());
-                // //ViewMsgReceiveTask.Dispose();
+                await CancelAndDisposeViewTasks();
+                //actually the channel connected to the port can remain until the component gets deleted
+                //FreeRemoteChannelsAttachedToPorts();
                 ProcessStarted = false;
             }
         }
@@ -180,22 +172,36 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public async Task FreeRemoteComponentResources()
+    public void FreeRemoteChannelsAttachedToPorts()
     {
-        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::FreeComponentResources");
+        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts");
         foreach (var port in Ports)
         {
-            //will also free channels
             if (port is IDisposable disposable) disposable.Dispose();
         }
-        await _viewTaskCts.CancelAsync();
-        _viewTaskCts.Dispose();
-        ViewMsgReceiveTask.ContinueWith(t => ViewMsgReceiveTask.Dispose());
     }
 
-    public new void Dispose()
+    public async Task CancelAndDisposeViewTasks()
     {
-        base.Dispose();
-        Task.Run(FreeRemoteComponentResources);
+        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks");
+        //cancel task
+        if (_cancellationTokenSource != null) await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+        //dispose the IIP tasks
+        foreach (var t in _iipTasks) t.ContinueWith(t => t.Dispose());
+        _iipTasks.Clear();
+        //dispose the actual view task
+        ViewMsgReceiveTask.ContinueWith(t =>
+        {
+            t.Dispose();
+            ViewMsgReceiveTask = null;
+        });
+    }
+
+    public void Dispose()
+    {
+        FreeRemoteChannelsAttachedToPorts();
+        Task.Run(CancelAndDisposeViewTasks);
     }
 }
