@@ -165,7 +165,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     Console.WriteLine($"{ProcessName}: sending config on the fly");
 
                     //create ports, if this is the first time
-                    if (_configInPort == null) _configInPort = new(null, CapnpFbpPortModel.PortType.In);
+                    if (_configInPort == null) _configInPort = new(null, CapnpFbpPortModel.PortType.In)
+                    {
+                        Name = "conf"
+                    };
                     if (_confIipOutPort == null) _confIipOutPort = new(null);
 
                     //create channel, if not done before
@@ -176,7 +179,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             _configInPort);
                     }
 
-                    Console.WriteLine($"{ProcessName}: _configInPort: {_configInPort}");
+                    Console.WriteLine($"{ProcessName}: _configInPort.RWSR: {_configInPort.ReaderWriterSturdyRef}");
                     //insert config port sturdy ref into collections for port info message later
                     await CollectPortSrs(_configInPort);
 
