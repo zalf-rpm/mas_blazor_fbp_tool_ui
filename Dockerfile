@@ -1,7 +1,7 @@
 # Build and run Blazor Server app (net8.0)
 
 # Runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 
 # Expose HTTP (Kestrel defaults to 8080 in containers)
@@ -9,7 +9,7 @@ EXPOSE 8080
 ENV ASPNETCORE_URLS="http://+:8080"
 
 # Build image
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files first to cache restore layers
@@ -30,7 +30,7 @@ RUN dotnet publish ./BlazorDrawFBP.csproj -c Release -o /app/publish /p:UseAppHo
 RUN dotnet publish ./BlazorDrawFBP.csproj -c Debug -o /app/publish-debug /p:UseAppHost=false /p:DebugType=portable
 
 # Final image
-FROM base AS prod 
+FROM base AS prod
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "BlazorDrawFBP.dll"]
