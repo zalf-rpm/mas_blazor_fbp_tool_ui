@@ -50,7 +50,7 @@ public class AddPortControl : ExecutableControl
         }
     }
 
-    public static CapnpFbpPortModel CreateAndAddPort(CapnpFbpComponentModel node,
+    public static CapnpFbpPortModel CreateAndAddPort(NodeModel node,
         CapnpFbpPortModel.PortType portType, int orderNo, string name = null)
     {
         if (orderNo > 19) return null;

@@ -56,17 +56,17 @@ public class RemoveLinkControl : ExecutableControl
                             ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
                         }
                     }
-                    
-                    /*if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
+                    if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
                     {
                         foreach (var p in iipModel.Ports) p.Visible = true;
-                    }*/
+                    }
                     sourceNode.RefreshAll();
                 }
                 if (baseLinkModel.Target.Model is NodeModel targetNode)
                 {
                     var noOfLinksToInPort = diagram.Links.Count(l => l.Target.Model == targetNode
-                    && l.Labels.Last().Content == baseLinkModel.Labels.Last().Content);
+                                                                     && l.Labels.Last().Content ==
+                                                                     baseLinkModel.Labels.Last().Content);
 
                     if (noOfLinksToInPort == 1)
                     {
@@ -76,12 +76,13 @@ public class RemoveLinkControl : ExecutableControl
                                 ocp.Name == baseLinkModel.Labels.Last().Content)
                             {
                                 ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
+                                ocp.FreeRemoteChannelResources();
                             }
                         }
                     }
                     targetNode.RefreshAll();
                 }
-                
+
                 diagram.Links.Remove(baseLinkModel);
                 break;
         }

@@ -4,28 +4,19 @@
 
 <div>
     <MudCard Style="@CardStyle">
-        @* <MudCardHeader> *@
-        @*     <CardHeaderContent> *@
-        @*         <MudTextField Class="d-inline-flex pr-4" *@
-        @*                       @bind-Value="Node.ProcessName" *@
-        @*                       Label="Process name" *@
-        @*                       Variant="Variant.Outlined"/> *@
-        @*         <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;" *@
-        @*                              Toggled="@ProcessStarted" *@
-        @*                              ToggledChanged="@StartProcess" *@
-        @*                              Icon="@Icons.Material.Filled.PlayCircle" *@
-        @*                              Color="@Color.Primary" *@
-        @*                              title="@(ProcessStarted ? "Stop process" : "Start process")" *@
-        @*                              ToggledIcon="@Icons.Material.Filled.StopCircle" *@
-        @*                              ToggledColor="@Color.Secondary"/> *@
-        @*     </CardHeaderContent> *@
-        @* </MudCardHeader> *@
         <MudCardContent>
             <MudTextField Class="d-inline-flex pr-4"
                           @bind-Value="Node.ProcessName"
                           Label="Process name"
                           Variant="Variant.Outlined"
-                          Margin="Margin.Dense"/>
+                          Margin="Margin.Normal"/>
+            <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;"
+                                 @bind-Toggled="Node.AppendMode"
+                                 Icon="@Icons.Material.Filled.DoneAll"
+                                 Color="@Color.Primary"
+                                 title="@(Node.AppendMode ? "Replace old content" : "Append new content")"
+                                 ToggledIcon="@Icons.Material.Filled.Done"
+                                 ToggledColor="@Color.Secondary"/>
             <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
                                  Toggled="@ProcessStarted"
                                  ToggledChanged="@StartProcess"
@@ -52,9 +43,7 @@
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; {FrameWidth}; {FrameColor}";
-
-    private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
+    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; border-width: 1px; {FrameColor}";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private async Task StartProcess(bool start)

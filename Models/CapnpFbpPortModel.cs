@@ -54,6 +54,23 @@ public class CapnpFbpPortModel : PortModel, IDisposable
         Name = ThePortType.ToString();
     }
 
+    public void FreeRemoteChannelResources()
+    {
+        Console.WriteLine($"Port {Name}: FreeRemoteChannelResources");
+        if (StopChannel != null && ThePortType == PortType.In)
+        {
+            Console.WriteLine($"Port {Name}: FreeRemoteChannelResources: Stop Channel");
+            Task.Run(async () => await StopChannel.Stop()).ContinueWith(t =>
+            {
+                Console.WriteLine($"Port {Name}: FreeRemoteChannelResources: Stopped and disposing port now.");
+                StopChannel.Dispose();
+                StopChannel = null;
+            });
+        }
+        Channel?.Dispose();
+        Channel = null;
+    }
+
     public override bool CanAttachTo(ILinkable other)
     {
         // default constraints
@@ -67,12 +84,10 @@ public class CapnpFbpPortModel : PortModel, IDisposable
 
     public void Dispose()
     {
-        Console.WriteLine($"Port {Name}: Disposing");
-        Channel?.Dispose();
-        if (StopChannel != null && ThePortType == PortType.In)
-        {
-            Task.Run(async () => await StopChannel.Stop()).ContinueWith(t => StopChannel.Dispose());
-        }
-        //ChannelTask?.Dispose();
+        Console.WriteLine($"Port {Name}: CapnpFbpPortModel::Dispose");
+        FreeRemoteChannelResources();
+        Reader?.Dispose();
+        Writer?.Dispose();
+        ChannelTask.ContinueWith(t => t.Dispose());
     }
 }

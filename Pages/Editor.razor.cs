@@ -1002,14 +1002,22 @@ namespace BlazorDrawFBP.Pages
         {
             foreach(var node in Diagram.Nodes)
             {
-                if (node is not CapnpFbpComponentModel fbpNode) continue;
-                await fbpNode.StartProcess(ConMan, true);
-                fbpNode.Refresh();
+                switch (node)
+                {
+                    case CapnpFbpComponentModel compNode:
+                        await compNode.StartProcess(ConMan, true);
+                        break;
+                    case CapnpFbpViewComponentModel viewNode:
+                        await viewNode.StartProcess(ConMan, true);
+                        break;
+                    default:
+                        continue;
+                }
+                node.Refresh();
             }
             StateHasChanged();
         }
         
-        //private JObject _draggedComponent;
         private Mas.Schema.Fbp.Component _draggedComponent;
         private string _draggedComponentServiceId;
         
@@ -1066,14 +1074,10 @@ namespace BlazorDrawFBP.Pages
                         DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
                         ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
                         DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Run == null,
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.RunFactory == null,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
-                        // ChannelStarterService = CurrentChannelStarterService != null
-                        //     ? Capnp.Rpc.Proxy.Share(CurrentChannelStarterService)
-                        //     : null,
-                        // RegistryServiceIdToPetNameAndSturdyRef = RegistryServiceIdToPetNameAndSturdyRef
                     };
-                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
+                    if (component.RunFactory != null) node.RunnableFactory = Proxy.Share(component.RunFactory);
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
@@ -1148,25 +1152,24 @@ namespace BlazorDrawFBP.Pages
                         ComponentName = component.Info.Name ?? componentId,
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                     };
-                    if (component.Run != null) node.Runnable = Proxy.Share(component.Run);
 
-                    Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
-                    {
-                        Label = "in",
-                        PortType = CapnpFbpPortModel.PortType.In,
-                        NodeModel = node,
-                    });
-                    Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
-                    {
-                        Label = "out",
-                        PortType = CapnpFbpPortModel.PortType.Out,
-                        NodeModel = node,
-                    });
+                    // Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
+                    // {
+                    //     Label = "in",
+                    //     PortType = CapnpFbpPortModel.PortType.In,
+                    //     NodeModel = node,
+                    // });
+                    // Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
+                    // {
+                    //     Label = "out",
+                    //     PortType = CapnpFbpPortModel.PortType.Out,
+                    //     NodeModel = node,
+                    // });
                     Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                    Diagram.Controls.AddFor(node).Add(new ToggleEditNodeControl(1.1, 0, -20, -50)
-                    {
-                        NodeModel = node
-                    });
+                    // Diagram.Controls.AddFor(node).Add(new ToggleEditNodeControl(1.1, 0, -20, -50)
+                    // {
+                    //     NodeModel = node
+                    // });
 
                     //var portLocations = initNode?["location"]?["ports"] as JObject;
 

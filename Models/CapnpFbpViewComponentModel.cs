@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BlazorDrawFBP.Pages;
 using Capnp;
@@ -14,22 +15,38 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
+public class CapnpFbpViewComponentModel : NodeModel, IDisposable// : CapnpFbpComponentModel
 {
     public CapnpFbpViewComponentModel(Point position = null) : base(position) {}
 
     public CapnpFbpViewComponentModel(string id, Point position = null) : base(id, position) {}
 
+    public Editor Editor { get; set; }
+    public string ComponentId { get; set; }
+    public string ComponentName { get; set; }
+    public string ProcessName { get; set; }
+
+    public bool ProcessStarted { get; protected set; }
     public Task ViewMsgReceiveTask { get; set; }
+    private CancellationTokenSource _cancellationTokenSource = null;
+
+    private List<Task> _iipTasks = [];
 
     public int DisplayWidthPx { get; set; } = 100;
     public int DisplayHeightPx { get; set; } = 100;
 
     public bool AppendMode { get; set; } = false;
 
-    public MarkupString ViewContent { get; set; }
+    private MarkupString _viewContent;
+    public MarkupString ViewContent {
+        get => _viewContent;
+        set => _viewContent = AppendMode
+            ? new MarkupString(_viewContent.Value + (string.IsNullOrWhiteSpace(_viewContent.Value) ? "" : "<br>") +
+                               value.Value)
+            : value;
+    }
 
-    public override async Task StartProcess(ConnectionManager conMan, bool start)
+    public async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
@@ -39,6 +56,9 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
 
             if (start)
             {
+                _cancellationTokenSource = new CancellationTokenSource();
+                var cancelToken = _cancellationTokenSource.Token;
+                
                 Channel<IP>.IReader reader = null;
 
                 // collect SRs from IN and OUT ports and for IIPs send it into the channel
@@ -73,7 +93,7 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                 await iipPort.ChannelTask;
                             }
 
-                            Task.Run(async () =>
+                            _iipTasks.Add(Task.Run(async () =>
                             {
                                 var content = iipModel.Content;
                                 Console.WriteLine($"{ProcessName}: async code for sending IIP: '{content}'");
@@ -85,23 +105,25 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                         await conMan.Connect<Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter>(
                                             iipPort.WriterSturdyRef);
                                 }
-                                await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } });
+                                await iipPort.Writer.Write(new Channel<IP>.Msg { Value = new IP { Content = content } },
+                                    cancelToken);
                                 Console.WriteLine($"{ProcessName}: sent IIP to writer");
-                            });
+                            }, cancelToken));
                             break;
                         }
                     }
                 }
 
+                //run loop to receive messages on in-port
                 ViewMsgReceiveTask = Task.Run(async () =>
                 {
                     Console.WriteLine($"{ProcessName}: starting view's receive loop");
                     var leave = false;
-                    while (!leave)
+                    while (!leave && reader != null)
                     {
-                        Console.WriteLine($"{ProcessName}: trying to read msg");
-                        var msg = await reader.Read();
-                        Console.WriteLine($"{ProcessName}: read msg: {msg}");
+                        //Console.WriteLine($"{ProcessName}: trying to read msg");
+                        var msg = await reader.Read(cancelToken);
+                        //Console.WriteLine($"{ProcessName}: read msg: {msg}");
                         switch (msg.which)
                         {
                             case Channel<IP>.Msg.WHICH.Done:
@@ -109,19 +131,17 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                 leave = true;
                                 break;
                             case Channel<IP>.Msg.WHICH.Value:
-                                Console.WriteLine($"{ProcessName}: received value msg");
+                                //Console.WriteLine($"{ProcessName}: received value msg");
                                 if (msg.Value.Content is DeserializerState ds)
                                 {
-                                    var str = CapnpSerializable.Create<string>(ds);
-                                    if (str != null)
+                                    if (CapnpSerializable.Create<string>(ds) is { } str)
                                     {
-                                        Console.WriteLine($"{ProcessName}: received msg: '{str}'");
+                                        //Console.WriteLine($"{ProcessName}: received msg: '{str}'");
                                         ViewContent = new MarkupString(str);
-                                        //ConfigString += str;
-                                        //ConfigString += "\n";
                                     }
                                     Refresh();
                                 }
+
                                 break;
                             case Channel<IP>.Msg.WHICH.NoMsg:
                                 Console.WriteLine($"{ProcessName}: received noMsg msg");
@@ -133,14 +153,16 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
                                 throw new ArgumentOutOfRangeException();
                         }
                     }
-                    Console.WriteLine($"{ProcessName}: left view's receive loop");
-                });
+                    //Console.WriteLine($"{ProcessName}: left view's receive loop");
+                }, cancelToken);
 
                 ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
             }
             else // stop
             {
-                ViewMsgReceiveTask.Dispose();
+                await CancelAndDisposeViewTasks();
+                //actually the channel connected to the port can remain until the component gets deleted
+                //FreeRemoteChannelsAttachedToPorts();
                 ProcessStarted = false;
             }
         }
@@ -150,9 +172,36 @@ public class CapnpFbpViewComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public new void Dispose()
+    public void FreeRemoteChannelsAttachedToPorts()
     {
-        base.Dispose();
-        ViewMsgReceiveTask.Dispose();
+        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts");
+        foreach (var port in Ports)
+        {
+            if (port is IDisposable disposable) disposable.Dispose();
+        }
+    }
+
+    public async Task CancelAndDisposeViewTasks()
+    {
+        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks");
+        //cancel task
+        if (_cancellationTokenSource != null) await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+        //dispose the IIP tasks
+        foreach (var t in _iipTasks) t.ContinueWith(t => t.Dispose());
+        _iipTasks.Clear();
+        //dispose the actual view task
+        ViewMsgReceiveTask.ContinueWith(t =>
+        {
+            t.Dispose();
+            ViewMsgReceiveTask = null;
+        });
+    }
+
+    public void Dispose()
+    {
+        FreeRemoteChannelsAttachedToPorts();
+        Task.Run(CancelAndDisposeViewTasks);
     }
 }
