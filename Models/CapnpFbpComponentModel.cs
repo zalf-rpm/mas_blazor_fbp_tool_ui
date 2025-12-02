@@ -127,6 +127,9 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     if (inPort.Parent == this) await CollectPortSrs(inPort);
                     if (inPort.Name == "config") configInPortConnected = true;
 
+                    //color links with connected channel green
+                    rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+
                     // deal with OUT port
                     switch (rcplm.OutPortModel)
                     {
@@ -244,6 +247,8 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 //don't close writer to reuse channel for further restarts
                 //close writer
                 //await writer.Close(cancelToken);
+                RefreshAll();
+                RefreshLinks();
             }
             else // stop
             {

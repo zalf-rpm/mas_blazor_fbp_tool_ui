@@ -217,12 +217,14 @@
             _ => 0
         };
 
+        string PortColor() => Node.Runnable == null ? "#d4d4d4" : capnpPort.Reader == null && capnpPort.Writer == null ? "#ff0000" : "#1ac12e";
+
         var style = capnpPort.Alignment switch
         {
-            PortAlignment.Left => $"top: {50 + capnpPortOffset}%;",
-            PortAlignment.Top => $"left: {50 + capnpPortOffset}%;",
-            PortAlignment.Right => $"top: {50 + capnpPortOffset}%;",
-            PortAlignment.Bottom => $"left: {50 + capnpPortOffset}%;",
+            PortAlignment.Left => $"top: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
+            PortAlignment.Top => $"left: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
+            PortAlignment.Right => $"top: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
+            PortAlignment.Bottom => $"left: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             _ => ""
         };
         
@@ -241,7 +243,7 @@
     private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
-    private string FrameColor => $@"border-color: {(Node.Runnable == null ? "#6e9fd4" : (ProcessStarted ? "#1ac12e" : "#ff0000"))}";
+    private string FrameColor => $@"border-color: {(Node.Runnable == null ? "#6e9fd4" : ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private string MinHeight =>
         $@"min-height: {Math.Max(100, Math.Max(

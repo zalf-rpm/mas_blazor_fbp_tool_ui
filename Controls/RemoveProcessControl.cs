@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Controls;
@@ -42,7 +43,23 @@ public class RemoveProcessControl : ExecutableControl
                 diagram.Groups.Delete(group);
                 break;
             case NodeModel nodeModel:
-                if (nodeModel is CapnpFbpComponentModel cfcm) cfcm.CancelAndDisposeRemoteComponent();
+                switch (nodeModel)
+                {
+                    case CapnpFbpComponentModel cfcm:
+                        cfcm.Dispose();
+                        break;
+                    case CapnpFbpIipModel iipm:
+                    {
+                        foreach (var port in iipm.Ports)
+                        {
+                            if (port is IDisposable disposable) disposable.Dispose();
+                        }
+                        break;
+                    }
+                    case CapnpFbpViewComponentModel viewm:
+                        viewm.Dispose();
+                        break;
+                }
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:

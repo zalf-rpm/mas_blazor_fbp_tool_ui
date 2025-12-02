@@ -78,6 +78,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable// : CapnpFbpCom
                     //if (inPort.Parent == this) await CollectPortSrs(inPort);
                     if (inPort.Parent == this) reader = Capnp.Rpc.Proxy.Share(inPort.Reader);
 
+                    rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+
                     // deal with OUT port
                     switch (rcplm.OutPortModel)
                     {
@@ -153,10 +155,13 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable// : CapnpFbpCom
                                 throw new ArgumentOutOfRangeException();
                         }
                     }
-                    //Console.WriteLine($"{ProcessName}: left view's receive loop");
+                    reader?.Dispose();
+                    Console.WriteLine($"{ProcessName}: left view's receive loop");
                 }, cancelToken);
 
                 ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
+                RefreshAll();
+                RefreshLinks();
             }
             else // stop
             {

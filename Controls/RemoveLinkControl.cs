@@ -72,11 +72,15 @@ public class RemoveLinkControl : ExecutableControl
                     {
                         foreach (var p in targetNode.Ports)
                         {
+                            var inLabel = baseLinkModel.Labels.FindAll(blm => blm is not ChannelLinkLabelModel).LastOrDefault();
                             if (p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In } ocp &&
-                                ocp.Name == baseLinkModel.Labels.Last().Content)
+                                ocp.Name == inLabel?.Content)
                             {
                                 ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
-                                ocp.FreeRemoteChannelResources();
+                                //don't delete channels on link removal
+                                //as they are attached to the ports and
+                                //should be deleted when a component gets deleted
+                                //ocp.FreeRemoteChannelResources();
                             }
                         }
                     }

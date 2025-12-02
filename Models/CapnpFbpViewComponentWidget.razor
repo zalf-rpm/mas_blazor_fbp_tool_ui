@@ -34,7 +34,9 @@
 
     @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
     {
-        <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="top: 50%;">
+        string PortColor() => capnpPort.Reader == null && capnpPort.Writer == null ? "#d4d4d4" : "#1ac12e";
+        string Style() => $"top: 50%; border: 1px {PortColor()};";
+        <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
             in
         </CapnpFbpPortRenderer>
     }

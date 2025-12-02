@@ -69,6 +69,11 @@ public class CapnpFbpPortModel : PortModel, IDisposable
         }
         Channel?.Dispose();
         Channel = null;
+        Reader?.Dispose();
+        Reader = null;
+        Writer?.Dispose();
+        Writer = null;
+        ChannelTask.ContinueWith(t => t.Dispose());
     }
 
     public override bool CanAttachTo(ILinkable other)
@@ -86,8 +91,5 @@ public class CapnpFbpPortModel : PortModel, IDisposable
     {
         Console.WriteLine($"Port {Name}: CapnpFbpPortModel::Dispose");
         FreeRemoteChannelResources();
-        Reader?.Dispose();
-        Writer?.Dispose();
-        ChannelTask.ContinueWith(t => t.Dispose());
     }
 }

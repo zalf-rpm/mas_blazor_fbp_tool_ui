@@ -362,6 +362,7 @@ namespace BlazorDrawFBP.Pages
                                     {
                                         OutPortModel = outPort,
                                         InPortModel = sourcePort,
+                                        Color = outPort.Reader == null && outPort.Writer == null ? "#ff0000" : "#1ac12e",
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
@@ -390,6 +391,7 @@ namespace BlazorDrawFBP.Pages
                                     {
                                         OutPortModel = sourcePort,
                                         InPortModel = inPort,
+                                        Color = inPort.Reader == null && inPort.Writer == null ? "#ff0000" : "#1ac12e",
                                     };
                                     nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
                                     var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
@@ -425,6 +427,7 @@ namespace BlazorDrawFBP.Pages
                             {
                                 OutPortModel = iipPortModel,
                                 InPortModel = inPort,
+                                Color = inPort.Reader == null && inPort.Writer == null ? "#ff0000" : "#1ac12e",
                             };
                             nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                             var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
