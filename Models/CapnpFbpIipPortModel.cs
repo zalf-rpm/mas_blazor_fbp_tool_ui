@@ -11,7 +11,7 @@ namespace BlazorDrawFBP.Models;
 public class CapnpFbpIipPortModel : PortModel, IDisposable
 {
     public Task ChannelTask { get; set; }
-    public string WriterSturdyRef { get; set; }
+    public Mas.Schema.Persistence.SturdyRef WriterSturdyRef { get; set; }
 
     public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
 

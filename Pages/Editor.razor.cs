@@ -1044,7 +1044,7 @@ namespace BlazorDrawFBP.Pages
         {
             switch (component.Type)
             {
-                case Component.ComponentType.standard:
+                case Component.ComponentType.standard or Component.ComponentType.process:
                 {
                     var componentId = component.Info.Id;
                     var componentServiceId =
@@ -1077,10 +1077,18 @@ namespace BlazorDrawFBP.Pages
                         DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
                         ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
                         DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
-                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.RunFactory == null,
+                        Editable = initNode?.GetValue("editable")?.Value<bool>() ?? component.Factory.which == Component.factory.WHICH.None,
                         InParallelCount = initNode?.GetValue("parallelProcesses")?.Value<int>() ?? initNode?.GetValue("parallel_processes")?.Value<int>() ?? 1,
                     };
-                    if (component.RunFactory != null) node.RunnableFactory = Proxy.Share(component.RunFactory);
+                    switch (component.Factory.which)
+                    {
+                        case Component.factory.WHICH.Process:
+                            node.ProcessFactory = Proxy.Share(component.Factory.Process);
+                            break;
+                        case Component.factory.WHICH.Runnable:
+                            node.RunnableFactory = Proxy.Share(component.Factory.Runnable);
+                            break;
+                    }
 
                     Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
                     {
@@ -1099,8 +1107,6 @@ namespace BlazorDrawFBP.Pages
                     {
                         NodeModel = node
                     });
-                    
-                    //var portLocations = initNode?["location"]?["ports"] as JObject;
 
                     foreach(var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
                     {
@@ -1156,25 +1162,7 @@ namespace BlazorDrawFBP.Pages
                         ProcessName = procName ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                     };
 
-                    // Diagram.Controls.AddFor(node).Add(new AddPortControl(0.2, 0, -33, -50)
-                    // {
-                    //     Label = "in",
-                    //     PortType = CapnpFbpPortModel.PortType.In,
-                    //     NodeModel = node,
-                    // });
-                    // Diagram.Controls.AddFor(node).Add(new AddPortControl(0.8, 0, -41, -50)
-                    // {
-                    //     Label = "out",
-                    //     PortType = CapnpFbpPortModel.PortType.Out,
-                    //     NodeModel = node,
-                    // });
                     Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                    // Diagram.Controls.AddFor(node).Add(new ToggleEditNodeControl(1.1, 0, -20, -50)
-                    // {
-                    //     NodeModel = node
-                    // });
-
-                    //var portLocations = initNode?["location"]?["ports"] as JObject;
 
                     foreach(var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
                     {
