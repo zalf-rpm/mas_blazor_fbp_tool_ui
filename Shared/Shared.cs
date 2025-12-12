@@ -114,8 +114,7 @@ namespace BlazorDrawFBP.Shared
                 {
                     Console.WriteLine($"CreateChannel: inPort.channel was not null");
                     throw new Exception("CreateChannel: inPort.channel was null");
-                    var writerSr =
-                        Restorer.SturdyRefStr((await inPort.Channel.Writer().Result.Save(null)).SturdyRef);
+                    var writerSr = (await inPort.Channel.Writer().Result.Save(null)).SturdyRef;
                     switch (outPort)
                     {
                         case CapnpFbpPortModel sPort:
@@ -125,10 +124,7 @@ namespace BlazorDrawFBP.Shared
                             iipPort.WriterSturdyRef = writerSr;
                             break;
                     }
-
-                    Debug.Assert(
-                        !string.IsNullOrEmpty(inPort
-                            .ReaderWriterSturdyRef)); // = Restorer.SturdyRefStr((await eps.Item1.Save(null)).SturdyRef));
+                    Debug.Assert(inPort.ReaderWriterSturdyRef != null);
                 }
             });
             switch (outPort)
