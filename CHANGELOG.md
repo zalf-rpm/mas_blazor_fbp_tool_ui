@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.3.2...v1.4.0) (2025-12-12)
+
+
+### Features
+
+* add config for remote debugging attach into running container ([d09189c](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/d09189c1afca921a01884750aecc017086ea4aa2))
+
+
+### Bug Fixes
+
+* disable prerender due to exception being thrown on page load otherwise ([d5043a8](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/d5043a80267a4d3e913d46de9016d65596c83776))
+
 ## [1.3.2](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.3.1...v1.3.2) (2025-09-17)
 
 
