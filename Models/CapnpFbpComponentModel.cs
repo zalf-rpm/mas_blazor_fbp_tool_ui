@@ -117,13 +117,28 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             List<PortInfos.NameAndSR> inPortSRs = [];
             List<PortInfos.NameAndSR> outPortSRs = [];
 
-            async Task CollectPortSrs(CapnpFbpPortModel port)
+            async Task CollectPortSrs(CapnpFbpPortModel port, CapnpFbpPortModel inPort = null)
             {
                 Console.WriteLine($"{ProcessName}: collecting port srs");
-                if (port.ReaderWriterSturdyRef == null && port.ChannelTask != null)
+                if (port.ReaderWriterSturdyRef == null)
                 {
-                    Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
-                    await port.ChannelTask;
+                    if (port.ChannelTask != null)
+                    {
+                        Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
+                        await port.ChannelTask;
+                    }
+                    else
+                    {
+                        Debug.Assert(
+                            port.ThePortType == CapnpFbpPortModel.PortType.Out && inPort != null,
+                            "Only the out port could have been updated/renewed. The in port should always be there."
+                        );
+                        (port.Writer, port.ReaderWriterSturdyRef) =
+                            await Shared.Shared.GetNewWriterFromChannel(
+                                inPort.Channel,
+                                cancelToken
+                            );
+                    }
                 }
 
                 switch (port.ThePortType)
@@ -197,20 +212,35 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                                 );
 
                         if (outPort.Parent == this)
-                            await CollectPortSrs(outPort);
+                            await CollectPortSrs(outPort, inPort);
                         break;
                     case CapnpFbpIipPortModel iipPort:
                     {
                         if (iipPort.Parent is not CapnpFbpIipModel iipModel)
                             continue;
-                        if (iipPort.WriterSturdyRef == null && iipPort.ChannelTask != null)
+                        if (iipPort.WriterSturdyRef == null)
                         {
-                            Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                            await iipPort.ChannelTask;
+                            if (iipPort.ChannelTask != null)
+                            {
+                                Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
+                                await iipPort.ChannelTask;
+                            }
+                            else
+                            {
+                                (iipPort.Writer, iipPort.WriterSturdyRef) =
+                                    await Shared.Shared.GetNewWriterFromChannel(
+                                        inPort.Channel,
+                                        cancelToken
+                                    );
+                            }
                         }
 
                         if (iipPort.Writer == null)
                         {
+                            Debug.Assert(
+                                iipPort.Writer != null,
+                                "Here we should already have a writer, so no need to connect."
+                            );
                             Console.WriteLine(
                                 $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}"
                             );
@@ -270,15 +300,30 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
                 //now insert the current toml configuration into the config channel
                 //check if channel creation task has been finished
-                if (_confIipOutPort.WriterSturdyRef == null && _confIipOutPort.ChannelTask != null)
+                if (_confIipOutPort.WriterSturdyRef == null)
                 {
-                    Console.WriteLine($"{ProcessName}: awaiting configIipOutPort.ChannelTask");
-                    await _confIipOutPort.ChannelTask;
+                    if (_confIipOutPort.ChannelTask != null)
+                    {
+                        Console.WriteLine($"{ProcessName}: awaiting configIipOutPort.ChannelTask");
+                        await _confIipOutPort.ChannelTask;
+                    }
+                    else
+                    {
+                        (_confIipOutPort.Writer, _confIipOutPort.WriterSturdyRef) =
+                            await Shared.Shared.GetNewWriterFromChannel(
+                                _configInPort.Channel,
+                                cancelToken
+                            );
+                    }
                 }
 
                 //if we didn't connect yet to the writer, do so
                 if (_confIipOutPort.Writer == null)
                 {
+                    Debug.Assert(
+                        _confIipOutPort.Writer != null,
+                        "Here we should already have a writer, so no need to connect."
+                    );
                     Console.WriteLine(
                         $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {_confIipOutPort.ChannelTask?.IsCompletedSuccessfully}"
                     );
