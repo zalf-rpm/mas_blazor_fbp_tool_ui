@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Behaviors;
+using Blazor.Diagrams.Core.Controls;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.PathGenerators;
@@ -56,7 +57,7 @@ public partial class Editor
 
     private Component _draggedComponent;
     private string _draggedComponentServiceId;
-    private BlazorDiagram Diagram { get; set; } = null!;
+    public BlazorDiagram Diagram { get; set; } = null!;
 
     private Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
 
@@ -303,6 +304,7 @@ public partial class Editor
         }
 
         Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
+        Diagram.RegisterComponent<CapnpFbpComponentContentModel, CapnpFbpComponentContentWidget>();
         Diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
         Diagram.RegisterComponent<CapnpFbpIipModel, CapnpFbpIipWidget>();
         Diagram.RegisterComponent<UpdatePortNameNode, UpdatePortNameNodeWidget>();
@@ -543,6 +545,19 @@ public partial class Editor
                 };
                 Diagram.Nodes.Add(node);
             }
+            // else if (m is CapnpFbpComponentModel compModel)
+            // {
+            //     var relativePt = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
+            //
+            //     // find closest port, assuming the user will click on the label he actually wants to change
+            //     var node = new CapnpFbpComponentContentModel(relativePt)
+            //     {
+            //         Label = $"xxxxxChange {compModel.ComponentName}",
+            //         ComponentModel = compModel,
+            //         Container = Diagram,
+            //     };
+            //     Diagram.Nodes.Add(node);
+            // }
 
             //Console.WriteLine($"MouseClick, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
             //events.Add($"MouseClick, Type={m?.GetType().Name}, ModelId={m?.Id}");
@@ -1267,30 +1282,27 @@ public partial class Editor
                         throw new ArgumentOutOfRangeException();
                 }
 
-                Diagram
-                    .Controls.AddFor(node)
-                    .Add(
-                        new AddPortControl(0.2, 0, -33, -50)
-                        {
-                            Label = "in",
-                            PortType = CapnpFbpPortModel.PortType.In,
-                            NodeModel = node,
-                        }
-                    );
-                Diagram
-                    .Controls.AddFor(node)
-                    .Add(
-                        new AddPortControl(0.8, 0, -41, -50)
-                        {
-                            Label = "out",
-                            PortType = CapnpFbpPortModel.PortType.Out,
-                            NodeModel = node,
-                        }
-                    );
-                Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                Diagram
-                    .Controls.AddFor(node)
-                    .Add(new ToggleEditNodeControl(1.1, 0, -20, -50) { NodeModel = node });
+                var controlsContainer = Diagram.Controls.AddFor(node); //, ControlsType.OnHover);
+                // controlsContainer.Add(
+                //     new AddPortControl(0.2, 0, -33, -50)
+                //     {
+                //         Label = "in",
+                //         PortType = CapnpFbpPortModel.PortType.In,
+                //         NodeModel = node,
+                //     }
+                // );
+                // controlsContainer.Add(
+                //     new AddPortControl(0.8, 0, -41, -50)
+                //     {
+                //         Label = "out",
+                //         PortType = CapnpFbpPortModel.PortType.Out,
+                //         NodeModel = node,
+                //     }
+                // );
+                controlsContainer.Add(new RemoveProcessControl(0.5, 0, -20, -50));
+                // controlsContainer.Add(
+                //     new ToggleEditNodeControl(1.1, 0, -20, -50) { NodeModel = node }
+                // );
 
                 foreach (var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
                     AddPortControl.CreateAndAddPort(
