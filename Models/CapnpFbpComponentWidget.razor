@@ -1,3 +1,4 @@
+@using System.Diagnostics
 @using BlazorDrawFBP.Controls
 @using BlazorDrawFBP.Renderers
 @using Mas.Infrastructure.Common
@@ -173,87 +174,116 @@
     @*         </MudCardContent> *@
     @*     } *@
     @* </MudCard> *@
-    <MudCard Style="@CardStyle"
-             Elevation="3">
-        <MudCardHeader>
-            @*<CardHeaderAvatar>
-                <MudAvatar Color="Color.Secondary"
-                           >@InterpreterShortcut(Node.PathToInterpreter)</MudAvatar>
-            </CardHeaderAvatar>*@
-            <CardHeaderContent>
-                <MudText Typo="Typo.body1" Align="Align.Left">@Node.ProcessName</MudText>
-                <MudText Typo="Typo.body2" Align="Align.Left">@Node.ShortDescription</MudText>
-                @* <MudText Class="d-inline-flex pr-4" *@
-                @*          Typo="Typo.h6" *@
-                @*          Align="Align.Left"> *@
-                @*     @Node.ProcessName *@
-                @* </MudText> *@
-                @* <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;" *@
-                @*                      @bind-Toggled="@ParallelOn" *@
-                @*                      Icon="@Icons.Material.Filled.PlaylistAddCircle" *@
-                @*                      Color="@Color.Primary" *@
-                @*                      title="@(ParallelOn ? "Parallel Off" : "Parallel On")" *@
-                @*                      ToggledIcon="@Icons.Material.Filled.LooksOne" *@
-                @*                      ToggledColor="@Color.Secondary"/> *@
-                @* <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;" *@
-                @*                      Toggled="@ProcessStarted" *@
-                @*                      ToggledChanged="@StartProcess" *@
-                @*                      Icon="@Icons.Material.Filled.PlayCircle" *@
-                @*                      Color="@Color.Primary" *@
-                @*                      title="@(ProcessStarted ? "Stop process" : "Start process")" *@
-                @*                      ToggledIcon="@Icons.Material.Filled.StopCircle" *@
-                @*                      ToggledColor="@Color.Secondary"/> *@
-                @* @if (ParallelOn) *@
-                @* { *@
-                @*     <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;" *@
-                @*                      @bind-Value="Node.InParallelCount" *@
-                @*                      Label="#Procs" *@
-                @*                      Variant="Variant.Outlined" *@
-                @*                      Min="1" Max="10000"/> *@
-                @* } *@
-            </CardHeaderContent>
-            <CardHeaderActions>
-                @* Style="position: absolute; right: -5px; top: -5px;" *@
-                <MudToggleIconButton
-                    @bind-Toggled="@ParallelOn"
-                    Icon="@Icons.Material.Filled.PlaylistAddCircle"
-                    Color="@Color.Primary"
-                    title="@(ParallelOn ? "Parallel Off" : "Parallel On")"
-                    ToggledIcon="@Icons.Material.Filled.LooksOne"
-                    ToggledColor="@Color.Secondary"/>
-                @if (ParallelOn)
+    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
+              Elevation="3">
+        @code {
+            bool _changeComponentServiceId;
+        }
+
+        @if (_changeComponentServiceId)
+        {
+            <MudChipSet T="string"
+                        @bind-SelectedValue="Node.ComponentServiceId"
+                        CheckMark
+                        SelectionMode="SelectionMode.SingleSelection">
+                @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
                 {
-                    <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
-                                     @bind-Value="Node.InParallelCount"
-                                     Label="#Procs"
-                                     Variant="Variant.Outlined"
-                                     Min="1" Max="10000"/>
+                    var style = $"position: absolute; left: 3px; top: {-15 - i * 25}px;";
+                    <MudChip Style="@style"
+                             Color="Color.Info"
+                             SelectedColor="Color.Info"
+                             Label="true"
+                             Default="@(p.Key == Node.ComponentServiceId)"
+                             OnClick="() => { _changeComponentServiceId = false; }"
+                             Size="Size.Small"
+                             Value="@p.Key"
+                             T="string">
+                        @p.Value.Item1
+                    </MudChip>
                 }
-            </CardHeaderActions>
-        </MudCardHeader>
-        @* <MudCardMedia Image="images/pilars.jpg" Height="250" /> *@
-        <MudCardContent>
-        </MudCardContent>
-        <MudCardActions>
-            <MudFab Style="@FabStyle"
-                    Size="Size.Small"
-                    Color="Color.Default"
-                    StartIcon="@Icons.Material.Filled.Add"
-                    Label="IN"
-                    OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.In)"/>
-            <MudSpacer/>
-            <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                           Color="Color.Default"
-                           OnClick="@ShowDetails"/>
-            <MudSpacer/>
-            <MudFab Style="@FabStyle"
-                    Size="Size.Small"
-                    Color="Color.Default"
-                    StartIcon="@Icons.Material.Filled.Add"
-                    Label="OUT"
-                    OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.Out)"/>
-        </MudCardActions>
-    </MudCard>
+            </MudChipSet>
+        }
+        else
+        {
+            <MudChip Style="position: absolute; left: 3px; top: -15px;"
+                     Color="Color.Info"
+                     Label="true"
+                     Size="Size.Small"
+                     OnClick="() => { _changeComponentServiceId = true; }"
+                     T="string">
+                @(Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
+            </MudChip>
+        }
+        <MudGrid Justify="Justify.Center" Spacing="1">
+            <MudItem xs="5">
+                <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
+                          Elevation="0">
+                    <MudButton Color="@Color.Primary"
+                               StartIcon="@(ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
+                               OnClick="async (e) => { await StartProcess(!ProcessStarted); }">
+                        @(ProcessStarted ? "Stop" : "Start")
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+            <MudItem Class="align-content-end" xs="7">
+                <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
+                          Elevation="0">
+                    @if (ParallelOn)
+                    {
+                        //Class="d-inline-flex pt-2"
+                        <MudNumericField Style="width: 40px;"
+                                         @bind-Value="Node.InParallelCount"
+                                         Min="1" Max="10000"/>
+                    }
+                    <MudButton Color="@Color.Primary"
+                               OnClick="() => { ParallelOn = !ParallelOn; }"
+                               EndIcon="@(ParallelOn ? Icons.Material.Filled.EditOff : Icons.Material.Filled.Edit)">
+                        Procs
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Class="flex-grow-1 pt-3 pb-3" Justify="Justify.Center" Spacing="1">
+            <MudItem xs="12">
+                @code { bool _procNameDoubleClicked = false; }
+
+                @if (_procNameDoubleClicked)
+                {
+                    <MudTextField @bind-Value="Node.ComponentName" OnBlur="() => _procNameDoubleClicked = false"/>
+                }
+                else
+                {
+                    <MudText Class="pl-3 pr-3" Typo="Typo.body1" Align="Align.Center"
+                             @onclick="() => _procNameDoubleClicked = true">@Node.ProcessName</MudText>
+                }
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Class="pl-3 pr-3" Typo="Typo.body2" Align="Align.Left">@Node.ShortDescription</MudText>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center" Spacing="1">
+            <MudItem xs="4">
+                <MudButton Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.In)">
+                    IN
+                </MudButton>
+            </MudItem>
+            <MudItem xs="4">
+                <MudButton Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="@ShowDetails">Edit
+                </MudButton>
+            </MudItem>
+            <MudItem xs="4">
+                <MudButton Color="Color.Secondary"
+                           EndIcon="@Icons.Material.Filled.Add"
+                           OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.Out)">
+                    OUT
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
 
     @foreach (var port in Node.Ports)
     {
@@ -337,7 +367,7 @@
     private string FrameColor => $"border-color: {(Node.Runnable == null ? "#6e9fd4" : ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private string MinHeight =>
-        $@"min-height: {Math.Max(100, Math.Max(
+        $@"min-height: {Math.Max(200, Math.Max(
             Node.Ports.Count(p =>
             {
                 if (p is CapnpFbpPortModel cp) return cp.ThePortType == CapnpFbpPortModel.PortType.In;

@@ -5,10 +5,22 @@
 }
 
 ::deep .diagram-node {
-    min-width: max-content;
+    /*min-width: max-content;*/
+    min-width: 250px;
+    width: 250px;
+    max-width: 250px;
+    min-height: 200px;
+    height: 200px;
+    max-height: 200px;
+    /*min-width: 100px;*/
+    /*max-width: 100px;*/
 }
 
 ::deep .diagram-node.selected {
+    width: 250px;
+    max-width: 250px;
+    height: 200px;
+    max-height: 200px;
     border: 0px solid #6e9fd4;
     /*border: 2px solid #6e9fd4;*/
     border-radius: var(--mud-default-borderradius);

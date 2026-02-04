@@ -589,9 +589,19 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
             if (RunnableFactory != null)
+            {
                 await StartRunnableProcess(conMan, start);
+                ProcessStarted = true;
+            }
             else if (ProcessFactory != null)
+            {
                 await StartProcessProcess(conMan, start);
+                ProcessStarted = true;
+            }
+            else
+            {
+                ProcessStarted = false;
+            }
         }
         catch (Exception e)
         {
