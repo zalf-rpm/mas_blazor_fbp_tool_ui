@@ -29,6 +29,7 @@
 ::deep .diagram-port.top.in {
     border-radius: 20% 20% 50% 50%;
 }
+
 ::deep .diagram-port.top.out {
     border-radius: 50% 50% 20% 20%;
 }
@@ -38,10 +39,12 @@
     top: 0px;
     left: 0px;
 }
+
 ::deep .diagram-port.topleft.in {
     border-radius: 20% 20% 50% 50%;
     rotate: -45deg;
 }
+
 ::deep .diagram-port.topleft.out {
     border-radius: 50% 50% 20% 20%;
     rotate: -45deg;
@@ -52,10 +55,12 @@
     top: 0px;
     right: 0px;
 }
+
 ::deep .diagram-port.topright.in {
     border-radius: 20% 20% 50% 50%;
     rotate: 45deg;
 }
+
 ::deep .diagram-port.topright.out {
     border-radius: 50% 50% 20% 20%;
     rotate: 45deg;
@@ -63,12 +68,14 @@
 
 ::deep .diagram-port.bottom {
     border-radius: 50%;
-    bottom: 0px;
+    /*bottom: 0px;*/
     left: 50%;
 }
+
 ::deep .diagram-port.bottom.in {
     border-radius: 50% 50% 20% 20%;
 }
+
 ::deep .diagram-port.bottom.out {
     border-radius: 20% 20% 50% 50%;
 }
@@ -78,10 +85,12 @@
     bottom: 0px;
     left: 0px;
 }
+
 ::deep .diagram-port.bottomleft.in {
     border-radius: 50% 50% 20% 20%;
     rotate: 45deg;
 }
+
 ::deep .diagram-port.bottomleft.out {
     border-radius: 20% 20% 50% 50%;
     rotate: 45deg;
@@ -89,13 +98,15 @@
 
 ::deep .diagram-port.bottomright {
     border-radius: 50%;
-    bottom: 0px;
+    /*bottom: 0px;*/
     right: 0px;
 }
+
 ::deep .diagram-port.bottomright.in {
     border-radius: 50% 50% 20% 20%;
     rotate: -45deg;
 }
+
 ::deep .diagram-port.bottomright.out {
     border-radius: 20% 20% 50% 50%;
     rotate: -45deg;
@@ -106,9 +117,11 @@
     left: 0px;
     top: 50%;
 }
+
 ::deep .diagram-port.left.in {
     border-radius: 20% 50% 50% 20%;
 }
+
 ::deep .diagram-port.left.out {
     border-radius: 50% 20% 20% 50%;
 }
@@ -118,9 +131,11 @@
     right: 0px;
     top: 50%;
 }
+
 ::deep .diagram-port.right.in {
     border-radius: 50% 20% 20% 50%;
 }
+
 ::deep .diagram-port.right.out {
     border-radius: 20% 50% 50% 20%;
 }

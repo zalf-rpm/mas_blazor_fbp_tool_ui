@@ -230,57 +230,122 @@
                           Elevation="0">
                     @if (ParallelOn)
                     {
-                        //Class="d-inline-flex pt-2"
                         <MudNumericField Style="width: 40px;"
                                          @bind-Value="Node.InParallelCount"
                                          Min="1" Max="10000"/>
                     }
                     <MudButton Color="@Color.Primary"
                                OnClick="() => { ParallelOn = !ParallelOn; }"
-                               EndIcon="@(ParallelOn ? Icons.Material.Filled.EditOff : Icons.Material.Filled.Edit)">
+                               EndIcon="@(ParallelOn ? Icons.Material.Filled.LooksOne : Icons.Material.Filled.AddBox)">
                         Procs
                     </MudButton>
                 </MudPaper>
             </MudItem>
         </MudGrid>
-        <MudGrid Class="flex-grow-1 pt-3 pb-3" Justify="Justify.Center" Spacing="1">
-            <MudItem xs="12">
-                @code { bool _procNameDoubleClicked = false; }
+        <MudGrid Class="flex-grow-1" Justify="Justify.Center" Spacing="1">
+            <MudItem xs="12" Class="d-flex justify-center">
+                @code {
+                    bool _editName = false;
+                    private MudTextField<string> _procNameFieldRef;
+                    string EditNameClass => $"pl-3 pr-3 {(_editName ? "" : "d-none")}";
+                    string NameTextClass => $"pl-3 pr-3 {(_editName ? "d-none" : "")}";
+                    private const Typo NameTypo = Typo.h6;
+                    private const int NoOfNameChars = 18;
 
-                @if (_procNameDoubleClicked)
-                {
-                    <MudTextField @bind-Value="Node.ComponentName" OnBlur="() => _procNameDoubleClicked = false"/>
+                    void showAndFocusOnNameEdit()
+                    {
+                        _editName = true;
+                        Task.Delay(200).ContinueWith(_ => _procNameFieldRef.FocusAsync());
+                    }
+
                 }
-                else
-                {
-                    <MudText Class="pl-3 pr-3" Typo="Typo.body1" Align="Align.Center"
-                             @onclick="() => _procNameDoubleClicked = true">@Node.ProcessName</MudText>
-                }
+
+                <MudTextField Class="@EditNameClass"
+                              @ref="_procNameFieldRef"
+                              @bind-Value="Node.ProcessName"
+                              Typo="@NameTypo"
+                              Variant="Variant.Text"
+                              OnBlur="@(() => _editName = false)"
+                              OnKeyUp="@(args =>
+                                       {
+                                           if (args.Key == "Enter") _editName = false;
+                                       })"/>
+                <MudTooltip Text="@Node.ProcessName"
+                            Delay="600"
+                            Arrow="true"
+                            Disabled="@(Node.ProcessName.Length <= NoOfNameChars)">
+                    <MudText Class="@NameTextClass" Typo="@NameTypo" Align="Align.Center"
+                             @ondblclick="showAndFocusOnNameEdit">
+                        @(Node.ProcessName.Length > NoOfNameChars ? $"{Node.ProcessName[..NoOfNameChars]}..." : Node.ProcessName)
+                    </MudText>
+                </MudTooltip>
             </MudItem>
-            <MudItem xs="12">
-                <MudText Class="pl-3 pr-3" Typo="Typo.body2" Align="Align.Left">@Node.ShortDescription</MudText>
+            <MudItem xs="12" Class="d-flex justify-center">
+                @code {
+                    bool _editShortDesc = false;
+                    private MudTextField<string> _procShortDescFieldRef;
+                    string EditShortDescClass => $"pl-3 pr-3 {(_editShortDesc ? "" : "d-none")}";
+                    string ShortDescTextClass => $"pl-3 pr-3 {(_editShortDesc ? "d-none" : "")}";
+                    private const Typo ShortDescTypo = Typo.body2;
+                    private const int NoOfShortDescChars = 57; //87;
+
+                    void showAndFocusOnShortDescEdit()
+                    {
+                        _editShortDesc = true;
+                        Task.Delay(200).ContinueWith(_ => _procShortDescFieldRef.FocusAsync());
+                    }
+
+                }
+
+                <MudTextField Class="@EditShortDescClass"
+                              Lines="2"
+                              MaxLines="2"
+                              @ref="_procShortDescFieldRef"
+                              @bind-Value="Node.ShortDescription"
+                              Typo="@ShortDescTypo"
+                              Variant="Variant.Text"
+                              OnBlur="@(() => _editShortDesc = false)"
+                              OnKeyUp="@(args =>
+                                       {
+                                           if (args.Key == "Enter") _editShortDesc = false;
+                                       })"/>
+                <MudTooltip Text="@Node.ShortDescription"
+                            Delay="600"
+                            Arrow="true"
+                            Disabled="@(Node.ShortDescription.Length <= NoOfShortDescChars)">
+                    <MudText Class="@ShortDescTextClass" Typo="@ShortDescTypo" Align="Align.Left"
+                             @ondblclick="showAndFocusOnShortDescEdit">
+                        @(Node.ShortDescription.Length > NoOfShortDescChars ? $"{Node.ShortDescription[..NoOfShortDescChars]}..." : Node.ShortDescription)
+                    </MudText>
+                </MudTooltip>
             </MudItem>
         </MudGrid>
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="4">
-                <MudButton Color="Color.Secondary"
-                           StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.In)">
-                    IN
-                </MudButton>
+                @if (Node.Editable)
+                {
+                    <MudButton Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.AddBox"
+                               OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.In)">
+                        IN
+                    </MudButton>
+                }
             </MudItem>
             <MudItem xs="4">
-                <MudButton Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Edit"
+                <MudButton Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Settings"
                            OnClick="@ShowDetails">Edit
                 </MudButton>
             </MudItem>
             <MudItem xs="4">
-                <MudButton Color="Color.Secondary"
-                           EndIcon="@Icons.Material.Filled.Add"
-                           OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.Out)">
-                    OUT
-                </MudButton>
+                @if (Node.Editable)
+                {
+                    <MudButton Color="Color.Primary"
+                               EndIcon="@Icons.Material.Filled.AddBox"
+                               OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.Out)">
+                        OUT
+                    </MudButton>
+                }
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -304,8 +369,8 @@
 
         var offsets = capnpPort.Alignment switch
         {
-            PortAlignment.Left => _leftRightOffsetsMap[Math.Min(portCount, 11)],
-            PortAlignment.Right => _leftRightOffsetsMap[Math.Min(portCount, 11)],
+            PortAlignment.Left => _leftRightOffsetsMap[Math.Min(portCount, AddPortControl.MaxLeftRightPortOrderNo)],
+            PortAlignment.Right => _leftRightOffsetsMap[Math.Min(portCount, AddPortControl.MaxLeftRightPortOrderNo)],
             PortAlignment.Top => _topBottomOffsets,
             PortAlignment.Bottom => _topBottomOffsets,
             _ => []
@@ -319,9 +384,9 @@
         var capnpPortOffset = capnpPort.Alignment switch
         {
             PortAlignment.Left => offsets[capnpPort.OrderNo],
-            PortAlignment.Top => offsets[capnpPort.OrderNo - 11],
+            PortAlignment.Top => offsets[capnpPort.OrderNo - AddPortControl.NoOfLeftRightPorts],
             PortAlignment.Right => offsets[capnpPort.OrderNo],
-            PortAlignment.Bottom => offsets[capnpPort.OrderNo - 11],
+            PortAlignment.Bottom => offsets[capnpPort.OrderNo - AddPortControl.NoOfLeftRightPorts],
             _ => 0
         };
 
@@ -342,9 +407,9 @@
 
         var style = capnpPort.Alignment switch
         {
-            PortAlignment.Left => $"top: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
+            PortAlignment.Left => $"top: {48 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             PortAlignment.Top => $"left: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
-            PortAlignment.Right => $"top: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
+            PortAlignment.Right => $"top: {48 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             PortAlignment.Bottom => $"left: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             _ => ""
         };
@@ -359,9 +424,8 @@
 @code {
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
 
-    private string FabStyle => $"display: {(Node.Selected ? "block" : "none")};";
-
-    private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
+    private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
+    //private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
     private string FrameColor => $"border-color: {(Node.Runnable == null ? "#6e9fd4" : ProcessStarted ? "#1ac12e" : "#ff0000")}";
@@ -402,13 +466,13 @@
         { 2, [30, -30] },
         { 3, [30, 0, -30] },
         { 4, [30, 10, -10, -30] },
-        { 5, [30, 15, 0, -15, -30] },
-        { 6, [30, 15, 0, -15, -30, -45] },
-        { 7, [30, 20, 10, 0, -10, -20, -30] },
-        { 8, [35, 25, 15, 5, -5, -15, -25, -35] },
-        { 9, [40, 30, 20, 10, 0, -10, -20, -30, -40] },
-        { 10, [-45, -35, -25, -15, -5, 5, 15, 25, 35, 45] },
-        { 11, [50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50] }
+        { 5, [30, 15, 0, -15, -30] }
+        // { 6, [40, 25, 12, -12, -25, -40] }, // { 6, [30, 15, 0, -15, -30, -45] },
+        // { 7, [40, 25, 12, 0, -12, -25, -40] } // { 7, [30, 20, 10, 0, -10, -20, -30] },
+        // { 8, [35, 25, 15, 5, -5, -15, -25, -35] }
+        //{ 9, [35, 25, 15, 5, -5, -15, -25, -35, -45] } // { 9, [40, 30, 20, 10, 0, -10, -20, -30, -40] },
+        //{ 10, [-45, -35, -25, -15, -5, 5, 15, 25, 35, 45] },
+        //{ 11, [50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50] }
     };
 
     private readonly List<int> _topBottomOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];

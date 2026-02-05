@@ -53,6 +53,11 @@ public class AddPortControl : ExecutableControl
         }
     }
 
+    public const int NoOfLeftRightPorts = 6;
+    public const int MaxLeftRightPortOrderNo = NoOfLeftRightPorts - 1;
+    public const int NoOfTopBottomPorts = 9;
+    public const int MaxTopBottomPortOrderNo = NoOfTopBottomPorts - 1;
+
     public static CapnpFbpPortModel CreateAndAddPort(
         NodeModel node,
         CapnpFbpPortModel.PortType portType,
@@ -60,7 +65,7 @@ public class AddPortControl : ExecutableControl
         string name = null
     )
     {
-        if (orderNo > 19)
+        if (orderNo > NoOfLeftRightPorts + NoOfTopBottomPorts - 1)
             return null;
         var alignment = PortAlignmentForOrderNo(portType, orderNo);
         var port = new CapnpFbpPortModel(node, portType, alignment)
@@ -81,15 +86,15 @@ public class AddPortControl : ExecutableControl
         if (portType == CapnpFbpPortModel.PortType.In)
             return orderNo switch
             {
-                10 => PortAlignment.TopLeft,
-                > 10 => PortAlignment.Top,
+                MaxLeftRightPortOrderNo => PortAlignment.TopLeft,
+                > MaxLeftRightPortOrderNo => PortAlignment.Top,
                 _ => PortAlignment.Left,
             };
         else
             return orderNo switch
             {
-                10 => PortAlignment.BottomRight,
-                > 10 => PortAlignment.Bottom,
+                MaxLeftRightPortOrderNo => PortAlignment.BottomRight,
+                > MaxLeftRightPortOrderNo => PortAlignment.Bottom,
                 _ => PortAlignment.Right,
             };
     }
