@@ -23,9 +23,10 @@
 <MudPopoverProvider/>
 
 <div>
-    <MudGrid>
+    <MudGrid Spacing="2">
         <MudItem xs="12">
             @code { private static string HeaderStyle => $"background-color: {Color.Primary}; width: 100%"; }
+
             <MudPaper Class="pa-2 align-start d-flex" Style="@HeaderStyle">
                 <MudIconButton Icon="@Icons.Material.Filled.Menu"
                                Color="Color.Inherit"
@@ -56,53 +57,93 @@
                 <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
             </MudPaper>
         </MudItem>
+        <MudItem xs="12">
+            <MudStack Row="true" Spacing="1">
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="LoadFlow"
+                               Style="margin-top:0;">
+                    <ActivatorContent>
+                        <MudButton StartIcon="@Icons.Material.Filled.Upload"
+                                   Variant="@Variant.Filled"
+                                   Color="@Color.Primary">
+                            Load Flow
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                <MudButton StartIcon="@Icons.Material.Filled.Download"
+                           Variant="@Variant.Filled"
+                           Color="@Color.Primary"
+                           @onclick="() => SaveFlow(false)">
+                    Save Flow
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Download"
+                           Variant="@Variant.Filled"
+                           Color="@Color.Primary"
+                           @onclick="() => SaveFlow(true)">
+                    Export as Mermaid Flow
+                </MudButton>
+                <MudButton
+                    StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+                    Variant="@Variant.Filled"
+                    Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+                    OnClick="ClearButtonClicked">
+                    @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                           Variant="@Variant.Filled"
+                           Color="@Color.Default"
+                           @onclick="@ExecuteFlow">
+                    Execute flow
+                </MudButton>
+            </MudStack>
+        </MudItem>
         <MudItem xs="2">
             <MudPaper>
-                <MudExpansionPanel Text="Actions" Expanded="true">
-                    <MudStack Spacing="1">
-                        <MudFileUpload T="IBrowserFile"
-                                       FilesChanged="LoadFlow"
-                                       Style="margin-top:0;">
-                            <ActivatorContent>
-                                <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                                           Variant="@Variant.Filled"
-                                           Color="@Color.Primary"
-                                           FullWidth="true">
-                                    Load Flow
-                                </MudButton>
-                            </ActivatorContent>
-                        </MudFileUpload>
-                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Primary"
-                                   FullWidth="true"
-                                   @onclick="() => SaveFlow(false)">
-                            Save Flow
-                        </MudButton>
-                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Primary"
-                                   FullWidth="true"
-                                   @onclick="() => SaveFlow(true)">
-                            Export as Mermaid Flow
-                        </MudButton>
-                        <MudButton
-                            StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                            Variant="@Variant.Filled"
-                            Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                            FullWidth="true"
-                            OnClick="ClearButtonClicked">
-                            @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
-                        </MudButton>
-                        <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Default"
-                                   FullWidth="true"
-                                   @onclick="@ExecuteFlow">
-                            Execute flow
-                        </MudButton>
-                    </MudStack>
-                </MudExpansionPanel>
+                @* <MudExpansionPanel Text="Actions" Expanded="true"> *@
+                @*     <MudStack Spacing="1"> *@
+                @*         <MudFileUpload T="IBrowserFile" *@
+                @*                        FilesChanged="LoadFlow" *@
+                @*                        Style="margin-top:0;"> *@
+                @*             <ActivatorContent> *@
+                @*                 <MudButton StartIcon="@Icons.Material.Filled.Upload" *@
+                @*                            Variant="@Variant.Filled" *@
+                @*                            Color="@Color.Primary" *@
+                @*                            FullWidth="true"> *@
+                @*                     Load Flow *@
+                @*                 </MudButton> *@
+                @*             </ActivatorContent> *@
+                @*         </MudFileUpload> *@
+                @*         <MudButton StartIcon="@Icons.Material.Filled.Download" *@
+                @*                    Variant="@Variant.Filled" *@
+                @*                    Color="@Color.Primary" *@
+                @*                    FullWidth="true" *@
+                @*                    @onclick="() => SaveFlow(false)"> *@
+                @*             Save Flow *@
+                @*         </MudButton> *@
+                @*         <MudButton StartIcon="@Icons.Material.Filled.Download" *@
+                @*                    Variant="@Variant.Filled" *@
+                @*                    Color="@Color.Primary" *@
+                @*                    FullWidth="true" *@
+                @*                    @onclick="() => SaveFlow(true)"> *@
+                @*             Export as Mermaid Flow *@
+                @*         </MudButton> *@
+                @*         <MudButton *@
+                @*             StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)" *@
+                @*             Variant="@Variant.Filled" *@
+                @*             Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)" *@
+                @*             FullWidth="true" *@
+                @*             OnClick="ClearButtonClicked"> *@
+                @*             @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow") *@
+                @*         </MudButton> *@
+                @*         <MudButton StartIcon="@Icons.Material.Filled.PlayCircle" *@
+                @*                    Variant="@Variant.Filled" *@
+                @*                    Color="@Color.Default" *@
+                @*                    FullWidth="true" *@
+                @*                    @onclick="@ExecuteFlow"> *@
+                @*             Execute flow *@
+                @*         </MudButton> *@
+                @*     </MudStack> *@
+                @* </MudExpansionPanel> *@
                 <MudSwitch @bind-Value="@InteractiveMode"
                            Label="Interactive"
                            Color="Color.Success"
@@ -115,7 +156,7 @@
                               AdornmentIcon="@Icons.Material.Filled.Cancel"
                               OnAdornmentClick="() => { _query = null; }"/>
             </MudPaper>
-            <MudPaper Height="50vh" Class="overflow-scroll">
+            <MudPaper Height="80vh" Class="overflow-scroll">
                 <MudExpansionPanels MultiExpansion="true">
                     @foreach (var catId in sortedCatIds)
                     {
@@ -127,7 +168,6 @@
                             <MudStack Spacing="1">
                                 @foreach (var compId in compIds)
                                 {
-
                                     if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
                                     if (comp.Type == Component.ComponentType.subflow) continue;
                                     var desc = comp.Info.Description ?? "";
@@ -220,24 +260,28 @@
     private Editor _editor;
     private string _query;
     private const string DefaultCatId = "default";
-    private Dictionary<string, bool> _expandedPanels = new() { {DefaultCatId, true} };
+    private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
     private bool _interactiveMode = false;
-    private bool InteractiveMode { 
-        get => _interactiveMode; 
-        set { 
-            _interactiveMode = value; 
-            InteractiveModeChanged?.Invoke(value); 
+
+    private bool InteractiveMode
+    {
+        get => _interactiveMode;
+        set
+        {
+            _interactiveMode = value;
+            InteractiveModeChanged?.Invoke(value);
         }
     }
+
     public event Action<bool> InteractiveModeChanged;
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
             kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
-                (catIdCompId.Key, ServiceIdAndComponentId2Component[catIdCompId.compId]));
+            (catIdCompId.Key, ServiceIdAndComponentId2Component[catIdCompId.compId]));
 
     private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
-            .Concat(CatId2CompServiceIdAndComponentIds.Keys
+        .Concat(CatId2CompServiceIdAndComponentIds.Keys
             .Where(catId => catId != DefaultCatId)
             .ToImmutableSortedSet()
             .AsEnumerable());
@@ -253,6 +297,7 @@
                 ClearButtonTimer = new Timer(2000) { AutoReset = false };
                 ClearButtonTimer.Elapsed += ClearButtonTimerElapsed;
             }
+
             ClearButtonTimer.Start();
             ClearButtonDisabled = false;
         }
@@ -273,27 +318,28 @@
     private async Task AddComponentServiceSturdyRef()
     {
         var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Registry.IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("InterfaceId", typeof(IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })// && editData == null)
+        if (res is { Data: StoredSrData nb }) // && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
             if (nb.AutoConnect) await ConnectToRegistryService(ConMan, nb.PetName, nb.SturdyRef);
         }
+
         StateHasChanged();
     }
 
     private async Task AddChannelServiceSturdyRef()
     {
         var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(Mas.Schema.Fbp.IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        parameters.Add("InterfaceId", typeof(IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })// && editData == null)
+        if (res is { Data: StoredSrData nb }) // && editData == null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -335,7 +381,8 @@
         parameters.Add("InterfaceIdToType", InterfaceIdToType);
         parameters.Add("SturdyRef2Services", SturdyRef2Services);
         parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", ecb);
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
         await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
+
 }
