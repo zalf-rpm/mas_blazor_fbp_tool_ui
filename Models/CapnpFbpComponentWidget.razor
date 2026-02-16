@@ -102,7 +102,9 @@
                               OnKeyUp="@(args =>
                                        {
                                            if (args.Key == "Enter") _editName = false;
-                                       })"/>
+                                       })"
+                              @onpointerenter="@(_ => Node.Locked = true)"
+                              @onpointerleave="@(_ => Node.Locked = false)"/>
                 <MudTooltip Text="@Node.ProcessName"
                             Delay="600"
                             Arrow="true"
@@ -141,7 +143,9 @@
                               OnKeyUp="@(args =>
                                        {
                                            if (args.Key == "Enter") _editShortDesc = false;
-                                       })"/>
+                                       })"
+                              @onpointerenter="@(_ => Node.Locked = true)"
+                              @onpointerleave="@(_ => Node.Locked = false)"/>
                 <MudTooltip Text="@Node.ShortDescription"
                             Delay="600"
                             Arrow="true"
