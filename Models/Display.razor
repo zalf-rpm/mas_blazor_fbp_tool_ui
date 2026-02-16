@@ -1,4 +1,7 @@
-<MudPaper Class="mud-width-full mud-height-full" Outlined="true">
+@using BlazorDrawFBP.Pages
+<MudPaper Class="mud-width-full" Style="height: 132px; overflow: auto" Outlined="true"
+          @onpointerenter="@(_ => DisableZoom())"
+          @onpointerleave="@(_ => EnableZoom())">
     @ChildContent
 </MudPaper>
 
@@ -8,6 +11,18 @@
     [Parameter] public int WidthPx { get; set; } = 100;
     [Parameter] public int HeightPx { get; set; } = 100;
 
+    [Parameter] public Editor Editor { get; set; }
+
     private string Style => $"width: 100%; height: {HeightPx}px; overflow: auto;";
+
+    private void DisableZoom()
+    {
+        Editor?.Diagram.Options.Zoom.Enabled = false;
+    }
+
+    private void EnableZoom()
+    {
+        Editor?.Diagram.Options.Zoom.Enabled = true;
+    }
 
 }

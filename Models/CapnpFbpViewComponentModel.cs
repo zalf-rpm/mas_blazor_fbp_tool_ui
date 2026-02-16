@@ -41,6 +41,12 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
     public bool AppendMode { get; set; } = true;
 
+    public void ResetViewContent()
+    {
+        _viewContent = new MarkupString();
+        Refresh();
+    }
+
     public MarkupString ViewContent
     {
         get => _viewContent;
