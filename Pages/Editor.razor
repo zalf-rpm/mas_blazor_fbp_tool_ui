@@ -161,77 +161,80 @@
                     @foreach (var catId in sortedCatIds)
                     {
                         var compIds = CatId2CompServiceIdAndComponentIds[catId];
-                        <MudExpansionPanel Text="@(CatId2Info[catId].Name)"
-                                           Expanded="@(!string.IsNullOrWhiteSpace(_query)
-                                                     || _expandedPanels.GetValueOrDefault(catId, false))"
-                                           ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
-                            <MudStack Spacing="1">
-                                @foreach (var compId in compIds)
-                                {
-                                    if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
-                                    if (comp.Type == Component.ComponentType.subflow) continue;
-                                    var desc = comp.Info.Description ?? "";
+                        if (compIds.Count > 0)
+                        {
+                            <MudExpansionPanel Text="@(CatId2Info[catId].Name)"
+                                               Expanded="@(!string.IsNullOrWhiteSpace(_query)
+                                                         || _expandedPanels.GetValueOrDefault(catId, false))"
+                                               ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
+                                <MudStack Spacing="1">
+                                    @foreach (var compId in compIds)
+                                    {
+                                        if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
+                                        if (comp.Type == Component.ComponentType.subflow) continue;
+                                        var desc = comp.Info.Description ?? "";
 
-                                    if (!string.IsNullOrWhiteSpace(_query) &&
-                                        comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
-                                        desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
-                                    {
-                                        continue;
-                                    }
+                                        if (!string.IsNullOrWhiteSpace(_query) &&
+                                            comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
+                                            desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
+                                        {
+                                            continue;
+                                        }
 
-                                    if (string.IsNullOrEmpty(comp.Info.Description))
-                                    {
-                                        <MudChip Style="position: relative; top: +7px;"
-                                                 Variant="Variant.Text"
-                                                 Color="Color.Info"
-                                                 Label="true"
-                                                 Size="Size.Small"
-                                                 T="string">
-                                            @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
-                                        </MudChip>
-                                        <MudButton style="cursor: grab;"
-                                                   draggable="true"
-                                                   @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
-                                                   Variant="Variant.Filled"
-                                                   StartIcon="@Icons.Material.Filled.DragIndicator"
-                                                   IconColor="Color.Primary"
-                                                   Color="Color.Default"
-                                                   FullWidth="true"
-                                                   Size="Size.Large">
-                                            @comp.Info.Name
-                                        </MudButton>
+                                        if (string.IsNullOrEmpty(comp.Info.Description))
+                                        {
+                                            <MudChip Style="position: relative; top: +7px;"
+                                                     Variant="Variant.Text"
+                                                     Color="Color.Info"
+                                                     Label="true"
+                                                     Size="Size.Small"
+                                                     T="string">
+                                                @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
+                                            </MudChip>
+                                            <MudButton style="cursor: grab;"
+                                                       draggable="true"
+                                                       @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
+                                                       Variant="Variant.Filled"
+                                                       StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                       IconColor="Color.Primary"
+                                                       Color="Color.Default"
+                                                       FullWidth="true"
+                                                       Size="Size.Large">
+                                                @comp.Info.Name
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            <MudTooltip>
+                                                <ChildContent>
+                                                    <MudChip Style="position: relative; top: +7px;"
+                                                             Variant="Variant.Text"
+                                                             Color="Color.Info"
+                                                             Label="true"
+                                                             Size="Size.Small"
+                                                             T="string">
+                                                        @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
+                                                    </MudChip>
+                                                    <MudButton style="cursor: grab;"
+                                                               draggable="true"
+                                                               @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
+                                                               Variant="Variant.Filled"
+                                                               StartIcon="@Icons.Material.Filled.DragIndicator"
+                                                               IconColor="Color.Primary"
+                                                               FullWidth="true"
+                                                               Color="Color.Default">
+                                                        @comp.Info.Name
+                                                    </MudButton>
+                                                </ChildContent>
+                                                <TooltipContent>
+                                                    <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
+                                                </TooltipContent>
+                                            </MudTooltip>
+                                        }
                                     }
-                                    else
-                                    {
-                                        <MudTooltip>
-                                            <ChildContent>
-                                                <MudChip Style="position: relative; top: +7px;"
-                                                         Variant="Variant.Text"
-                                                         Color="Color.Info"
-                                                         Label="true"
-                                                         Size="Size.Small"
-                                                         T="string">
-                                                    @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
-                                                </MudChip>
-                                                <MudButton style="cursor: grab;"
-                                                           draggable="true"
-                                                           @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
-                                                           Variant="Variant.Filled"
-                                                           StartIcon="@Icons.Material.Filled.DragIndicator"
-                                                           IconColor="Color.Primary"
-                                                           FullWidth="true"
-                                                           Color="Color.Default">
-                                                    @comp.Info.Name
-                                                </MudButton>
-                                            </ChildContent>
-                                            <TooltipContent>
-                                                <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
-                                            </TooltipContent>
-                                        </MudTooltip>
-                                    }
-                                }
-                            </MudStack>
-                        </MudExpansionPanel>
+                                </MudStack>
+                            </MudExpansionPanel>
+                        }
                     }
                 </MudExpansionPanels>
             </MudPaper>

@@ -3,39 +3,89 @@
 @using BlazorDrawFBP.Renderers
 
 <div>
-    <MudCard Style="@CardStyle">
-        <MudCardContent>
-            <MudTextField Class="d-inline-flex pr-4"
-                          @bind-Value="Node.ProcessName"
-                          Label="Process name"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Normal"/>
-            <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;"
-                                 @bind-Toggled="Node.AppendMode"
-                                 Icon="@Icons.Material.Filled.DoneAll"
-                                 Color="@Color.Primary"
-                                 title="@(Node.AppendMode ? "Replace old content" : "Append new content")"
-                                 ToggledIcon="@Icons.Material.Filled.Done"
-                                 ToggledColor="@Color.Secondary"/>
-            <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;"
-                                 Toggled="@ProcessStarted"
-                                 ToggledChanged="@StartProcess"
-                                 Icon="@Icons.Material.Filled.PlayCircle"
-                                 Color="@Color.Primary"
-                                 title="@(ProcessStarted ? "Stop process" : "Start process")"
-                                 ToggledIcon="@Icons.Material.Filled.StopCircle"
-                                 ToggledColor="@Color.Secondary"/>
-            <Display WidthPx="@Node.DisplayWidthPx"
-                     HeightPx="@Node.DisplayHeightPx">
-                @Node.ViewContent
-            </Display>
-        </MudCardContent>
-    </MudCard>
+    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
+              Elevation="3">
+        <MudGrid Justify="Justify.Center" Spacing="1">
+            <MudItem xs="5">
+                <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
+                          Elevation="0">
+                    <MudButton Color="@Color.Primary"
+                               StartIcon="@(ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
+                               OnClick="async (e) => { await StartProcess(!ProcessStarted); }">
+                        @(ProcessStarted ? "Stop" : "Start")
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+            <MudItem Class="align-content-end" xs="7">
+                @* <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false" *@
+                @*           Elevation="0"> *@
+                @*     <MudButton Color="@Color.Primary" *@
+                @*                OnClick="() => { Node.AppendMode = !Node.AppendMode; }" *@
+                @*                EndIcon="@(Node.AppendMode ? Icons.Material.Filled.Done : Icons.Material.Filled.DoneAll)"> *@
+                @*         @(Node.AppendMode ? "Replace" : "Append") *@
+                @*     </MudButton> *@
+                @* </MudPaper> *@
+                <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
+                          Elevation="0">
+                    <MudButton Color="@Color.Primary"
+                               OnClick="@(() => { Node.ViewContent = new MarkupString(); })"
+                               EndIcon="@Icons.Material.Filled.Clear">
+                        Clear
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Class="flex-grow-1" Justify="Justify.Center" Spacing="0">
+            <MudItem xs="12" Class="pl-3 pr-3 pt-2 pb-3">
+                <Display WidthPx="@Node.DisplayWidthPx"
+                         HeightPx="@Node.DisplayHeightPx">
+                    @Node.ViewContent
+                </Display>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* <MudCard Style="@CardStyle"> *@
+    @*     <MudCardContent> *@
+    @*         <MudTextField Class="d-inline-flex pr-4" *@
+    @*                       @bind-Value="Node.ProcessName" *@
+    @*                       Label="Process name" *@
+    @*                       Variant="Variant.Outlined" *@
+    @*                       Margin="Margin.Normal"/> *@
+    @*         <MudToggleIconButton Style="position: absolute; right: -5px; top: -5px;" *@
+    @*                              @bind-Toggled="Node.AppendMode" *@
+    @*                              Icon="@Icons.Material.Filled.DoneAll" *@
+    @*                              Color="@Color.Primary" *@
+    @*                              title="@(Node.AppendMode ? "Replace old content" : "Append new content")" *@
+    @*                              ToggledIcon="@Icons.Material.Filled.Done" *@
+    @*                              ToggledColor="@Color.Secondary"/> *@
+    @*         <MudToggleIconButton Style="position: absolute; right: -5px; top: 25px;" *@
+    @*                              Toggled="@ProcessStarted" *@
+    @*                              ToggledChanged="@StartProcess" *@
+    @*                              Icon="@Icons.Material.Filled.PlayCircle" *@
+    @*                              Color="@Color.Primary" *@
+    @*                              title="@(ProcessStarted ? "Stop process" : "Start process")" *@
+    @*                              ToggledIcon="@Icons.Material.Filled.StopCircle" *@
+    @*                              ToggledColor="@Color.Secondary"/> *@
+    @*         <Display WidthPx="@Node.DisplayWidthPx" *@
+    @*                  HeightPx="@Node.DisplayHeightPx"> *@
+    @*             @Node.ViewContent *@
+    @*         </Display> *@
+    @*     </MudCardContent> *@
+    @* </MudCard> *@
 
     @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
     {
-        string PortColor() => capnpPort.Reader == null && capnpPort.Writer == null ? "#d4d4d4" : "#1ac12e";
-        string Style() => $"top: 50%; border: 1px {PortColor()};";
+        string PortColor()
+        {
+            return capnpPort.Reader == null && capnpPort.Writer == null ? "#d4d4d4" : "#1ac12e";
+        }
+
+        string Style()
+        {
+            return $"top: 50%; border: 1px {PortColor()};";
+        }
+
         <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
             in
         </CapnpFbpPortRenderer>
@@ -45,7 +95,7 @@
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"min-height: 100px; max-height: 800px; max-width: 800px; border-width: 1px; {FrameColor}";
+    private string CardStyle => $"height: 200px; width: 250px;{FrameColor}";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private async Task StartProcess(bool start)

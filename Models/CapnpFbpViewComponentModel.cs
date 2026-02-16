@@ -37,9 +37,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
     public Task ViewMsgReceiveTask { get; set; }
 
     public int DisplayWidthPx { get; set; } = 100;
-    public int DisplayHeightPx { get; set; } = 100;
+    public int DisplayHeightPx { get; set; } = 140;
 
-    public bool AppendMode { get; set; } = false;
+    public bool AppendMode { get; set; } = true;
 
     public MarkupString ViewContent
     {

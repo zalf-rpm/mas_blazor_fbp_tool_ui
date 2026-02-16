@@ -1,11 +1,9 @@
-<MudPaper Class="pa-2 mt-2" Elevation="3">
-    <div style="@Style">
-        @ChildContent
-    </div>
+<MudPaper Class="mud-width-full mud-height-full" Outlined="true">
+    @ChildContent
 </MudPaper>
+
 @code {
-    [Parameter]
-    public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
 
     [Parameter] public int WidthPx { get; set; } = 100;
     [Parameter] public int HeightPx { get; set; } = 100;
