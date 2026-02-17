@@ -74,7 +74,7 @@ public class Shared
 
     public static async Task<(Channel<IP>.IWriter, SturdyRef)> GetNewWriterFromChannel(
         IChannel<IP> channel,
-        CancellationToken cancelToken
+        CancellationToken cancelToken = default
     )
     {
         var w = await channel.Writer(cancelToken);
@@ -117,12 +117,14 @@ public class Shared
                         sPort.Writer = (
                             si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                         )?.Cast<Channel<IP>.IWriter>(false);
+                        sPort.RetrieveReaderOrWriterFromChannelTask = null;
                         break;
                     case CapnpFbpIipPortModel iipPort:
                         iipPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
                         iipPort.Writer = (
                             si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                         )?.Cast<Channel<IP>.IWriter>(false);
+                        iipPort.RetrieveWriterFromChannelTask = null;
                         break;
                 }
 
@@ -136,6 +138,7 @@ public class Shared
                 );
                 // attach stop channel cap to IN port
                 inPort.StopChannel = si.Item2;
+                inPort.RetrieveReaderOrWriterFromChannelTask = null;
             }
             else
             {
@@ -158,14 +161,14 @@ public class Shared
         switch (outPort)
         {
             case CapnpFbpPortModel sPort:
-                sPort.ChannelTask = t;
+                sPort.RetrieveReaderOrWriterFromChannelTask = t;
                 break;
             case CapnpFbpIipPortModel iipPort:
-                iipPort.ChannelTask = t;
+                iipPort.RetrieveWriterFromChannelTask = t;
                 break;
         }
 
-        inPort.ChannelTask = t;
+        inPort.RetrieveReaderOrWriterFromChannelTask = t;
         return t;
     }
 }

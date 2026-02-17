@@ -406,8 +406,21 @@ public partial class Editor
                                 };
                                 nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                                 var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                if (InteractiveMode)
-                                    CreateChannel(outPort, sourcePort);
+                                // if the input port has already a channel attached, get a new writer for that channel
+                                // to attach to the IIP's out port
+                                if (sourcePort.Channel != null)
+                                    outPort.RetrieveReaderOrWriterFromChannelTask = Task.Run(
+                                        async () =>
+                                        {
+                                            (outPort.Writer, outPort.ReaderWriterSturdyRef) =
+                                                await Shared.Shared.GetNewWriterFromChannel(
+                                                    sourcePort.Channel
+                                                );
+                                            outPort.RetrieveReaderOrWriterFromChannelTask = null;
+                                        }
+                                    );
+                                // if (InteractiveMode)
+                                //     CreateChannel(outPort, sourcePort);
                                 InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                 nl.Labels.Add(cllm);
                                 nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.8));
@@ -442,8 +455,21 @@ public partial class Editor
                                 };
                                 nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
                                 var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                if (InteractiveMode)
-                                    CreateChannel(sourcePort, inPort);
+                                // if the input port has already a channel attached, get a new writer for that channel
+                                // to attach to the IIP's out port
+                                if (inPort.Channel != null)
+                                    sourcePort.RetrieveReaderOrWriterFromChannelTask = Task.Run(
+                                        async () =>
+                                        {
+                                            (sourcePort.Writer, sourcePort.ReaderWriterSturdyRef) =
+                                                await Shared.Shared.GetNewWriterFromChannel(
+                                                    inPort.Channel
+                                                );
+                                            sourcePort.RetrieveReaderOrWriterFromChannelTask = null;
+                                        }
+                                    );
+                                // if (InteractiveMode)
+                                //     CreateChannel(sourcePort, inPort);
                                 InteractiveModeChanged += cllm.ToggleInteractiveMode;
                                 nl.Labels.Add(cllm);
                                 nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
@@ -482,8 +508,18 @@ public partial class Editor
                         };
                         nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                        if (InteractiveMode)
-                            CreateChannel(iipPortModel, inPort);
+                        // if the input port has already a channel attached, get a new writer for that channel
+                        // to attach to the IIP's out port
+                        if (inPort.Channel != null)
+                            iipPortModel.RetrieveWriterFromChannelTask = Task.Run(async () =>
+                            {
+                                (iipPortModel.Writer, iipPortModel.WriterSturdyRef) =
+                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel);
+                                iipPortModel.RetrieveWriterFromChannelTask = null;
+                            });
+
+                        // if (InteractiveMode)
+                        //     CreateChannel(iipPortModel, inPort);
                         InteractiveModeChanged += cllm.ToggleInteractiveMode;
                         nl.Labels.Add(cllm);
                         nl.TargetMarker = LinkMarker.Arrow;

@@ -54,7 +54,7 @@ public class CapnpFbpPortModel : PortModel, IDisposable
     public PortType ThePortType { get; }
     public string Name { get; set; }
 
-    public Task ChannelTask { get; set; }
+    public Task RetrieveReaderOrWriterFromChannelTask { get; set; }
     public SturdyRef ReaderWriterSturdyRef { get; set; }
 
     public Channel<IP>.IWriter Writer { get; set; }
@@ -99,7 +99,7 @@ public class CapnpFbpPortModel : PortModel, IDisposable
         Reader = null;
         Writer?.Dispose();
         Writer = null;
-        ChannelTask?.ContinueWith(t => t.Dispose());
+        RetrieveReaderOrWriterFromChannelTask?.ContinueWith(t => t.Dispose());
     }
 
     public override bool CanAttachTo(ILinkable other)

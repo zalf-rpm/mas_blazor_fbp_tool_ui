@@ -92,7 +92,10 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                     if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
                         continue;
                     // the IN port (link) is not associated with a channel yet -> create channel
-                    if (inPort.ReaderWriterSturdyRef == null && inPort.ChannelTask == null)
+                    if (
+                        inPort.ReaderWriterSturdyRef == null
+                        && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                    )
                     {
                         if (inPort.Parent is not CapnpFbpViewComponentModel m)
                             return;
@@ -130,12 +133,12 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
                             if (iipPort.WriterSturdyRef == null)
                             {
-                                if (iipPort.ChannelTask != null)
+                                if (iipPort.RetrieveWriterFromChannelTask != null)
                                 {
                                     Console.WriteLine(
                                         $"{ProcessName}: awaiting iipPort.ChannelTask"
                                     );
-                                    await iipPort.ChannelTask;
+                                    await iipPort.RetrieveWriterFromChannelTask;
                                 }
                                 else
                                 {
@@ -162,7 +165,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                                 "Here we should already have a writer, so no need to connect."
                                             );
                                             Console.WriteLine(
-                                                $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}"
+                                                $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                                             );
                                             iipPort.Writer =
                                                 await conMan.Connect<Channel<IP>.IWriter>(

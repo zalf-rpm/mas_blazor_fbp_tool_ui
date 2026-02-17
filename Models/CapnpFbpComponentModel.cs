@@ -82,7 +82,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 if (confIipOutPort.Writer == null)
                 {
                     Console.WriteLine(
-                        $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {confIipOutPort.ChannelTask?.IsCompletedSuccessfully}"
+                        $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {confIipOutPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                     );
                     confIipOutPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
                         confIipOutPort.WriterSturdyRef
@@ -122,10 +122,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 Console.WriteLine($"{ProcessName}: collecting port srs");
                 if (port.ReaderWriterSturdyRef == null)
                 {
-                    if (port.ChannelTask != null)
+                    if (port.RetrieveReaderOrWriterFromChannelTask != null)
                     {
                         Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
-                        await port.ChannelTask;
+                        await port.RetrieveReaderOrWriterFromChannelTask;
                     }
                     else
                     {
@@ -177,7 +177,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
                     continue;
                 // the IN port (link) is not associated with a channel yet -> create channel
-                if (inPort.ReaderWriterSturdyRef == null && inPort.ChannelTask == null)
+                if (
+                    inPort.ReaderWriterSturdyRef == null
+                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                )
                 {
                     if (inPort.Parent is not CapnpFbpComponentModel m)
                         return;
@@ -220,10 +223,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             continue;
                         if (iipPort.WriterSturdyRef == null)
                         {
-                            if (iipPort.ChannelTask != null)
+                            if (iipPort.RetrieveWriterFromChannelTask != null)
                             {
                                 Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                await iipPort.ChannelTask;
+                                await iipPort.RetrieveWriterFromChannelTask;
                             }
                             else
                             {
@@ -242,7 +245,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                                 "Here we should already have a writer, so no need to connect."
                             );
                             Console.WriteLine(
-                                $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}"
+                                $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                             );
                             iipPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
                                 iipPort.WriterSturdyRef
@@ -280,7 +283,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 //create channel, if not done before
                 if (
                     _configInPort.ReaderWriterSturdyRef == null
-                    && _configInPort.ChannelTask == null
+                    && _configInPort.RetrieveReaderOrWriterFromChannelTask == null
                 )
                 {
                     Console.WriteLine($"{ProcessName}: creating config channel");
@@ -302,10 +305,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 //check if channel creation task has been finished
                 if (_confIipOutPort.WriterSturdyRef == null)
                 {
-                    if (_confIipOutPort.ChannelTask != null)
+                    if (_confIipOutPort.RetrieveWriterFromChannelTask != null)
                     {
                         Console.WriteLine($"{ProcessName}: awaiting configIipOutPort.ChannelTask");
-                        await _confIipOutPort.ChannelTask;
+                        await _confIipOutPort.RetrieveWriterFromChannelTask;
                     }
                     else
                     {
@@ -325,7 +328,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                         "Here we should already have a writer, so no need to connect."
                     );
                     Console.WriteLine(
-                        $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {_confIipOutPort.ChannelTask?.IsCompletedSuccessfully}"
+                        $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {_confIipOutPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                     );
                     _confIipOutPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
                         _confIipOutPort.WriterSturdyRef
@@ -444,7 +447,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
                     continue;
                 // the IN port (link) is not associated with a channel yet -> create channel
-                if (inPort.ReaderWriterSturdyRef == null && inPort.ChannelTask == null)
+                if (
+                    inPort.ReaderWriterSturdyRef == null
+                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                )
                 {
                     if (inPort.Parent is not CapnpFbpComponentModel m)
                         return;
@@ -496,10 +502,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                             continue;
                         if (iipPort.WriterSturdyRef == null)
                         {
-                            if (iipPort.ChannelTask != null)
+                            if (iipPort.RetrieveWriterFromChannelTask != null)
                             {
                                 Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                await iipPort.ChannelTask;
+                                await iipPort.RetrieveWriterFromChannelTask;
                             }
                             else
                             {
@@ -518,7 +524,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                                 "Here we should already have a writer, so no need to connect."
                             );
                             Console.WriteLine(
-                                $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.ChannelTask?.IsCompletedSuccessfully}"
+                                $"{ProcessName}: before connecting to writer for iipPort.ChannelTask: {iipPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                             );
                             iipPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
                                 iipPort.WriterSturdyRef
