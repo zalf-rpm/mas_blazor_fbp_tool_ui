@@ -2,6 +2,7 @@
 @using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
 @using System.Text
+@using System.Threading
 @using Brism
 @using Mas.Infrastructure.BlazorComponents
 @inject IDialogService DialogService
@@ -72,10 +73,16 @@
                 if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
                 if (rcplm.OutPortModel is not CapnpFbpIipPortModel iippm) continue;
                 if (iippm.Writer == null) return;
+                Console.WriteLine(
+                    $"T{Thread.CurrentThread.ManagedThreadId} writing IIP: '{Node.Content}' to channel"
+                );
                 await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
                 {
                     Value = new Mas.Schema.Fbp.IP { Content = Node.Content }
                 });
+                Console.WriteLine(
+                    $"T{Thread.CurrentThread.ManagedThreadId} wrote IIP: '{Node.Content}' to channel"
+                );
             }
         }
         catch (Exception e)

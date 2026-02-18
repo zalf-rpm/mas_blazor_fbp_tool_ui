@@ -330,7 +330,7 @@ public partial class Editor
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        Console.WriteLine($"Editor: OnAfterRenderAsync firstRender: {firstRender}");
+        // Console.WriteLine($"Editor: OnAfterRenderAsync firstRender: {firstRender}");
         if (!firstRender)
             return;
         if (!await LocalStorage.ContainKeyAsync("sturdy-ref-store"))

@@ -69,7 +69,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 return;
             }
 
-            Console.WriteLine($"{ProcessName}: StartProcess start={start}");
+            Console.WriteLine(
+                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess start={start}"
+            );
 
             if (start)
             {
@@ -104,7 +106,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                         }
 
                         Console.WriteLine(
-                            $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
+                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                         );
                         await Shared.Shared.CreateChannel(
                             conMan,
@@ -132,6 +134,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                         inPort.Channel,
                                         cancelToken
                                     );
+                                outPort.Parent.Refresh();
                             }
 
                             break;
@@ -147,7 +150,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                 if (iipPort.RetrieveWriterFromChannelTask != null)
                                 {
                                     Console.WriteLine(
-                                        $"{ProcessName}: awaiting iipPort.ChannelTask"
+                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: awaiting iipPort.ChannelTask"
                                     );
                                     await iipPort.RetrieveWriterFromChannelTask;
                                 }
@@ -159,6 +162,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                             cancelToken
                                         );
                                 }
+                                iipPort.Parent.Refresh();
                             }
 
                             _iipTasks.Add(
@@ -167,7 +171,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                     {
                                         var content = iipModel.Content;
                                         Console.WriteLine(
-                                            $"{ProcessName}: async code for sending IIP: '{content}'"
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: async code for automatically writing IIP: '{content}' to channel"
                                         );
                                         if (iipPort.Writer == null)
                                         {
@@ -176,7 +180,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                                 "Here we should already have a writer, so no need to connect."
                                             );
                                             Console.WriteLine(
-                                                $"{ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
+                                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: before connecting to writer for iip iipPort.ChannelTask: {iipPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                                             );
                                             iipPort.Writer =
                                                 await conMan.Connect<Channel<IP>.IWriter>(
@@ -184,6 +188,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                                 );
                                         }
 
+                                        Console.WriteLine(
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: writing IIP: '{content}' to channel"
+                                        );
                                         await iipPort.Writer.Write(
                                             new Channel<IP>.Msg
                                             {
@@ -192,7 +199,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                             cancelToken
                                         );
                                         Console.WriteLine(
-                                            $"{ProcessName}: sent IIP: '{content}' to writer"
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: wrote IIP: '{content}' to channel"
                                         );
                                     },
                                     cancelToken
@@ -207,48 +214,70 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 ViewMsgReceiveTask = Task.Run(
                     async () =>
                     {
-                        Console.WriteLine($"{ProcessName}: starting view's receive loop");
+                        Console.WriteLine(
+                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: starting view's receive loop"
+                        );
                         var leave = false;
                         while (!leave && reader != null)
                         {
-                            Console.WriteLine($"{ProcessName}: trying to read msg");
-                            var msg = await reader.Read(cancelToken);
-                            Console.WriteLine($"{ProcessName}: read msg: {msg}");
-                            switch (msg.which)
+                            try
                             {
-                                case Channel<IP>.Msg.WHICH.Done:
-                                    Console.WriteLine($"{ProcessName}: received done msg");
-                                    leave = true;
-                                    break;
-                                case Channel<IP>.Msg.WHICH.Value:
-                                    // Console.WriteLine($"{ProcessName}: received value msg");
-                                    if (msg.Value.Content is DeserializerState ds)
-                                    {
-                                        if (CapnpSerializable.Create<string>(ds) is { } str)
+                                Console.WriteLine(
+                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel"
+                                );
+                                var msg = await reader.Read(cancelToken);
+                                // Console.WriteLine(
+                                //     $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read msg: {msg}"
+                                // );
+                                switch (msg.which)
+                                {
+                                    case Channel<IP>.Msg.WHICH.Done:
+                                        Console.WriteLine(
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received done msg"
+                                        );
+                                        leave = true;
+                                        break;
+                                    case Channel<IP>.Msg.WHICH.Value:
+                                        // Console.WriteLine($"{ProcessName}: received value msg");
+                                        if (msg.Value.Content is DeserializerState ds)
                                         {
-                                            Console.WriteLine(
-                                                $"{ProcessName}: received msg: '{str}'"
-                                            );
-                                            ViewContent = new MarkupString(str);
+                                            if (CapnpSerializable.Create<string>(ds) is { } str)
+                                            {
+                                                Console.WriteLine(
+                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel"
+                                                );
+                                                ViewContent = new MarkupString(str);
+                                            }
+
+                                            Refresh();
                                         }
 
-                                        Refresh();
-                                    }
-
-                                    break;
-                                case Channel<IP>.Msg.WHICH.NoMsg:
-                                    Console.WriteLine($"{ProcessName}: received noMsg msg");
-                                    break;
-                                case Channel<IP>.Msg.WHICH.undefined:
-                                    Console.WriteLine($"{ProcessName}: received undefined msg");
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException();
+                                        break;
+                                    case Channel<IP>.Msg.WHICH.NoMsg:
+                                        Console.WriteLine(
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received noMsg msg"
+                                        );
+                                        break;
+                                    case Channel<IP>.Msg.WHICH.undefined:
+                                        Console.WriteLine(
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received undefined msg"
+                                        );
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException();
+                                }
+                            }
+                            catch (TaskCanceledException tce)
+                            {
+                                await reader.Close();
+                                leave = true;
                             }
                         }
 
                         reader?.Dispose();
-                        Console.WriteLine($"{ProcessName}: left view's receive loop");
+                        Console.WriteLine(
+                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: left view's receive loop"
+                        );
                     },
                     cancelToken
                 );
@@ -267,7 +296,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         }
         catch (Exception e)
         {
-            Console.WriteLine($"{ProcessName}: Caught exception: " + e);
+            Console.WriteLine(
+                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Caught exception: " + e
+            );
         }
     }
 
@@ -285,7 +316,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
     public void FreeRemoteChannelsAttachedToPorts()
     {
         Console.WriteLine(
-            $"{ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
+            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
         );
         foreach (var port in Ports)
         {
@@ -298,7 +329,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
     public async Task CancelAndDisposeViewTasks()
     {
-        Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks");
+        Console.WriteLine(
+            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks"
+        );
         //cancel task
         if (_cancellationTokenSource != null)
         {
