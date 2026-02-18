@@ -59,6 +59,11 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
     public void Dispose()
     {
+        foreach (var baseLinkModel in Links)
+        {
+            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
+        }
+
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
         Task.Run(CancelAndDisposeRemoteComponent);
         RunnableFactory?.Dispose();
@@ -111,7 +116,9 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             {
                 Runnable = await RunnableFactory.Create(cancelToken);
                 if (Runnable == null)
+                {
                     return;
+                }
             }
 
             List<PortInfos.NameAndSR> inPortSRs = [];
@@ -171,11 +178,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             foreach (var pl in Links)
             {
                 if (pl is not RememberCapnpPortsLinkModel rcplm)
+                {
                     continue;
+                }
 
                 // deal with IN port
                 if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
+                {
                     continue;
+                }
+
                 // the IN port (link) is not associated with a channel yet -> create channel
                 if (
                     inPort.ReaderWriterSturdyRef == null
@@ -183,7 +195,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 )
                 {
                     if (inPort.Parent is not CapnpFbpComponentModel m)
+                    {
                         return;
+                    }
+
                     Console.WriteLine(
                         $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
@@ -196,9 +211,14 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 }
 
                 if (inPort.Parent == this)
+                {
                     await CollectPortSrs(inPort);
+                }
+
                 if (inPort.Name == "config")
+                {
                     configInPortConnected = true;
+                }
 
                 //color links with connected channel green
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
@@ -208,19 +228,27 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 {
                     case CapnpFbpPortModel outPort:
                         if (outPort.ReaderWriterSturdyRef == null)
+                        {
                             (outPort.Writer, outPort.ReaderWriterSturdyRef) =
                                 await Shared.Shared.GetNewWriterFromChannel(
                                     inPort.Channel,
                                     cancelToken
                                 );
+                        }
 
                         if (outPort.Parent == this)
+                        {
                             await CollectPortSrs(outPort, inPort);
+                        }
+
                         break;
                     case CapnpFbpIipPortModel iipPort:
                     {
                         if (iipPort.Parent is not CapnpFbpIipModel iipModel)
+                        {
                             continue;
+                        }
+
                         if (iipPort.WriterSturdyRef == null)
                         {
                             if (iipPort.RetrieveWriterFromChannelTask != null)
@@ -273,12 +301,17 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
                 //create ports, if this is the first time
                 if (_configInPort == null)
+                {
                     _configInPort = new CapnpFbpPortModel(null, CapnpFbpPortModel.PortType.In)
                     {
                         Name = "conf",
                     };
+                }
+
                 if (_confIipOutPort == null)
+                {
                     _confIipOutPort = new CapnpFbpIipPortModel(null);
+                }
 
                 //create channel, if not done before
                 if (
@@ -360,7 +393,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     || si.Item1[0].ReaderSRs.Count == 0
                     || si.Item1[0].WriterSRs.Count == 0
                 )
+                {
                     return;
+                }
+
                 _portConfigReaderSr = si.Item1[0].ReaderSRs[0];
                 _portInfosWriter = (
                     si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
@@ -368,11 +404,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             }
 
             if (_portInfosWriter == null)
+            {
                 return;
+            }
 
             ProcessStarted = await Runnable.Start(_portConfigReaderSr, ProcessName);
             if (!ProcessStarted)
+            {
                 return;
+            }
+
             Console.WriteLine($"{ProcessName}: Runnable started: {ProcessStarted}");
             Console.WriteLine($"{ProcessName}: Writing port infos to port info channel");
             Console.WriteLine($"{ProcessName}: inPortSRs: {inPortSRs} outPortSRs: {outPortSRs}");
@@ -408,7 +449,9 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             {
                 Process = await ProcessFactory.Create(cancelToken);
                 if (Process == null)
+                {
                     return;
+                }
 
                 if (_processStateTransitionCallback == null)
                 {
@@ -441,11 +484,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             foreach (var pl in Links)
             {
                 if (pl is not RememberCapnpPortsLinkModel rcplm)
+                {
                     continue;
+                }
 
                 // deal with IN port
                 if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
+                {
                     continue;
+                }
+
                 // the IN port (link) is not associated with a channel yet -> create channel
                 if (
                     inPort.ReaderWriterSturdyRef == null
@@ -453,7 +501,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 )
                 {
                     if (inPort.Parent is not CapnpFbpComponentModel m)
+                    {
                         return;
+                    }
+
                     Console.WriteLine(
                         $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
@@ -466,14 +517,18 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 }
 
                 if (inPort.Parent == this)
+                {
                     inPort.Connected = await Process.ConnectInPort(
                         inPort.Name,
                         inPort.ReaderWriterSturdyRef,
                         cancelToken
                     );
+                }
 
                 if (inPort.Name == "config")
+                {
                     configInPortConnected = true;
+                }
 
                 //color links with connected channel green
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
@@ -483,23 +538,31 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 {
                     case CapnpFbpPortModel outPort:
                         if (outPort.ReaderWriterSturdyRef == null)
+                        {
                             (outPort.Writer, outPort.ReaderWriterSturdyRef) =
                                 await Shared.Shared.GetNewWriterFromChannel(
                                     inPort.Channel,
                                     cancelToken
                                 );
+                        }
 
                         if (outPort.Parent == this)
+                        {
                             outPort.Connected = await Process.ConnectOutPort(
                                 outPort.Name,
                                 outPort.ReaderWriterSturdyRef,
                                 cancelToken
                             );
+                        }
+
                         break;
                     case CapnpFbpIipPortModel iipPort:
                     {
                         if (iipPort.Parent is not CapnpFbpIipModel iipModel)
+                        {
                             continue;
+                        }
+
                         if (iipPort.WriterSturdyRef == null)
                         {
                             if (iipPort.RetrieveWriterFromChannelTask != null)
@@ -576,9 +639,13 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         else // stop
         {
             if (Process != null)
+            {
                 await Process.Stop();
+            }
             else
+            {
                 await CancelAndDisposeRemoteComponent();
+            }
         }
     }
 
@@ -590,7 +657,9 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 Editor.CurrentChannelStarterService == null
                 || (RunnableFactory == null && ProcessFactory == null)
             )
+            {
                 return;
+            }
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
@@ -622,10 +691,16 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         );
 
         if (Runnable == null && Process == null)
+        {
             return;
+        }
+
         //cancel task
         if (_cancellationTokenSource != null)
+        {
             await _cancellationTokenSource.CancelAsync();
+        }
+
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
 
@@ -634,9 +709,14 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopping runnable"
         );
         if (Runnable != null)
+        {
             ProcessStarted = await Runnable.Stop();
+        }
         else
+        {
             await Process.Stop();
+        }
+
         Console.WriteLine(
             $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable"
         );
@@ -654,8 +734,13 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             $"{ProcessName}: CapnpFbpComponentModel::FreeRemoteChannelsAttachedToPorts"
         );
         foreach (var port in Ports)
+        {
             if (port is IDisposable disposable)
+            {
                 disposable.Dispose();
+            }
+        }
+
         _configInPort?.Dispose();
         _configInPort = null;
         _confIipOutPort?.Dispose();

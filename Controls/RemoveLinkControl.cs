@@ -17,21 +17,25 @@ public class RemoveLinkControl : ExecutableControl
     private readonly IPositionProvider _positionProvider;
 
     public RemoveLinkControl(double x, double y, double offsetX = 0.0, double offsetY = 0.0)
-        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY))
-    {
-    }
+        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY)) { }
 
     public RemoveLinkControl(IPositionProvider positionProvider)
     {
         _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model) => _positionProvider.GetPosition(model);
+    public override Point GetPosition(Model model)
+    {
+        return _positionProvider.GetPosition(model);
+    }
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {
         if (!await ShouldDeleteModel(diagram, model))
+        {
             return;
+        }
+
         DeleteModel(diagram, model);
     }
 
@@ -46,47 +50,7 @@ public class RemoveLinkControl : ExecutableControl
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
-                if (baseLinkModel.Source.Model is NodeModel sourceNode)
-                {
-                    foreach (var p in sourceNode.Ports)
-                    {
-                        if (p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out } ocp &&
-                            ocp.Name == baseLinkModel.Labels.First().Content)
-                        {
-                            ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
-                        }
-                    }
-                    if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
-                    {
-                        foreach (var p in iipModel.Ports) p.Visible = true;
-                    }
-                    sourceNode.RefreshAll();
-                }
-                if (baseLinkModel.Target.Model is NodeModel targetNode)
-                {
-                    var noOfLinksToInPort = diagram.Links.Count(l => l.Target.Model == targetNode
-                                                                     && l.Labels.Last().Content ==
-                                                                     baseLinkModel.Labels.Last().Content);
-
-                    if (noOfLinksToInPort == 1)
-                    {
-                        foreach (var p in targetNode.Ports)
-                        {
-                            var inLabel = baseLinkModel.Labels.FindAll(blm => blm is not ChannelLinkLabelModel).LastOrDefault();
-                            if (p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In } ocp &&
-                                ocp.Name == inLabel?.Content)
-                            {
-                                ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
-                                //don't delete channels on link removal
-                                //as they are attached to the ports and
-                                //should be deleted when a component gets deleted
-                                //ocp.FreeRemoteChannelResources();
-                            }
-                        }
-                    }
-                    targetNode.RefreshAll();
-                }
-
+                Shared.Shared.RestoreDefaultPortVisibility(diagram, baseLinkModel);
                 diagram.Links.Remove(baseLinkModel);
                 break;
         }
@@ -95,13 +59,20 @@ public class RemoveLinkControl : ExecutableControl
     private static async ValueTask<bool> ShouldDeleteModel(Diagram diagram, Model model)
     {
         if (model.Locked)
-            return false;
-        bool flag = model switch
         {
-            GroupModel groupModel => await diagram.Options.Constraints.ShouldDeleteGroup(groupModel),
+            return false;
+        }
+
+        var flag = model switch
+        {
+            GroupModel groupModel => await diagram.Options.Constraints.ShouldDeleteGroup(
+                groupModel
+            ),
             NodeModel nodeModel => await diagram.Options.Constraints.ShouldDeleteNode(nodeModel),
-            BaseLinkModel baseLinkModel => await diagram.Options.Constraints.ShouldDeleteLink(baseLinkModel),
-            _ => false
+            BaseLinkModel baseLinkModel => await diagram.Options.Constraints.ShouldDeleteLink(
+                baseLinkModel
+            ),
+            _ => false,
         };
 
         return flag;

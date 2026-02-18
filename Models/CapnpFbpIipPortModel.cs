@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
+using BlazorDrawFBP.Pages;
 
 namespace BlazorDrawFBP.Models;
 
@@ -47,7 +48,7 @@ public class CapnpFbpIipPortModel : PortModel, IDisposable
 
     public void Dispose()
     {
-        Console.WriteLine($"IIP: Disposing");
+        Console.WriteLine($"CapnpFbpIipPortModel::Disposing");
         //ChannelTask?.Dispose();
         Writer?.Dispose();
     }

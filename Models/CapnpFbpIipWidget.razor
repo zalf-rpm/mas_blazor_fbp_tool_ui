@@ -59,7 +59,9 @@
 
     private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: 1px";
-    private string FrameColor => $"border-color: #6e9fd4";
+    //private string FrameColor => $"border-color: #6e9fd4";
+    private string FrameColor => $@"border-color: {(IsConnectedToChannel ? "#1ac12e" : "#ff0000")}";
+    private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpIipPortModel iipPort && iipPort.Writer != null);
 
     private async void SendIip()
     {

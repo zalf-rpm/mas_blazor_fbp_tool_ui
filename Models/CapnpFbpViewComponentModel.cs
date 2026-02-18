@@ -60,18 +60,14 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 : value;
     }
 
-    public void Dispose()
-    {
-        FreeRemoteChannelsAttachedToPorts();
-        Task.Run(CancelAndDisposeViewTasks);
-    }
-
     public async Task StartProcess(ConnectionManager conMan, bool start)
     {
         try
         {
             if (Editor.CurrentChannelStarterService == null)
+            {
                 return;
+            }
 
             Console.WriteLine($"{ProcessName}: StartProcess start={start}");
 
@@ -86,11 +82,16 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 foreach (var pl in Links)
                 {
                     if (pl is not RememberCapnpPortsLinkModel rcplm)
+                    {
                         continue;
+                    }
 
                     // deal with IN port
                     if (rcplm.InPortModel is not CapnpFbpPortModel inPort)
+                    {
                         continue;
+                    }
+
                     // the IN port (link) is not associated with a channel yet -> create channel
                     if (
                         inPort.ReaderWriterSturdyRef == null
@@ -98,7 +99,10 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                     )
                     {
                         if (inPort.Parent is not CapnpFbpViewComponentModel m)
+                        {
                             return;
+                        }
+
                         Console.WriteLine(
                             $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                         );
@@ -111,7 +115,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                     }
 
                     if (inPort.Parent == this)
+                    {
                         reader = Proxy.Share(inPort.Reader);
+                    }
 
                     rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
@@ -120,16 +126,21 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                     {
                         case CapnpFbpPortModel outPort:
                             if (outPort.ReaderWriterSturdyRef == null)
+                            {
                                 (outPort.Writer, outPort.ReaderWriterSturdyRef) =
                                     await Shared.Shared.GetNewWriterFromChannel(
                                         inPort.Channel,
                                         cancelToken
                                     );
+                            }
+
                             break;
                         case CapnpFbpIipPortModel iipPort:
                         {
                             if (iipPort.Parent is not CapnpFbpIipModel iipModel)
+                            {
                                 continue;
+                            }
 
                             if (iipPort.WriterSturdyRef == null)
                             {
@@ -180,7 +191,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                             },
                                             cancelToken
                                         );
-                                        Console.WriteLine($"{ProcessName}: sent IIP to writer");
+                                        Console.WriteLine(
+                                            $"{ProcessName}: sent IIP: '{content}' to writer"
+                                        );
                                     },
                                     cancelToken
                                 )
@@ -198,9 +211,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                         var leave = false;
                         while (!leave && reader != null)
                         {
-                            //Console.WriteLine($"{ProcessName}: trying to read msg");
+                            Console.WriteLine($"{ProcessName}: trying to read msg");
                             var msg = await reader.Read(cancelToken);
-                            //Console.WriteLine($"{ProcessName}: read msg: {msg}");
+                            Console.WriteLine($"{ProcessName}: read msg: {msg}");
                             switch (msg.which)
                             {
                                 case Channel<IP>.Msg.WHICH.Done:
@@ -208,12 +221,17 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                     leave = true;
                                     break;
                                 case Channel<IP>.Msg.WHICH.Value:
-                                    //Console.WriteLine($"{ProcessName}: received value msg");
+                                    // Console.WriteLine($"{ProcessName}: received value msg");
                                     if (msg.Value.Content is DeserializerState ds)
                                     {
                                         if (CapnpSerializable.Create<string>(ds) is { } str)
-                                            //Console.WriteLine($"{ProcessName}: received msg: '{str}'");
+                                        {
+                                            Console.WriteLine(
+                                                $"{ProcessName}: received msg: '{str}'"
+                                            );
                                             ViewContent = new MarkupString(str);
+                                        }
+
                                         Refresh();
                                     }
 
@@ -253,14 +271,29 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         }
     }
 
+    public void Dispose()
+    {
+        foreach (var baseLinkModel in Links)
+        {
+            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
+        }
+
+        FreeRemoteChannelsAttachedToPorts();
+        Task.Run(CancelAndDisposeViewTasks);
+    }
+
     public void FreeRemoteChannelsAttachedToPorts()
     {
         Console.WriteLine(
             $"{ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
         );
         foreach (var port in Ports)
+        {
             if (port is IDisposable disposable)
+            {
                 disposable.Dispose();
+            }
+        }
     }
 
     public async Task CancelAndDisposeViewTasks()
@@ -268,12 +301,18 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         Console.WriteLine($"{ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks");
         //cancel task
         if (_cancellationTokenSource != null)
+        {
             await _cancellationTokenSource.CancelAsync();
+        }
+
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
         //dispose the IIP tasks
         foreach (var t in _iipTasks)
+        {
             t.ContinueWith(t => t.Dispose());
+        }
+
         _iipTasks.Clear();
         //dispose the actual view task
         ViewMsgReceiveTask?.ContinueWith(t =>

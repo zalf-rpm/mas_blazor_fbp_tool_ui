@@ -417,6 +417,7 @@ public partial class Editor
                                                     sourcePort.Channel
                                                 );
                                             outPort.RetrieveReaderOrWriterFromChannelTask = null;
+                                            outPort.Parent.Refresh();
                                         }
                                     );
                                 // if (InteractiveMode)
@@ -466,6 +467,7 @@ public partial class Editor
                                                     inPort.Channel
                                                 );
                                             sourcePort.RetrieveReaderOrWriterFromChannelTask = null;
+                                            sourcePort.Parent.Refresh();
                                         }
                                     );
                                 // if (InteractiveMode)
@@ -516,6 +518,7 @@ public partial class Editor
                                 (iipPortModel.Writer, iipPortModel.WriterSturdyRef) =
                                     await Shared.Shared.GetNewWriterFromChannel(inPort.Channel);
                                 iipPortModel.RetrieveWriterFromChannelTask = null;
+                                iipPortModel.Parent.Refresh();
                             });
 
                         // if (InteractiveMode)
@@ -1363,6 +1366,7 @@ public partial class Editor
                 var compId = component.Info.Id;
                 var node = new CapnpFbpIipModel(new Point(position.X, position.Y))
                 {
+                    Editor = this,
                     ComponentId = compId,
                     ShortDescription = initNode?["shortDescription"]?.ToString() ?? "",
                     Content = initNode?["content"]?.ToString() ?? "",

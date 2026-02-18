@@ -17,21 +17,25 @@ public class RemoveProcessControl : ExecutableControl
     private readonly IPositionProvider _positionProvider;
 
     public RemoveProcessControl(double x, double y, double offsetX = 0.0, double offsetY = 0.0)
-        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY))
-    {
-    }
+        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY)) { }
 
     public RemoveProcessControl(IPositionProvider positionProvider)
     {
-        this._positionProvider = positionProvider;
+        _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model) => this._positionProvider.GetPosition(model);
+    public override Point GetPosition(Model model)
+    {
+        return _positionProvider.GetPosition(model);
+    }
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {
         if (!await ShouldDeleteModel(diagram, model))
+        {
             return;
+        }
+
         DeleteModel(diagram, model);
     }
 
@@ -49,17 +53,13 @@ public class RemoveProcessControl : ExecutableControl
                         cfcm.Dispose();
                         break;
                     case CapnpFbpIipModel iipm:
-                    {
-                        foreach (var port in iipm.Ports)
-                        {
-                            if (port is IDisposable disposable) disposable.Dispose();
-                        }
+                        iipm.Dispose();
                         break;
-                    }
                     case CapnpFbpViewComponentModel viewm:
                         viewm.Dispose();
                         break;
                 }
+
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
@@ -71,7 +71,10 @@ public class RemoveProcessControl : ExecutableControl
     private static async ValueTask<bool> ShouldDeleteModel(Diagram diagram, Model model)
     {
         if (model.Locked)
+        {
             return false;
+        }
+
         bool flag;
         switch (model)
         {

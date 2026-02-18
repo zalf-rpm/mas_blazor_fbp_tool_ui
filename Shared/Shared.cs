@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
 using Capnp;
 using Mas.Infrastructure.Common;
@@ -170,5 +173,63 @@ public class Shared
 
         inPort.RetrieveReaderOrWriterFromChannelTask = t;
         return t;
+    }
+
+    public static void RestoreDefaultPortVisibility(Diagram diagram, BaseLinkModel baseLinkModel)
+    {
+        if (baseLinkModel.Source.Model is NodeModel sourceNode)
+        {
+            foreach (var p in sourceNode.Ports)
+            {
+                if (
+                    p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out } ocp
+                    && ocp.Name == baseLinkModel.Labels.First().Content
+                )
+                {
+                    ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
+                }
+            }
+
+            if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
+            {
+                foreach (var p in iipModel.Ports)
+                {
+                    p.Visible = true;
+                }
+            }
+
+            sourceNode.RefreshAll();
+        }
+
+        if (baseLinkModel.Target.Model is NodeModel targetNode)
+        {
+            var noOfLinksToInPort = diagram.Links.Count(l =>
+                l.Target.Model == targetNode
+                && l.Labels.Last().Content == baseLinkModel.Labels.Last().Content
+            );
+
+            if (noOfLinksToInPort == 1)
+            {
+                foreach (var p in targetNode.Ports)
+                {
+                    var inLabel = baseLinkModel
+                        .Labels.FindAll(blm => blm is not ChannelLinkLabelModel)
+                        .LastOrDefault();
+                    if (
+                        p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In } ocp
+                        && ocp.Name == inLabel?.Content
+                    )
+                    {
+                        ocp.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
+                        //don't delete channels on link removal
+                        //as they are attached to the ports and
+                        //should be deleted when a component gets deleted
+                        //ocp.FreeRemoteChannelResources();
+                    }
+                }
+            }
+
+            targetNode.RefreshAll();
+        }
     }
 }
