@@ -1294,8 +1294,8 @@ public partial class Editor
                         ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                     Cmd = cmd,
                     ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
-                    DefaultConfigString = unavailableService ? "" : component.DefaultConfig ?? "",
-                    ConfigString = initNode?.GetValue("config")?.Value<string>() ?? "",
+                    DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
+                    ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
                     DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                     Editable =
                         initNode?.GetValue("editable")?.Value<bool>()

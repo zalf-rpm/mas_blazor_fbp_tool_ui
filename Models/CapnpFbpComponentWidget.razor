@@ -3,6 +3,7 @@
 @using BlazorDrawFBP.Renderers
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Infrastructure.Common
+@using Newtonsoft.Json.Linq
 @inject ConnectionManager ConMan
 @inject IDialogService DialogService
 
@@ -320,6 +321,21 @@
     private CapnpFbpComponentContentModel _contentModel = null;
 
     async void ShowDetails(MouseEventArgs e)
+    {
+        var parameters = new DialogParameters
+        {
+            ["JsonString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<JsonEditorDialog>("Edit Configuration", parameters, options);
+        var result = await dialog.Result;
+        if (result == null || result.Canceled) return;
+        Node.ConfigString = result.Data as string;
+        StateHasChanged();
+    }
+
+    async void ShowTomlDetails(MouseEventArgs e)
     {
         var parameters = new DialogParameters
         {
