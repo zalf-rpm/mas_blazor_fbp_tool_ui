@@ -698,9 +698,20 @@ public partial class Editor
                 )
             )
             {
-                component = nodeObj.ContainsKey("content")
-                    ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
-                    : ServiceIdAndComponentId2Component[(NoRegistryServiceId, "empty_component")];
+                //there is no component service with the given component id
+                //let's try to find some service which offers that component
+                foreach (var (key, value) in ServiceIdAndComponentId2Component) {
+                    if (key.Item2 != compId) continue;
+                    component = value;
+                    nodeObj["componentServiceId"] = key.Item1;
+                    break;
+                }
+                //no service with the correct component id available, make it an empty_component
+                if (component == null) {
+                    component = nodeObj.ContainsKey("content")
+                        ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
+                        : ServiceIdAndComponentId2Component[(NoRegistryServiceId, "empty_component")];
+                }
             }
 
             var diaNode = AddFbpNode(position, component, nodeObj, cmd);

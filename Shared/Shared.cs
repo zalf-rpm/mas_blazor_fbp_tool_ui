@@ -129,7 +129,7 @@ public class Shared
                             si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                         )?.Cast<Channel<IP>.IWriter>(false);
                         iipPort.RetrieveWriterFromChannelTask = null;
-                        iipPort.Parent.Refresh();
+                        iipPort.Parent?.Refresh();
                         break;
                 }
 
@@ -144,7 +144,7 @@ public class Shared
                 // attach stop channel cap to IN port
                 inPort.StopChannel = si.Item2;
                 inPort.RetrieveReaderOrWriterFromChannelTask = null;
-                inPort.Parent.Refresh();
+                inPort.Parent?.Refresh();
             }
             else
             {

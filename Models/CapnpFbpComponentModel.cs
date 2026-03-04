@@ -194,9 +194,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     && inPort.RetrieveReaderOrWriterFromChannelTask == null
                 )
                 {
-                    if (inPort.Parent is not CapnpFbpComponentModel m)
+                    //TODO: is bad to distinguish explicitly here, maybe we want to have more further component types later
+                    if (inPort.Parent is not CapnpFbpComponentModel && inPort.Parent is not CapnpFbpViewComponentModel)
                     {
-                        return;
+                        continue;
                     }
 
                     Console.WriteLine(
@@ -370,7 +371,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
                 //send actual config string into channel
                 await _confIipOutPort.Writer.Write(
-                    new Channel<IP>.Msg { Value = new IP { Content = ConfigString } },
+                    new Channel<IP>.Msg { Value = new IP { Content = new StructuredText { TheType = StructuredText.Type.json, Value = ConfigString } } },
                     cancelToken
                 );
                 Console.WriteLine($"{ProcessName}: sent config IIP to config port");
@@ -595,7 +596,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                         }
 
                         await iipPort.Writer.Write(
-                            new Channel<IP>.Msg { Value = new IP { Content = iipModel.Content } },
+                            new Channel<IP>.Msg { Value = new IP { Content = new StructuredText { TheType = StructuredText.Type.json, Value = iipModel.Content } } },
                             cancelToken
                         );
                         Console.WriteLine($"{ProcessName}: sent IIP to writer");
