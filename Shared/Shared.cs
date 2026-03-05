@@ -11,6 +11,7 @@ using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
 using Capnp;
 using Mas.Infrastructure.Common;
+using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Registry;
@@ -234,5 +235,16 @@ public class Shared
 
             targetNode.RefreshAll();
         }
+    }
+
+    public static string FormatStructuredTextType(StructuredText.Type sst) {
+        return sst switch {
+            StructuredText.Type.unstructured => "is plain text",
+            StructuredText.Type.json => "is JSON",
+            StructuredText.Type.xml => "is XML",
+            StructuredText.Type.toml => "is TOML",
+            StructuredText.Type.sturdyRef => "is a SturdyRef",
+            _ => "is unknown text type"
+        };
     }
 }

@@ -707,19 +707,20 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
 
         //stop remote process
         Console.WriteLine(
-            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopping runnable"
+            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopping runnable/process"
         );
         if (Runnable != null)
         {
-            ProcessStarted = await Runnable.Stop();
+            ProcessStarted = !(await Runnable.Stop());
         }
         else
         {
             await Process.Stop();
+            ProcessStarted = false;
         }
 
         Console.WriteLine(
-            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable"
+            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process"
         );
         Runnable?.Dispose();
         Runnable = null;

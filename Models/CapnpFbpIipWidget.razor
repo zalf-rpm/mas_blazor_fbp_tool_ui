@@ -5,6 +5,7 @@
 @using System.Threading
 @using Brism
 @using Mas.Infrastructure.BlazorComponents
+@using Mas.Schema.Common
 @inject IDialogService DialogService
 
 <div>
@@ -34,11 +35,25 @@
                     </MudButton>
                 </MudPaper>
             </MudItem>
+            <MudItem Class="pt-0" xs="12">
+                <div @onpointerenter="@(_ => { Node.Locked = true; })"
+                     @onpointerleave="@(_ => { Node.Locked = false; })">
+                <MudSelect Class="pl-3 pr-3"
+                           @bind-Value="Node.ContentType"
+                           Margin="Margin.Dense"
+                           Variant="Variant.Text"
+                           >
+                    @foreach (Mas.Schema.Common.StructuredText.Type ct in Enum.GetValues(typeof(Mas.Schema.Common.StructuredText.Type))) {
+                        <MudSelectItem Value="@ct">@(Shared.FormatStructuredTextType(ct))</MudSelectItem>
+                    }
+                </MudSelect>
+                </div>
+            </MudItem>
             <MudItem xs="12">
                 <MudTextField Class="pl-3 pr-3" Style="margin-top: -6px;"
                               T="string"
                               @bind-Value="Node.Content"
-                              Lines="5"
+                              Lines="3"
                               Label="IIP content"
                               Variant="Variant.Outlined"
                               @onpointerenter="@(_ => Node.Locked = true)"
@@ -78,7 +93,7 @@
                 );
                 await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
                 {
-                    Value = new Mas.Schema.Fbp.IP { Content = Node.Content }
+                    Value = new Mas.Schema.Fbp.IP { Content = new StructuredText { TheType = Node.ContentType, Value = Node.Content } }
                 });
                 Console.WriteLine(
                     $"T{Thread.CurrentThread.ManagedThreadId} wrote IIP: '{Node.Content}' to channel"

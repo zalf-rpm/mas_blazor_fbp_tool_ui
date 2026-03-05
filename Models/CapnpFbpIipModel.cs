@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlazorDrawFBP.Pages;
+using Mas.Schema.Common;
 
 namespace BlazorDrawFBP.Models;
 
@@ -19,6 +20,8 @@ public class CapnpFbpIipModel : NodeModel, IDisposable
 
     public string ShortDescription { get; set; }
     public string Content { get; set; }
+
+    public Mas.Schema.Common.StructuredText.Type ContentType { get; set; } = StructuredText.Type.unstructured;
 
     public int DisplayNoOfLines { get; set; } = 3;
 

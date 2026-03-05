@@ -9,6 +9,7 @@ using BlazorDrawFBP.Pages;
 using Capnp;
 using Capnp.Rpc;
 using Mas.Infrastructure.Common;
+using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Microsoft.AspNetCore.Components;
 using Exception = System.Exception;
@@ -102,7 +103,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                     {
                         if (inPort.Parent is not CapnpFbpViewComponentModel m)
                         {
-                            return;
+                            continue;
                         }
 
                         Console.WriteLine(
@@ -169,9 +170,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                 Task.Run(
                                     async () =>
                                     {
-                                        var content = iipModel.Content;
                                         Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: async code for automatically writing IIP: '{content}' to channel"
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: async code for automatically writing IIP: '{iipModel.Content}' to channel"
                                         );
                                         if (iipPort.Writer == null)
                                         {
@@ -189,17 +189,17 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                         }
 
                                         Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: writing IIP: '{content}' to channel"
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: writing IIP: '{iipModel.Content}' to channel"
                                         );
                                         await iipPort.Writer.Write(
                                             new Channel<IP>.Msg
                                             {
-                                                Value = new IP { Content = content },
+                                                Value = new IP { Content = new StructuredText { TheType = StructuredText.Type.json, Value = iipModel.Content } },
                                             },
                                             cancelToken
                                         );
                                         Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: wrote IIP: '{content}' to channel"
+                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: wrote IIP: '{iipModel.Content}' to channel"
                                         );
                                     },
                                     cancelToken
@@ -241,12 +241,15 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                         // Console.WriteLine($"{ProcessName}: received value msg");
                                         if (msg.Value.Content is DeserializerState ds)
                                         {
-                                            if (CapnpSerializable.Create<string>(ds) is { } str)
+                                            if (CapnpSerializable.Create<StructuredText>(ds) is { } st)
                                             {
+                                                var str = st.Value;
+                                                var stStr =
+                                                    $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
                                                 Console.WriteLine(
                                                     $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel"
                                                 );
-                                                ViewContent = new MarkupString(str);
+                                                ViewContent = new MarkupString(stStr);
                                             }
 
                                             Refresh();
