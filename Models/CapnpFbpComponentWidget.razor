@@ -53,9 +53,9 @@
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
-                               StartIcon="@(ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
-                               OnClick="async (e) => { await StartProcess(!ProcessStarted); }">
-                        @(ProcessStarted ? "Stop" : "Start")
+                               StartIcon="@(Node.ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
+                               OnClick="async (e) => { await StartProcess(!Node.ProcessStarted); }">
+                        @(Node.ProcessStarted ? "Stop" : "Start")
                     </MudButton>
                 </MudPaper>
             </MudItem>
@@ -117,6 +117,11 @@
                 </MudTooltip>
             </MudItem>
             <MudItem xs="12" Class="d-flex justify-center">
+                <MudText Class="pl-3 pr-3" Style="margin-top: -6px;" Typo="Typo.caption" Align="Align.Center">
+                    @(Node.ComponentName.Length > 20 ? $"{Node.ComponentName[..20]}...".ToUpper() : Node.ComponentName.ToUpper())
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-center">
                 @code {
                     bool _editShortDesc = false;
                     private MudTextField<string> _procShortDescFieldRef;
@@ -153,7 +158,7 @@
                             Disabled="@(Node.ShortDescription.Length <= NoOfShortDescChars)">
                     <MudText Class="@ShortDescTextClass" Typo="@ShortDescTypo" Align="Align.Left"
                              @ondblclick="showAndFocusOnShortDescEdit">
-                        @(Node.ShortDescription.Length > NoOfShortDescChars ? $"{Node.ShortDescription[..NoOfShortDescChars]}..." : Node.ShortDescription)
+                        @(string.IsNullOrWhiteSpace(Node.ShortDescription) ? "no description" : Node.ShortDescription.Length > NoOfShortDescChars ? $"{Node.ShortDescription[..NoOfShortDescChars]}..." : Node.ShortDescription)
                     </MudText>
                 </MudTooltip>
             </MudItem>
@@ -269,7 +274,7 @@
     //private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
-    private string FrameColor => $"border-color: {(Node.Runnable == null ? "#6e9fd4" : ProcessStarted ? "#1ac12e" : "#ff0000")}";
+    private string FrameColor => $"border-color: {(Node.Runnable == null ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private string MinHeight =>
         $@"min-height: {Math.Max(200, Math.Max(
@@ -293,13 +298,19 @@
         set => Node.InParallelCount = value ? 2 : 1;
     }
 
+    protected override void OnInitialized()
+    {
+        Node.OnStateChanged += async () =>
+        {
+            await InvokeAsync(StateHasChanged);
+        };
+    }
+
     private async Task StartProcess(bool start)
     {
         await Node.StartProcess(ConMan, start);
         StateHasChanged();
     }
-
-    private bool ProcessStarted => Node.ProcessStarted;
 
     private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new()
     {

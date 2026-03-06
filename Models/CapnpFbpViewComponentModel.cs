@@ -241,16 +241,28 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                         // Console.WriteLine($"{ProcessName}: received value msg");
                                         if (msg.Value.Content is DeserializerState ds)
                                         {
-                                            if (CapnpSerializable.Create<StructuredText>(ds) is { } st)
-                                            {
-                                                var str = st.Value;
-                                                str = str.ReplaceLineEndings("<br>");
-                                                var stStr =
-                                                    $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
-                                                Console.WriteLine(
-                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel"
-                                                );
-                                                ViewContent = new MarkupString(stStr);
+                                            try {
+                                                if (CapnpSerializable.Create<StructuredText>(ds) is { } st) {
+                                                    var str = st.Value;
+                                                    str = str.ReplaceLineEndings("<br>");
+                                                    var stStr =
+                                                        $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
+                                                    Console.WriteLine(
+                                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
+                                                    ViewContent = new MarkupString(stStr);
+                                                }
+                                            } catch (DeserializationException) {
+                                                Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no StructuredText.");
+                                                try {
+                                                    if (CapnpSerializable.Create<string>(ds) is { } str) {
+                                                        str = str.ReplaceLineEndings("<br>");
+                                                        Console.WriteLine(
+                                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
+                                                        ViewContent = new MarkupString(str);
+                                                    }
+                                                } catch (DeserializationException) {
+                                                    Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no string.");
+                                                }
                                             }
 
                                             Refresh();
@@ -282,6 +294,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                         Console.WriteLine(
                             $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: left view's receive loop"
                         );
+                        ProcessStarted = false;
                     },
                     cancelToken
                 );

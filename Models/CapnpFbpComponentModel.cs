@@ -20,7 +20,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     private CancellationTokenSource _cancellationTokenSource;
     private CapnpFbpPortModel _configInPort;
     private CapnpFbpIipPortModel _confIipOutPort;
-    private SturdyRef _portConfigReaderSr;
+    private SturdyRef _portInfosReaderSr;
     private Channel<PortInfos>.IWriter _portInfosWriter;
 
     private ProcessStateTransition _processStateTransitionCallback;
@@ -56,6 +56,8 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public Process.IFactory ProcessFactory { get; set; }
 
     public bool ProcessStarted { get; protected set; }
+
+    public event Action? OnStateChanged;
 
     public void Dispose()
     {
@@ -398,7 +400,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                     return;
                 }
 
-                _portConfigReaderSr = si.Item1[0].ReaderSRs[0];
+                _portInfosReaderSr = si.Item1[0].ReaderSRs[0];
                 _portInfosWriter = (
                     si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                 )?.Cast<Channel<PortInfos>.IWriter>(false);
@@ -409,7 +411,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
                 return;
             }
 
-            ProcessStarted = await Runnable.Start(_portConfigReaderSr, ProcessName);
+            ProcessStarted = await Runnable.Start(_portInfosReaderSr, ProcessName);
             if (!ProcessStarted)
             {
                 return;
@@ -435,6 +437,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         else // stop
         {
             await CancelAndDisposeRemoteComponent();
+            ProcessStarted = false;
         }
     }
 
@@ -633,6 +636,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             }
 
             await Process.Start(cancelToken);
+            ProcessStarted = true;
             Console.WriteLine($"{ProcessName}: Process started: {ProcessStarted}");
             RefreshAll();
             RefreshLinks();
@@ -642,6 +646,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             if (Process != null)
             {
                 await Process.Stop();
+                ProcessStarted = false;
             }
             else
             {
@@ -667,12 +672,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             if (RunnableFactory != null)
             {
                 await StartRunnableProcess(conMan, start);
-                ProcessStarted = true;
             }
             else if (ProcessFactory != null)
             {
                 await StartProcessProcess(conMan, start);
-                ProcessStarted = true;
             }
             else
             {
@@ -711,6 +714,15 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
         );
         if (Runnable != null)
         {
+            //first send done on port infos channel because the process might keep (is actually the default)
+            //the event loop running to still transfer capabilities
+            await _portInfosWriter.Write(
+                new Channel<PortInfos>.Msg
+                {
+                    which = Channel<PortInfos>.Msg.WHICH.Done
+                }
+            );
+            await Task.Delay(500); // let the process stop
             ProcessStarted = !(await Runnable.Stop());
         }
         else
@@ -718,9 +730,10 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
             await Process.Stop();
             ProcessStarted = false;
         }
+        // OnStateChanged?.Invoke();
 
         Console.WriteLine(
-            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process"
+            $"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
         );
         Runnable?.Dispose();
         Runnable = null;
