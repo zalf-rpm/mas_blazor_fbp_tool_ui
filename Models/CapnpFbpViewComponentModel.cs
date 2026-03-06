@@ -244,6 +244,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                             if (CapnpSerializable.Create<StructuredText>(ds) is { } st)
                                             {
                                                 var str = st.Value;
+                                                str = str.ReplaceLineEndings("<br>");
                                                 var stStr =
                                                     $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
                                                 Console.WriteLine(
