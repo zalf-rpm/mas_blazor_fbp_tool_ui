@@ -239,11 +239,11 @@ public class Shared
 
     public static string FormatStructuredTextType(StructuredText.Type sst) {
         return sst switch {
-            StructuredText.Type.unstructured => "is plain text",
-            StructuredText.Type.json => "is JSON",
-            StructuredText.Type.xml => "is XML",
-            StructuredText.Type.toml => "is TOML",
-            StructuredText.Type.sturdyRef => "is a SturdyRef",
+            StructuredText.Type.unstructured => "as (structured) plain text",
+            StructuredText.Type.json => "as JSON",
+            StructuredText.Type.xml => "as XML",
+            StructuredText.Type.toml => "as TOML",
+            StructuredText.Type.sturdyRef => "as SturdyRef",
             _ => "is unknown text type"
         };
     }

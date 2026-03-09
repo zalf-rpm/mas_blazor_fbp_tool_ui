@@ -304,6 +304,7 @@ public partial class Editor
         }
 
         Diagram.RegisterComponent<CapnpFbpComponentModel, CapnpFbpComponentWidget>();
+        Diagram.RegisterComponent<CapnpFbpProcessComponentModel, CapnpFbpComponentWidget>();
         Diagram.RegisterComponent<CapnpFbpComponentContentModel, CapnpFbpComponentContentWidget>();
         Diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
         Diagram.RegisterComponent<CapnpFbpIipModel, CapnpFbpIipWidget>();
@@ -1070,6 +1071,34 @@ public partial class Editor
 
                     break;
                 }
+                case CapnpFbpViewComponentModel viewNode:
+                {
+                    if (asMermaid)
+                    {
+                        sb.AppendLine(
+                            $"{CreateMermaidId(viewNode.Id)}>\"View\"]"
+                        );
+                    }
+                    else
+                    {
+                        var jn = new JObject
+                        {
+                            { "nodeId", viewNode.Id },
+                            { "componentId", viewNode.ComponentId },
+                            {
+                                "location",
+                                new JObject
+                                {
+                                    { "x", viewNode.Position.X },
+                                    { "y", viewNode.Position.Y },
+                                }
+                            },
+                        };
+                        if (dia["nodes"] is JArray nodes)
+                            nodes.Add(jn);
+                    }
+                    break;
+                }
                 default:
                     continue;
             }
@@ -1191,6 +1220,99 @@ public partial class Editor
                             links.Add(jl);
                     }
                 }
+                else if (
+                    outIipPort is { Parent: CapnpFbpIipModel outIipModel2 }
+                    && inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel }
+                )
+                {
+                    var outIipNodeId = ShortIipId(outIipModel2.Id, outIipModel2.Content);
+                    var inNodeId = inViewCapnpModel.Id;
+
+                    // make sure the link is only stored once
+                    var checkOut = $"{outIipNodeId}.{outIipPort.Alignment.ToString()}";
+                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                    if (
+                        linkSet.Contains($"{checkOut}->{checkIn}")
+                        || linkSet.Contains($"{checkIn}->{checkOut}")
+                    )
+                        continue;
+                    linkSet.Add($"{checkOut}->{checkIn}");
+
+                    if (asMermaid)
+                    {
+                        sb.AppendLine(
+                            $"{CreateMermaidId(outIipNodeId)} -- \""
+                                + $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}"
+                        );
+                    }
+                    else
+                    {
+                        var jl = new JObject
+                        {
+                            {
+                                "source",
+                                new JObject
+                                {
+                                    { "nodeId", outIipNodeId },
+                                    { "port", outIipPort.Alignment.ToString() },
+                                }
+                            },
+                            {
+                                "target",
+                                new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } }
+                            },
+                        };
+                        if (dia["links"] is JArray links)
+                            links.Add(jl);
+                    }
+                }
+                else if (
+                    outCapnpPort is { Parent: CapnpFbpComponentModel outCapnpModel2 }
+                    && inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel2 }
+                )
+                {
+                    var outNodeId = ShortProcId(outCapnpModel2.Id, outCapnpModel2.ProcessName);
+                    var inNodeId = inViewCapnpModel2.Id;
+
+                    // make sure the link is only stored once
+                    var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
+                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                    if (
+                        linkSet.Contains($"{checkOut}->{checkIn}")
+                        || linkSet.Contains($"{checkIn}->{checkOut}")
+                    )
+                        continue;
+                    linkSet.Add($"{checkOut}->{checkIn}");
+
+                    if (asMermaid)
+                    {
+                        sb.AppendLine(
+                            $"{CreateMermaidId(outNodeId)} -- "
+                                + $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" "
+                                + $"--> {CreateMermaidId(inNodeId)}"
+                        );
+                    }
+                    else
+                    {
+                        var jl = new JObject
+                        {
+                            {
+                                "source",
+                                new JObject
+                                {
+                                    { "nodeId", outNodeId },
+                                    { "port", outCapnpPort.Name },
+                                }
+                            },
+                            {
+                                "target",
+                                new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } }
+                            },
+                        };
+                        if (dia["links"] is JArray links)
+                            links.Add(jl);
+                    }
+                }
             }
         }
 
@@ -1225,6 +1347,9 @@ public partial class Editor
                 case CapnpFbpViewComponentModel viewNode:
                     await viewNode.StartProcess(ConMan, true);
                     break;
+                case CapnpFbpIipModel iipNode:
+                    await iipNode.SendIip(ConMan);
+                    break;
                 default:
                     continue;
             }
@@ -1245,7 +1370,7 @@ public partial class Editor
     {
         if (_draggedComponent == null)
             return;
-        var position = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
+        var position = Diagram.GetRelativeMousePoint(e.ClientX-125, e.ClientY-100);
         AddFbpNode(
             position,
             _draggedComponent,
@@ -1289,48 +1414,88 @@ public partial class Editor
                 var procName =
                     initNode?["processName"]?.ToString() ?? initNode?["process_name"]?.ToString();
 
-                var node = new CapnpFbpComponentModel(
-                    initNode?.GetValue("nodeId")?.Value<string>()
-                        ?? initNode?.GetValue("node_id")?.Value<string>()
-                        ?? Guid.NewGuid().ToString(),
-                    new Point(position.X, position.Y)
-                )
-                {
-                    Editor = this,
-                    ComponentId = componentId,
-                    ComponentServiceId = componentServiceId,
-                    ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
-                    ProcessName =
-                        procName
-                        ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
-                    Cmd = cmd,
-                    ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
-                    DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
-                    ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
-                    DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
-                    Editable =
-                        initNode?.GetValue("editable")?.Value<bool>()
-                        ?? (component.Factory?.which ?? Component.factory.WHICH.None)
-                            == Component.factory.WHICH.None,
-                    InParallelCount =
-                        initNode?.GetValue("parallelProcesses")?.Value<int>()
-                        ?? initNode?.GetValue("parallel_processes")?.Value<int>()
-                        ?? 1,
-                };
-                switch (component.Factory?.which ?? Component.factory.WHICH.None)
-                {
-                    case Component.factory.WHICH.Process:
-                        node.ProcessFactory = Proxy.Share(component.Factory!.Process);
+                CapnpFbpComponentModel node = null;
+                switch (component.Type) {
+                    case Component.ComponentType.standard: {
+                        node = new CapnpFbpComponentModel(initNode?.GetValue("nodeId")?.Value<string>()
+                                                          ?? initNode?.GetValue("node_id")?.Value<string>()
+                                                          ?? Guid.NewGuid().ToString(),
+                            new Point(position.X, position.Y)) {
+                            Editor = this,
+                            ComponentId = componentId,
+                            ComponentServiceId = componentServiceId,
+                            ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                            ProcessName =
+                                procName
+                                ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
+                            Cmd = cmd,
+                            ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
+                            DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
+                            ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
+                            DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
+                            Editable =
+                                initNode?.GetValue("editable")?.Value<bool>()
+                                ?? (component.Factory?.which ?? Component.factory.WHICH.None)
+                                == Component.factory.WHICH.None,
+                            InParallelCount =
+                                initNode?.GetValue("parallelProcesses")?.Value<int>()
+                                ?? initNode?.GetValue("parallel_processes")?.Value<int>()
+                                ?? 1,
+                        };
+                        if (component.Factory?.which == Component.factory.WHICH.Runnable) {
+                            node.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
+                        }
+
                         break;
-                    case Component.factory.WHICH.Runnable:
-                        node.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
+                    }
+                    case Component.ComponentType.process: {
+                        var pnode = new CapnpFbpProcessComponentModel(initNode?.GetValue("nodeId")?.Value<string>()
+                                                                      ?? initNode?.GetValue("node_id")?.Value<string>()
+                                                                      ?? Guid.NewGuid().ToString(),
+                            new Point(position.X, position.Y)) {
+                            Editor = this,
+                            ComponentId = componentId,
+                            ComponentServiceId = componentServiceId,
+                            ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                            ProcessName =
+                                procName
+                                ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
+                            Cmd = cmd,
+                            ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
+                            DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
+                            ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
+                            DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
+                            Editable =
+                                initNode?.GetValue("editable")?.Value<bool>()
+                                ?? (component.Factory?.which ?? Component.factory.WHICH.None)
+                                == Component.factory.WHICH.None,
+                            InParallelCount =
+                                initNode?.GetValue("parallelProcesses")?.Value<int>()
+                                ?? initNode?.GetValue("parallel_processes")?.Value<int>()
+                                ?? 1,
+                        };
+                        if (component.Factory?.which == Component.factory.WHICH.Process) {
+                            pnode.ProcessFactory = Proxy.Share(component.Factory!.Process);
+                        }
+
                         break;
-                    case Component.factory.WHICH.None:
-                    case Component.factory.WHICH.undefined:
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
+                    }
                 }
+
+                // switch (component.Factory?.which ?? Component.factory.WHICH.None)
+                // {
+                //     case Component.factory.WHICH.Process:
+                //         node.ProcessFactory = Proxy.Share(component.Factory!.Process);
+                //         break;
+                //     case Component.factory.WHICH.Runnable:
+                //         node.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
+                //         break;
+                //     case Component.factory.WHICH.None:
+                //     case Component.factory.WHICH.undefined:
+                //         break;
+                //     default:
+                //         throw new ArgumentOutOfRangeException();
+                // }
 
                 var controlsContainer = Diagram.Controls.AddFor(node); //, ControlsType.OnHover);
                 // controlsContainer.Add(

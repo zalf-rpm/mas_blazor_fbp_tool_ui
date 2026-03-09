@@ -298,14 +298,6 @@
         set => Node.InParallelCount = value ? 2 : 1;
     }
 
-    protected override void OnInitialized()
-    {
-        Node.OnStateChanged += async () =>
-        {
-            await InvokeAsync(StateHasChanged);
-        };
-    }
-
     private async Task StartProcess(bool start)
     {
         await Node.StartProcess(ConMan, start);

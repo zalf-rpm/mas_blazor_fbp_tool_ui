@@ -5,8 +5,10 @@
 @using System.Threading
 @using Brism
 @using Mas.Infrastructure.BlazorComponents
+@using Mas.Infrastructure.Common
 @using Mas.Schema.Common
 @inject IDialogService DialogService
+@inject ConnectionManager ConMan
 
 <div>
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
@@ -25,9 +27,6 @@
             <MudItem Class="align-content-end" xs="7">
                 <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
                           Elevation="0">
-                    @* <MudNumericField Style="width: 45px;" *@
-                    @*                  @bind-Value="Node.DisplayNoOfLines" *@
-                    @*                  Min="5" Max="100"/> *@
                     <MudButton Color="@Color.Primary"
                                EndIcon="@Icons.Material.Filled.Edit"
                                OnClick="@ShowDetails">
@@ -38,18 +37,22 @@
             <MudItem Class="pt-0" xs="12">
                 <div @onpointerenter="@(_ => { Node.Locked = true; })"
                      @onpointerleave="@(_ => { Node.Locked = false; })">
-                <MudSelect Class="pl-3 pr-3"
-                           @bind-Value="Node.ContentType"
-                           Margin="Margin.Dense"
-                           Variant="Variant.Text"
-                           >
-                    @foreach (Mas.Schema.Common.StructuredText.Type ct in Enum.GetValues(typeof(Mas.Schema.Common.StructuredText.Type))) {
-                        <MudSelectItem Value="@ct">@(Shared.FormatStructuredTextType(ct))</MudSelectItem>
-                    }
-                </MudSelect>
+                    <MudSelect Class="pl-3 pr-3"
+                               @bind-Value="Node.PlainTextOrContentType"
+                               Margin="Margin.Dense"
+                               Variant="Variant.Text">
+                        <MudSelectItem Value="@((true, StructuredText.Type.unstructured))">
+                            as plain text
+                        </MudSelectItem>
+                        @foreach (Mas.Schema.Common.StructuredText.Type ct in Enum.GetValues(typeof(Mas.Schema.Common.StructuredText.Type))) {
+                            <MudSelectItem Value="@((false, ct))">@(Shared.FormatStructuredTextType(ct))</MudSelectItem>
+                        }
+                    </MudSelect>
                 </div>
             </MudItem>
-            <MudItem xs="12">
+            <MudItem xs="12"
+                     @onpointerenter="@(_ => DisableZoom())"
+                     @onpointerleave="@(_ => EnableZoom())">
                 <MudTextField Class="pl-3 pr-3" Style="margin-top: -6px;"
                               T="string"
                               @bind-Value="Node.Content"
@@ -79,31 +82,20 @@
     private string FrameColor => $@"border-color: {(IsConnectedToChannel ? "#1ac12e" : "#ff0000")}";
     private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpIipPortModel iipPort && iipPort.Writer != null);
 
+    private void DisableZoom()
+    {
+        Node.Editor?.Diagram.Options.Zoom.Enabled = false;
+    }
+
+    private void EnableZoom()
+    {
+        Node.Editor?.Diagram.Options.Zoom.Enabled = true;
+    }
+
     private async void SendIip()
     {
-        try
-        {
-            foreach (var pl in Node.Links)
-            {
-                if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
-                if (rcplm.OutPortModel is not CapnpFbpIipPortModel iippm) continue;
-                if (iippm.Writer == null) return;
-                Console.WriteLine(
-                    $"T{Thread.CurrentThread.ManagedThreadId} writing IIP: '{Node.Content}' to channel"
-                );
-                await iippm.Writer.Write(new Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.Msg
-                {
-                    Value = new Mas.Schema.Fbp.IP { Content = new StructuredText { TheType = Node.ContentType, Value = Node.Content } }
-                });
-                Console.WriteLine(
-                    $"T{Thread.CurrentThread.ManagedThreadId} wrote IIP: '{Node.Content}' to channel"
-                );
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("Caught exception: " + e);
-        }
+        await Node.SendIip(ConMan);
+        StateHasChanged();
     }
 
     async void ShowDetails(MouseEventArgs e)
