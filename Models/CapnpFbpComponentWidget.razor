@@ -238,12 +238,12 @@
 
         string PortColor()
         {
-            if (Node.Runnable != null)
+            if (Node is CapnpFbpRunnableComponentModel { Runnable: not null })
             {
                 return capnpPort.Reader == null && capnpPort.Writer == null ? "#ff0000" : "#1ac12e";
             }
 
-            if (Node.Process != null)
+            if (Node is CapnpFbpProcessComponentModel { Process: not null })
             {
                 return capnpPort.Connected ? "#1ac12e" : "#ff0000";
             }
@@ -273,8 +273,8 @@
     private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
     //private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
-    private string FrameWidth => $"border-width: {(Node.Runnable == null ? 1 : 1)}px";
-    private string FrameColor => $"border-color: {(Node.Runnable == null ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
+    private string FrameWidth => $"border-width: {(Node.RemoteProcessAttached() ? 1 : 1)}px";
+    private string FrameColor => $"border-color: {(Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private string MinHeight =>
         $@"min-height: {Math.Max(200, Math.Max(
@@ -298,9 +298,11 @@
         set => Node.InParallelCount = value ? 2 : 1;
     }
 
-    private async Task StartProcess(bool start)
-    {
-        await Node.StartProcess(ConMan, start);
+    private async Task StartProcess(bool start) {
+        if (start)
+            await Node.StartProcess(ConMan);
+        else
+            await Node.StopProcess(ConMan);
         StateHasChanged();
     }
 

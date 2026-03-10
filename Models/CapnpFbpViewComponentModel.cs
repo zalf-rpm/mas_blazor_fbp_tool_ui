@@ -57,173 +57,185 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 : value;
     }
 
-    public async Task StartProcess(ConnectionManager conMan, bool start) {
+    public async Task StartProcess(ConnectionManager conMan) {
         try {
-            if (Editor.CurrentChannelStarterService == null) {
+            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess");
+
+            if (Editor.CurrentChannelStarterService == null || ProcessStarted) {
                 return;
             }
 
-            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess start={start}");
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancelToken = _cancellationTokenSource.Token;
 
-            if (start) {
-                _cancellationTokenSource = new CancellationTokenSource();
-                var cancelToken = _cancellationTokenSource.Token;
+            Channel<IP>.IReader reader = null;
 
-                Channel<IP>.IReader reader = null;
+            // collect SRs from IN and OUT ports and for IIPs send it into the channel
+            foreach (var pl in Links) {
+                if (pl is not RememberCapnpPortsLinkModel rcplm) {
+                    continue;
+                }
 
-                // collect SRs from IN and OUT ports and for IIPs send it into the channel
-                foreach (var pl in Links) {
-                    if (pl is not RememberCapnpPortsLinkModel rcplm) {
+                // deal with IN port
+                if (rcplm.InPortModel is not CapnpFbpPortModel inPort) {
+                    continue;
+                }
+
+                // the IN port (link) is not associated with a channel yet -> create channel
+                if (
+                    inPort.ReaderWriterSturdyRef == null
+                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                ) {
+                    if (inPort.Parent is not CapnpFbpViewComponentModel m) {
                         continue;
                     }
 
-                    // deal with IN port
-                    if (rcplm.InPortModel is not CapnpFbpPortModel inPort) {
-                        continue;
-                    }
+                    Console.WriteLine(
+                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
+                    await Shared.Shared.CreateChannel(conMan,
+                        Editor.CurrentChannelStarterService,
+                        rcplm.OutPortModel,
+                        inPort);
+                }
 
-                    // the IN port (link) is not associated with a channel yet -> create channel
-                    if (
-                        inPort.ReaderWriterSturdyRef == null
-                        && inPort.RetrieveReaderOrWriterFromChannelTask == null
-                    ) {
-                        if (inPort.Parent is not CapnpFbpViewComponentModel m) {
-                            continue;
-                        }
+                if (inPort.Parent == this) {
+                    reader = Proxy.Share(inPort.Reader);
+                }
 
-                        Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
-                        await Shared.Shared.CreateChannel(conMan,
-                            Editor.CurrentChannelStarterService,
-                            rcplm.OutPortModel,
-                            inPort);
-                    }
+                rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
-                    if (inPort.Parent == this) {
-                        reader = Proxy.Share(inPort.Reader);
-                    }
-
-                    rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
-
-                    // deal with OUT port
-                    switch (rcplm.OutPortModel) {
-                        case CapnpFbpPortModel outPort:
+                // deal with OUT port
+                switch (rcplm.OutPortModel) {
+                    case CapnpFbpPortModel outPort:
+                        if (outPort.RetrieveReaderOrWriterFromChannelTask != null) {
+                            Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
+                            await outPort.RetrieveReaderOrWriterFromChannelTask;
+                        } else {
                             if (outPort.ReaderWriterSturdyRef == null) {
+                                Console.WriteLine($"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
                                 (outPort.Writer, outPort.ReaderWriterSturdyRef) =
                                     await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
                                         cancelToken);
                                 outPort.Parent.Refresh();
                             }
+                        }
+                        outPort.Parent.Refresh();
+                        outPort.Parent.RefreshLinks();
 
-                            break;
-                        case CapnpFbpIipPortModel iipPort: {
-                            if (iipPort.WriterSturdyRef == null) {
-                                if (iipPort.RetrieveWriterFromChannelTask != null) {
-                                    Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                    await iipPort.RetrieveWriterFromChannelTask;
-                                } else {
-                                    (iipPort.Writer, iipPort.WriterSturdyRef) =
-                                        await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                            cancelToken);
-                                }
-
-                                iipPort.Parent.Refresh();
+                        break;
+                    case CapnpFbpIipPortModel iipPort: {
+                        if (iipPort.WriterSturdyRef == null) {
+                            if (iipPort.RetrieveWriterFromChannelTask != null) {
+                                Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
+                                await iipPort.RetrieveWriterFromChannelTask;
+                            } else {
+                                Console.WriteLine($"{ProcessName}: getting new writer for IIP port from channel");
+                                (iipPort.Writer, iipPort.WriterSturdyRef) =
+                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
+                                        cancelToken);
                             }
 
-                            break;
+                            iipPort.Parent.Refresh();
                         }
+
+                        break;
                     }
                 }
+            }
 
-                //run loop to receive messages on in-port
-                ViewMsgReceiveTask = Task.Run(async () => {
-                        Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: starting view's receive loop");
-                        var leave = false;
-                        while (!leave && reader != null) {
-                            try {
-                                Console.WriteLine(
-                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel");
-                                var msg = await reader.Read(cancelToken);
-                                // Console.WriteLine(
-                                //     $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read msg: {msg}"
-                                // );
-                                switch (msg.which) {
-                                    case Channel<IP>.Msg.WHICH.Done:
-                                        Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received done msg");
-                                        leave = true;
-                                        break;
-                                    case Channel<IP>.Msg.WHICH.Value:
-                                        // Console.WriteLine($"{ProcessName}: received value msg");
-                                        if (msg.Value.Content is DeserializerState ds) {
+            //run loop to receive messages on in-port
+            ViewMsgReceiveTask = Task.Run(async () => {
+                    Console.WriteLine(
+                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: starting view's receive loop");
+                    var leave = false;
+                    while (!leave && reader != null) {
+                        try {
+                            Console.WriteLine(
+                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel");
+                            var msg = await reader.Read(cancelToken);
+                            // Console.WriteLine(
+                            //     $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read msg: {msg}"
+                            // );
+                            switch (msg.which) {
+                                case Channel<IP>.Msg.WHICH.Done:
+                                    Console.WriteLine(
+                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received done msg");
+                                    leave = true;
+                                    break;
+                                case Channel<IP>.Msg.WHICH.Value:
+                                    // Console.WriteLine($"{ProcessName}: received value msg");
+                                    if (msg.Value.Content is DeserializerState ds) {
+                                        try {
+                                            if (CapnpSerializable.Create<StructuredText>(ds) is { } st) {
+                                                var str = st.Value;
+                                                str = str.ReplaceLineEndings("<br>");
+                                                var stStr =
+                                                    $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
+                                                Console.WriteLine(
+                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
+                                                ViewContent = new MarkupString(stStr);
+                                            }
+                                        } catch (DeserializationException) {
+                                            Console.WriteLine(
+                                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no StructuredText.");
                                             try {
-                                                if (CapnpSerializable.Create<StructuredText>(ds) is { } st) {
-                                                    var str = st.Value;
+                                                if (CapnpSerializable.Create<string>(ds) is { } str) {
                                                     str = str.ReplaceLineEndings("<br>");
-                                                    var stStr =
-                                                        $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
                                                     Console.WriteLine(
                                                         $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
-                                                    ViewContent = new MarkupString(stStr);
+                                                    ViewContent = new MarkupString(str);
                                                 }
                                             } catch (DeserializationException) {
                                                 Console.WriteLine(
-                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no StructuredText.");
-                                                try {
-                                                    if (CapnpSerializable.Create<string>(ds) is { } str) {
-                                                        str = str.ReplaceLineEndings("<br>");
-                                                        Console.WriteLine(
-                                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
-                                                        ViewContent = new MarkupString(str);
-                                                    }
-                                                } catch (DeserializationException) {
-                                                    Console.WriteLine(
-                                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no string.");
-                                                }
+                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no string.");
                                             }
-
-                                            Refresh();
                                         }
 
-                                        break;
-                                    case Channel<IP>.Msg.WHICH.NoMsg:
-                                        Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received noMsg msg");
-                                        break;
-                                    case Channel<IP>.Msg.WHICH.undefined:
-                                        Console.WriteLine(
-                                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received undefined msg");
-                                        break;
-                                    default: throw new ArgumentOutOfRangeException();
-                                }
-                            } catch (TaskCanceledException tce) {
-                                await reader.Close();
-                                leave = true;
+                                        Refresh();
+                                    }
+
+                                    break;
+                                case Channel<IP>.Msg.WHICH.NoMsg:
+                                    Console.WriteLine(
+                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received noMsg msg");
+                                    break;
+                                case Channel<IP>.Msg.WHICH.undefined:
+                                    Console.WriteLine(
+                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received undefined msg");
+                                    break;
+                                default: throw new ArgumentOutOfRangeException();
                             }
+                        } catch (TaskCanceledException tce) {
+                            await reader.Close();
+                            leave = true;
                         }
+                    }
 
-                        reader?.Dispose();
-                        Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: left view's receive loop");
-                        ProcessStarted = false;
-                    },
-                    cancelToken);
+                    reader?.Dispose();
+                    Console.WriteLine(
+                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: left view's receive loop");
+                    ProcessStarted = false;
+                },
+                cancelToken);
 
-                ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
-                RefreshAll();
-                RefreshLinks();
-            } else // stop
-            {
-                await CancelAndDisposeViewTasks();
-                //actually the channel connected to the port can remain until the component gets deleted
-                //FreeRemoteChannelsAttachedToPorts();
-                ProcessStarted = false;
-            }
+            ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
+            RefreshAll();
+            RefreshLinks();
         } catch (Exception e) {
-            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Caught exception: " + e);
+            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: " + e);
         }
     }
+
+    public async Task StopProcess(ConnectionManager conMan) {
+        Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: stop process");
+        try {
+            await CancelAndDisposeViewTasks();
+            ProcessStarted = false;
+        } catch (Exception e) {
+            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: " + e);
+        }
+    }
+
 
     public void Dispose() {
         foreach (var baseLinkModel in Links) {

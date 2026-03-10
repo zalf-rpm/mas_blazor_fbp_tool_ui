@@ -63,9 +63,11 @@
     private string FrameWidth => $"border-width: {(ProcessStarted ? 1 : 1)}px";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
-    private async Task StartProcess(bool start)
-    {
-        await Node.StartProcess(ConMan, start);
+    private async Task StartProcess(bool start) {
+        if (start)
+            await Node.StartProcess(ConMan);
+        else
+            await Node.StopProcess(ConMan);
         StateHasChanged();
     }
 
