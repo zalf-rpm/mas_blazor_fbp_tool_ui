@@ -252,7 +252,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
                 return;
             }
 
-            ProcessStarted = await Runnable.Start(_portInfosReaderSr, ProcessName);
+            ProcessStarted = await Runnable.Start(_portInfosReaderSr, ProcessName, null);
             if (!ProcessStarted) {
                 return;
             }

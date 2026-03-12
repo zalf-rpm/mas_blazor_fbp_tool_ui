@@ -186,14 +186,14 @@ public partial class Editor {
                 comp["inPorts"]?.Select(p => new Component.Port {
                     Name = p["name"]?.ToString() ?? "no_name",
                     Type = Component.Port.PortType.standard,
-                    TheContentType = p["contentType"]?.ToString() ?? "?",
+                    ContentType = p["contentType"]?.ToString() ?? "?",
                 }).ToList()
                 ?? [],
             OutPorts =
                 comp["outPorts"]?.Select(p => new Component.Port {
                     Name = p["name"]?.ToString() ?? "no_name",
                     Type = Component.Port.PortType.standard,
-                    TheContentType = p["contentType"]?.ToString() ?? "?",
+                    ContentType = p["contentType"]?.ToString() ?? "?",
                 }).ToList()
                 ?? [],
         };
@@ -1192,14 +1192,14 @@ public partial class Editor {
                         CapnpFbpPortModel.PortType.In,
                         i,
                         input.Name,
-                        input.TheContentType);
+                        input.ContentType);
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.Out,
                         i,
                         output.Name,
-                        output.TheContentType);
+                        output.ContentType);
                 Diagram.Nodes.Add(node);
                 return node;
             }
