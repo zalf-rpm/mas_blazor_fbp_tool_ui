@@ -63,24 +63,38 @@
                               @onpointerleave="@(_ => Node.Locked = false)"/>
             </MudItem>
         </MudGrid>
-
-        @foreach (var port in Node.Ports)
-        {
-            if (port is not CapnpFbpIipPortModel iipPort) continue;
-            <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
-        }
     </MudPaper>
+    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
+        @CardToolTipText
+    </MudText>
+
+    @foreach (var port in Node.Ports)
+    {
+        if (port is not CapnpFbpIipPortModel iipPort) continue;
+        <div @onmouseenter="@(() => CardToolTipText = MakeIipToolTipText(iipPort))"
+             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
+            <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
+        </div>
+    }
 </div>
 
 @code
 {
     [Parameter] public CapnpFbpIipModel Node { get; set; }
 
-    private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
+    private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: 1px";
     //private string FrameColor => $"border-color: #6e9fd4";
     private string FrameColor => $@"border-color: {(IsConnectedToChannel ? "#1ac12e" : "#ff0000")}";
     private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpIipPortModel iipPort && iipPort.Writer != null);
+
+    private MarkupString CardToolTipText { get; set; }
+    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+
+    private static MarkupString MakeIipToolTipText(CapnpFbpIipPortModel port) {
+        var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
+        return new MarkupString($"<b>IIP</b> sends [{ct}]");
+    }
 
     private void DisableZoom()
     {

@@ -15,6 +15,7 @@ using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Registry;
+using Microsoft.AspNetCore.Components;
 using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Shared;
@@ -247,4 +248,9 @@ public class Shared
             _ => "is unknown text type"
         };
     }
+
+    public const int CardWidth = 250;
+    public const int CardHeight = 200;
+
+
 }

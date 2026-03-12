@@ -14,14 +14,12 @@
             bool _changeComponentServiceId;
         }
 
-        @if (_changeComponentServiceId)
-        {
+        @if (_changeComponentServiceId) {
             <MudChipSet T="string"
                         @bind-SelectedValue="Node.ComponentServiceId"
                         CheckMark
                         SelectionMode="SelectionMode.SingleSelection">
-                @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
-                {
+                @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p))) {
                     var style = $"position: absolute; left: 3px; top: {-15 - i * 25}px;";
                     <MudChip Style="@style"
                              Color="Color.Info"
@@ -36,9 +34,7 @@
                     </MudChip>
                 }
             </MudChipSet>
-        }
-        else
-        {
+        } else {
             <MudChip Style="position: absolute; left: 3px; top: -15px;"
                      Color="Color.Info"
                      Label="true"
@@ -62,8 +58,7 @@
             <MudItem Class="align-content-end" xs="7">
                 <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
                           Elevation="0">
-                    @if (ParallelOn)
-                    {
+                    @if (ParallelOn) {
                         <MudNumericField Style="width: 45px;"
                                          @bind-Value="Node.InParallelCount"
                                          Min="1" Max="10000"/>
@@ -86,8 +81,7 @@
                     private const Typo NameTypo = Typo.h6;
                     private const int NoOfNameChars = 18;
 
-                    void showAndFocusOnNameEdit()
-                    {
+                    void showAndFocusOnNameEdit() {
                         _editName = true;
                         Task.Delay(200).ContinueWith(_ => _procNameFieldRef.FocusAsync());
                     }
@@ -100,8 +94,7 @@
                               Typo="@NameTypo"
                               Variant="Variant.Text"
                               OnBlur="@(() => _editName = false)"
-                              OnKeyUp="@(args =>
-                                       {
+                              OnKeyUp="@(args => {
                                            if (args.Key == "Enter") _editName = false;
                                        })"
                               @onpointerenter="@(_ => Node.Locked = true)"
@@ -130,8 +123,7 @@
                     private const Typo ShortDescTypo = Typo.body2;
                     private const int NoOfShortDescChars = 57; //87;
 
-                    void showAndFocusOnShortDescEdit()
-                    {
+                    void showAndFocusOnShortDescEdit() {
                         _editShortDesc = true;
                         Task.Delay(200).ContinueWith(_ => _procShortDescFieldRef.FocusAsync());
                     }
@@ -146,8 +138,7 @@
                               Typo="@ShortDescTypo"
                               Variant="Variant.Text"
                               OnBlur="@(() => _editShortDesc = false)"
-                              OnKeyUp="@(args =>
-                                       {
+                              OnKeyUp="@(args => {
                                            if (args.Key == "Enter") _editShortDesc = false;
                                        })"
                               @onpointerenter="@(_ => Node.Locked = true)"
@@ -165,8 +156,7 @@
         </MudGrid>
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="4">
-                @if (Node.Editable)
-                {
+                @if (Node.Editable) {
                     <MudButton Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.AddBox"
                                OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.In)">
@@ -175,8 +165,7 @@
                 }
             </MudItem>
             <MudItem xs="4">
-                @if (!Node.Editable)
-                {
+                @if (!Node.Editable) {
                     <MudButton Color="Color.Secondary"
                                StartIcon="@Icons.Material.Filled.Settings"
                                OnClick="@ShowDetails">Conf
@@ -184,8 +173,7 @@
                 }
             </MudItem>
             <MudItem xs="4">
-                @if (Node.Editable)
-                {
+                @if (Node.Editable) {
                     <MudButton Color="Color.Primary"
                                EndIcon="@Icons.Material.Filled.AddBox"
                                OnClick="(e) => AddPort(e, CapnpFbpPortModel.PortType.Out)">
@@ -195,9 +183,11 @@
             </MudItem>
         </MudGrid>
     </MudPaper>
+    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
+        @CardToolTipText
+    </MudText>
 
-    @foreach (var port in Node.Ports)
-    {
+    @foreach (var port in Node.Ports) {
         if (port is not CapnpFbpPortModel capnpPort) continue;
 
         /*var orderNo = Node.Ports.Where(p =>
@@ -207,28 +197,24 @@
         }).TakeWhile(p => p != port).Count();
         */
 
-        var portCount = Node.Ports.Where(p =>
-        {
+        var portCount = Node.Ports.Where(p => {
             if (p is CapnpFbpPortModel cp) return cp.ThePortType == capnpPort.ThePortType;
             return false;
         }).Count();
 
-        var offsets = capnpPort.Alignment switch
-        {
+        var offsets = capnpPort.Alignment switch {
             PortAlignment.Left => _leftRightOffsetsMap[Math.Min(portCount, AddPortControl.MaxLeftRightPortOrderNo)],
             PortAlignment.Right => _leftRightOffsetsMap[Math.Min(portCount, AddPortControl.MaxLeftRightPortOrderNo)],
             PortAlignment.Top => _topBottomOffsets,
             PortAlignment.Bottom => _topBottomOffsets,
             _ => []
         };
-        if (capnpPort.Alignment is PortAlignment.Right or PortAlignment.Bottom)
-        {
+        if (capnpPort.Alignment is PortAlignment.Right or PortAlignment.Bottom) {
             offsets = new List<int>(offsets);
             offsets.Reverse();
         }
 
-        var capnpPortOffset = capnpPort.Alignment switch
-        {
+        var capnpPortOffset = capnpPort.Alignment switch {
             PortAlignment.Left => offsets[capnpPort.OrderNo],
             PortAlignment.Top => offsets[capnpPort.OrderNo - AddPortControl.NoOfLeftRightPorts],
             PortAlignment.Right => offsets[capnpPort.OrderNo],
@@ -236,23 +222,19 @@
             _ => 0
         };
 
-        string PortColor()
-        {
-            if (Node is CapnpFbpRunnableComponentModel { Runnable: not null })
-            {
+        string PortColor() {
+            if (Node is CapnpFbpRunnableComponentModel { Runnable: not null }) {
                 return capnpPort.Reader == null && capnpPort.Writer == null ? "#ff0000" : "#1ac12e";
             }
 
-            if (Node is CapnpFbpProcessComponentModel { Process: not null })
-            {
+            if (Node is CapnpFbpProcessComponentModel { Process: not null }) {
                 return capnpPort.Connected ? "#1ac12e" : "#ff0000";
             }
 
             return "#d4d4d4";
         }
 
-        var style = capnpPort.Alignment switch
-        {
+        var style = capnpPort.Alignment switch {
             PortAlignment.Left => $"top: {48 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             PortAlignment.Top => $"left: {50 + capnpPortOffset}%; border: 1px solid {PortColor()};",
             PortAlignment.Right => $"top: {48 + capnpPortOffset}%; border: 1px solid {PortColor()};",
@@ -261,20 +243,33 @@
         };
 
         // Console.WriteLine(capnpPort.ThePortType.ToString() + " OrderNo: " + capnpPort.OrderNo + " -> " + style);
-        <CapnpFbpPortRenderer @key="port" Port="capnpPort" Style="@style">
-            @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
-        </CapnpFbpPortRenderer>
+        <div @onmouseenter="@(() => CardToolTipText = MakeCardToolTipText(capnpPort))"
+             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
+            <CapnpFbpPortRenderer @key="port" Port="capnpPort" Style="@style">
+                @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
+            </CapnpFbpPortRenderer>
+        </div>
     }
 </div>
 
 @code {
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
+    private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     //private string CardStyle => $"{MinHeight};{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.RemoteProcessAttached() ? 1 : 1)}px";
     private string FrameColor => $"border-color: {(Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
+
+    private MarkupString CardToolTipText { get; set; }
+    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+
+    private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
+        var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
+        return port.ThePortType == CapnpFbpPortModel.PortType.In
+            ? new MarkupString($"<b>{port.Name}</b> receives [{ct}]")
+            : new MarkupString($"<b>{port.Name}</b> sends [{ct}]");
+    }
 
     private string MinHeight =>
         $@"min-height: {Math.Max(200, Math.Max(
@@ -292,8 +287,7 @@
 
     private bool _linesOn;
 
-    private bool ParallelOn
-    {
+    private bool ParallelOn {
         get => Node.InParallelCount > 1;
         set => Node.InParallelCount = value ? 2 : 1;
     }
@@ -306,8 +300,7 @@
         StateHasChanged();
     }
 
-    private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new()
-    {
+    private readonly Dictionary<int, List<int>> _leftRightOffsetsMap = new() {
         { 1, [0] },
         { 2, [30, -30] },
         { 3, [30, 0, -30] },
@@ -325,12 +318,8 @@
 
     private CapnpFbpComponentContentModel _contentModel = null;
 
-    async void ShowDetails(MouseEventArgs e)
-    {
-        var parameters = new DialogParameters
-        {
-            ["JsonString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString
-        };
+    async void ShowDetails(MouseEventArgs e) {
+        var parameters = new DialogParameters { ["JsonString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<JsonEditorDialog>("Edit Configuration", parameters, options);
@@ -340,12 +329,8 @@
         StateHasChanged();
     }
 
-    async void ShowTomlDetails(MouseEventArgs e)
-    {
-        var parameters = new DialogParameters
-        {
-            ["TomlString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString
-        };
+    async void ShowTomlDetails(MouseEventArgs e) {
+        var parameters = new DialogParameters { ["TomlString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString };
 
         var dialog = await DialogService.ShowAsync<TomlEditorDialog>("Edit Configuration", parameters);
         var result = await dialog.Result;
@@ -354,14 +339,11 @@
         StateHasChanged();
     }
 
-    void AddPort(MouseEventArgs e, CapnpFbpPortModel.PortType type)
-    {
+    void AddPort(MouseEventArgs e, CapnpFbpPortModel.PortType type) {
         var ports =
-            Node.Ports.Where(p => p is CapnpFbpPortModel cp && cp.ThePortType == type)
-                .OrderBy(p => p is CapnpFbpPortModel cp ? cp.OrderNo : 0).ToList();
+            Node.Ports.Where(p => p is CapnpFbpPortModel cp && cp.ThePortType == type).OrderBy(p => p is CapnpFbpPortModel cp ? cp.OrderNo : 0).ToList();
         if (!ports.Any()) return;
-        if (ports.Last() is CapnpFbpPortModel lastPort)
-        {
+        if (ports.Last() is CapnpFbpPortModel lastPort) {
             var newOrderNo = lastPort.OrderNo + 1;
             AddPortControl.CreateAndAddPort(Node, type, newOrderNo);
         }

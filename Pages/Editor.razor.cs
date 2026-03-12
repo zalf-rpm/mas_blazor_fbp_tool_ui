@@ -186,14 +186,14 @@ public partial class Editor {
                 comp["inPorts"]?.Select(p => new Component.Port {
                     Name = p["name"]?.ToString() ?? "no_name",
                     Type = Component.Port.PortType.standard,
-                    TheContentType = p["contentType"]?.ToString() ?? "",
+                    TheContentType = p["contentType"]?.ToString() ?? "?",
                 }).ToList()
                 ?? [],
             OutPorts =
                 comp["outPorts"]?.Select(p => new Component.Port {
                     Name = p["name"]?.ToString() ?? "no_name",
                     Type = Component.Port.PortType.standard,
-                    TheContentType = p["contentType"]?.ToString() ?? "",
+                    TheContentType = p["contentType"]?.ToString() ?? "?",
                 }).ToList()
                 ?? [],
         };
@@ -473,10 +473,13 @@ public partial class Editor {
         Diagram.PointerClick += (m, e) => {
             if (m is CapnpFbpPortModel port) {
                 var relativePt = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
-
+                var ct = port.ThePortType == CapnpFbpPortModel.PortType.In
+                    ? "expects [content type]"
+                    : "sends [content type]";
                 // find closest port, assuming the user will click on the label he actually wants to change
                 var node = new PortOptionsNode(relativePt) {
-                    Label = $"Change {port.Name}",
+                    NameLabel = $"Change {port.Name}",
+                    ContentTypeLabel = $"{port.Name} {ct}",
                     PortModel = port,
                     NodeModel = port.Parent as CapnpFbpComponentModel,
                     Container = Diagram,
@@ -797,7 +800,10 @@ public partial class Editor {
                                     p is CapnpFbpPortModel cp
                                     && cp.ThePortType == CapnpFbpPortModel.PortType.In).
                                 Select(p => p as CapnpFbpPortModel).
-                                Select(p => new JObject { { "name", p!.Name } });
+                                Select(p => new JObject {
+                                    { "name", p!.Name },
+                                    { "contentType", p.ContentType }
+                                });
 
                             //create outputs
                             var outputs = fbpNode.Ports.Where(p =>
@@ -1185,13 +1191,15 @@ public partial class Editor {
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.In,
                         i,
-                        input.Name);
+                        input.Name,
+                        input.TheContentType);
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.Out,
                         i,
-                        output.Name);
+                        output.Name,
+                        output.TheContentType);
                 Diagram.Nodes.Add(node);
                 return node;
             }

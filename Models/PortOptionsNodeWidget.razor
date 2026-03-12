@@ -2,7 +2,7 @@
 @using BlazorDrawFBP.Models;
 
 <div>
-    <MudFab Style="position: absolute; right: -20px; top: -20px; overflow: visible; transform: scale(0.5);"
+    <MudFab Style="position: absolute; right: 30px; top: -20px; overflow: visible; transform: scale(0.5);"
             OnClick="RemoveWidget"
             Color="Color.Error"
             Size="Size.Small"
@@ -22,11 +22,16 @@
     <MudTextField Required
                   T="@string"
                   @bind-Value="@Node.PortModel.Name"
-                  AutoFocus="@false"
-                  Label="@Node.Label"
+                  AutoFocus="@true"
+                  Label="@Node.NameLabel"
                   Variant="@Variant.Outlined"
-                  OnBlur="@OnBlur"
                   OnKeyUp="@OnKeyUp"/>
+                  @* OnBlur="@OnBlur" *@
+    <MudTextField T="@string"
+                  @bind-Value="@Node.PortModel.ContentType"
+                  AutoFocus="@false"
+                  Label="@Node.ContentTypeLabel"
+                  Variant="@Variant.Outlined"/>
 </div>
 
 @code {

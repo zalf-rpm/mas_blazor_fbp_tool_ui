@@ -16,6 +16,8 @@ public class CapnpFbpIipPortModel : PortModel, IDisposable
 
     public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
 
+    public string ContentType { get; set; } = "Text | common.capnp:StructuredText";
+
     public CapnpFbpIipPortModel(
         NodeModel parent,
         PortAlignment alignment = PortAlignment.Bottom,
