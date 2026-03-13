@@ -44,7 +44,11 @@
               },
               "type": "view",
               "inPorts": [
-                  {"name": "in", "contentType": "Text (HTML) | common.capnp:StructuredText (HTML)"}
+                  {
+                      "name": "in",
+                      "contentType": "Text (HTML) | common.capnp:StructuredText (HTML)"
+                  }
+
               ]
           }
       }

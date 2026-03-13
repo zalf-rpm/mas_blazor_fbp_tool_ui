@@ -32,6 +32,11 @@
                   AutoFocus="@false"
                   Label="@Node.ContentTypeLabel"
                   Variant="@Variant.Outlined"/>
+    <MudTextField T="@string"
+                  @bind-Value="@Node.PortModel.Description"
+                  AutoFocus="@false"
+                  Label="@Node.DescriptionLabel"
+                  Variant="@Variant.Outlined"/>
 </div>
 
 @code {

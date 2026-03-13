@@ -63,7 +63,8 @@ public class AddPortControl : ExecutableControl
         CapnpFbpPortModel.PortType portType,
         int orderNo,
         string name = null,
-        string contentType = null
+        string contentType = null,
+        string description = null
     )
     {
         if (orderNo > NoOfLeftRightPorts + NoOfTopBottomPorts - 1)
@@ -73,6 +74,7 @@ public class AddPortControl : ExecutableControl
         {
             Name = name ?? (portType == CapnpFbpPortModel.PortType.In ? "IN" : "OUT"),
             ContentType = contentType ?? "?",
+            Description = description ?? "",
             OrderNo = orderNo,
         };
         node.AddPort(port);

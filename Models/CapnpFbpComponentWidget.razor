@@ -266,9 +266,13 @@
 
     private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
         var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
-        return port.ThePortType == CapnpFbpPortModel.PortType.In
-            ? new MarkupString($"<b>{port.Name}</b> receives [{ct}]")
-            : new MarkupString($"<b>{port.Name}</b> sends [{ct}]");
+        var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
+            ? $"<b>{port.Name}</b> receives [{ct}]"
+            : $"<b>{port.Name}</b> sends [{ct}]";
+        if (!string.IsNullOrWhiteSpace(port.Description)) {
+            ms += $"<br/><small>{port.Description}</small>";
+        }
+        return new MarkupString(ms);
     }
 
     private string MinHeight =>
