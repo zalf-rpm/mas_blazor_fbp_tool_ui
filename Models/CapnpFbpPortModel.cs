@@ -56,6 +56,8 @@ public class CapnpFbpPortModel : PortModel, IDisposable
 
     public string ContentType { get; set; } = "?";
 
+    public string Description { get; set; } = "";
+
     public Task RetrieveReaderOrWriterFromChannelTask { get; set; }
     public SturdyRef ReaderWriterSturdyRef { get; set; }
 

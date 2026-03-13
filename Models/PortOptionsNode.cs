@@ -12,6 +12,9 @@ public class PortOptionsNode : NodeModel
     public string NameLabel { get; set; }
     
     public string ContentTypeLabel { get; set; }
+
+    public string DescriptionLabel { get; set; }
+
     public CapnpFbpPortModel PortModel { get; set; }
     
     public NodeModel NodeModel { get; set; }

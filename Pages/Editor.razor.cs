@@ -480,6 +480,7 @@ public partial class Editor {
                 var node = new PortOptionsNode(relativePt) {
                     NameLabel = $"Change {port.Name}",
                     ContentTypeLabel = $"{port.Name} {ct}",
+                    DescriptionLabel = $"Description",
                     PortModel = port,
                     NodeModel = port.Parent as CapnpFbpComponentModel,
                     Container = Diagram,
@@ -802,7 +803,8 @@ public partial class Editor {
                                 Select(p => p as CapnpFbpPortModel).
                                 Select(p => new JObject {
                                     { "name", p!.Name },
-                                    { "contentType", p.ContentType }
+                                    { "contentType", p.ContentType },
+                                    { "desc", p.Description }
                                 });
 
                             //create outputs
@@ -1192,14 +1194,16 @@ public partial class Editor {
                         CapnpFbpPortModel.PortType.In,
                         i,
                         input.Name,
-                        input.ContentType);
+                        input.ContentType,
+                        input.Desc);
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.Out,
                         i,
                         output.Name,
-                        output.ContentType);
+                        output.ContentType,
+                        output.Desc);
                 Diagram.Nodes.Add(node);
                 return node;
             }
@@ -1248,13 +1252,17 @@ public partial class Editor {
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.In,
                         i,
-                        input.Name);
+                        input.Name,
+                        input.ContentType,
+                        input.Desc);
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(node,
                         CapnpFbpPortModel.PortType.Out,
                         i,
-                        output.Name);
+                        output.Name,
+                        output.ContentType,
+                        output.Desc);
                 Diagram.Nodes.Add(node);
                 return node;
             }

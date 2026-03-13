@@ -168,7 +168,7 @@
                 @if (!Node.Editable) {
                     <MudButton Color="Color.Secondary"
                                StartIcon="@Icons.Material.Filled.Settings"
-                               OnClick="@ShowDetails">Conf
+                               OnClick="@ShowJsonDetails">Conf
                     </MudButton>
                 }
             </MudItem>
@@ -262,13 +262,18 @@
     private string FrameColor => $"border-color: {(Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private MarkupString CardToolTipText { get; set; }
-    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+    private static string CardToolTipStyle => $"position: relative; left: {Shared.CardWidth * 0.5}px width: {Shared.CardWidth * 2}px;";
 
     private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
         var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
-        return port.ThePortType == CapnpFbpPortModel.PortType.In
-            ? new MarkupString($"<b>{port.Name}</b> receives [{ct}]")
-            : new MarkupString($"<b>{port.Name}</b> sends [{ct}]");
+        var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
+            ? $"<b>{port.Name}</b> receives [{ct}]"
+            : $"<b>{port.Name}</b> sends [{ct}]";
+        if (!string.IsNullOrWhiteSpace(port.Description)) {
+            ms += $"<br/><small>{port.Description}</small>";
+        }
+
+        return new MarkupString(ms);
     }
 
     private string MinHeight =>
@@ -318,8 +323,11 @@
 
     private CapnpFbpComponentContentModel _contentModel = null;
 
-    async void ShowDetails(MouseEventArgs e) {
-        var parameters = new DialogParameters { ["JsonString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString };
+    async void ShowJsonDetails(MouseEventArgs e) {
+        var parameters = new DialogParameters {
+            ["JsonString"] = Node.ConfigString ?? "",
+            ["DefaultsJsonString"] = Node.DefaultConfigString
+        };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<JsonEditorDialog>("Edit Configuration", parameters, options);
