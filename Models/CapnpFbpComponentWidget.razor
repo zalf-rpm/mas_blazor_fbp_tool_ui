@@ -262,7 +262,7 @@
     private string FrameColor => $"border-color: {(Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
     private MarkupString CardToolTipText { get; set; }
-    private static string CardToolTipStyle => $"position: relative; left: {Shared.CardWidth * 0.5}px width: {Shared.CardWidth * 2}px;";
+    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
 
     private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
         var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
@@ -272,7 +272,6 @@
         if (!string.IsNullOrWhiteSpace(port.Description)) {
             ms += $"<br/><small>{port.Description}</small>";
         }
-
         return new MarkupString(ms);
     }
 
