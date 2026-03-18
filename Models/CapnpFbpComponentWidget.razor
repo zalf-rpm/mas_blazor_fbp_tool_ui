@@ -266,6 +266,21 @@
 
     private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
         var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
+        var cts = ct.Split('|');
+        List<string> cts2 = [];
+        foreach (var ct_ in cts) {
+            if (!ct_.Contains(":")) {
+                cts2.Add($"<b>{ct_}</b>");
+                continue;
+            }
+            var x = ct_.Split(':');
+            if (x.Length == 2) {
+                cts2.Add($"<small>{x[0]}:</small><b>{x[1]}</b>");
+            } else if(x.Length >=1) {
+                cts2.Add(ct_);
+            }
+        }
+        ct = cts2.Aggregate("", (acc, s) => $"{acc}{(acc.Length==0 ? "" : " or ")}<b><em>{s}</em></b>");
         var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
             ? $"<b>{port.Name}</b> receives [{ct}]"
             : $"<b>{port.Name}</b> sends [{ct}]";
