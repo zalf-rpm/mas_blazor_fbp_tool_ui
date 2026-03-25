@@ -70,13 +70,23 @@ public class AddPortControl : ExecutableControl
         if (orderNo > NoOfLeftRightPorts + NoOfTopBottomPorts - 1)
             return null;
         var alignment = PortAlignmentForOrderNo(portType, orderNo);
-        var port = new CapnpFbpPortModel(node, portType, alignment)
-        {
-            Name = name ?? (portType == CapnpFbpPortModel.PortType.In ? "IN" : "OUT"),
-            ContentType = contentType ?? "?",
-            Description = description ?? "",
-            OrderNo = orderNo,
+        CapnpFbpPortModel port = portType switch {
+            CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment) {
+                Name = name ?? "IN",
+                ContentType = contentType ?? "?",
+                Description = description ?? "",
+                OrderNo = orderNo,
+            },
+            CapnpFbpPortModel.PortType.Out => new CapnpFbpOutPortModel(node, alignment) {
+                Name = name ?? "OUT",
+                ContentType = contentType ?? "?",
+                Description = description ?? "",
+                OrderNo = orderNo,
+            },
+            _ => null
         };
+
+        if (port == null) return port;
         node.AddPort(port);
         node.RefreshAll();
         return port;

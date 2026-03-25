@@ -285,7 +285,7 @@ public partial class Editor {
 
     protected override async Task OnInitializedAsync() { }
 
-    private void CreateChannel(PortModel outPort, CapnpFbpPortModel inPort) {
+    private void CreateChannel(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort) {
         if (CurrentChannelStarterService == null) return;
         Shared.Shared.CreateChannel(ConMan, CurrentChannelStarterService, outPort, inPort);
     }
@@ -309,130 +309,81 @@ public partial class Editor {
         Diagram.Links.Added += async l => {
             Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
             switch (l.Source.Model) {
-                case CapnpFbpPortModel sourcePort: {
+                case CapnpFbpInPortModel sourceInPort: {
                     var targetPort = l.Target.Model as CapnpFbpPortModel;
-                    switch (sourcePort.ThePortType) {
-                        case CapnpFbpPortModel.PortType.In:
-                            l.Labels.Add(new LinkLabelModel(l, sourcePort.Name, 0.2));
-                            l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "out", 0.8));
-                            l.SourceMarker = LinkMarker.Arrow;
-                            l.TargetChanged += (link, oldTarget, newTarget) => {
-                                if (newTarget.Model is not CapnpFbpPortModel outPort) return;
-                                var nl = new RememberCapnpPortsLinkModel(outPort.Parent,
-                                    sourcePort.Parent) {
-                                    OutPortModel = outPort,
-                                    InPortModel = sourcePort,
-                                    Color =
-                                        outPort.Reader == null && outPort.Writer == null
-                                            ? "#ff0000"
-                                            : "#1ac12e",
-                                };
-                                nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
-                                var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                // if the input port has already a channel attached, get a new writer for that channel
-                                // to attach to the IIP's out port
-                                if (sourcePort.Channel != null)
-                                    outPort.RetrieveReaderOrWriterFromChannelTask = Task.Run(async () => {
-                                        (outPort.Writer, outPort.ReaderWriterSturdyRef) =
-                                            await Shared.Shared.GetNewWriterFromChannel(sourcePort.Channel);
-                                        outPort.RetrieveReaderOrWriterFromChannelTask = null;
-                                        outPort.Parent.Refresh();
-                                    });
-                                // if (InteractiveMode)
-                                //     CreateChannel(outPort, sourcePort);
-                                InteractiveModeChanged += cllm.ToggleInteractiveMode;
-                                nl.Labels.Add(cllm);
-                                nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.8));
-                                nl.TargetMarker = LinkMarker.Arrow;
-                                Diagram.Links.Add(nl);
-                                Diagram.Links.Remove(l);
-                                outPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
-                                sourcePort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
-                                sourcePort.Refresh();
-                                outPort.Refresh();
-                            };
-                            break;
-                        case CapnpFbpPortModel.PortType.Out:
-                            l.Labels.Add(new LinkLabelModel(l, sourcePort.Name, 0.2));
-                            l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
-                            l.TargetMarker = LinkMarker.Arrow;
-                            l.TargetChanged += (link, oldTarget, newTarget) => {
-                                if (newTarget.Model is not CapnpFbpPortModel inPort) return;
-                                var nl = new RememberCapnpPortsLinkModel(sourcePort.Parent,
-                                    inPort.Parent) {
-                                    OutPortModel = sourcePort,
-                                    InPortModel = inPort,
-                                    Color =
-                                        inPort.Reader == null && inPort.Writer == null
-                                            ? "#ff0000"
-                                            : "#1ac12e",
-                                };
-                                nl.Labels.Add(new LinkLabelModel(nl, sourcePort.Name, 0.2));
-                                var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
-                                // if the input port has already a channel attached, get a new writer for that channel
-                                // to attach to the IIP's out port
-                                if (inPort.Channel != null)
-                                    sourcePort.RetrieveReaderOrWriterFromChannelTask = Task.Run(async () => {
-                                        (sourcePort.Writer, sourcePort.ReaderWriterSturdyRef) =
-                                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel);
-                                        sourcePort.RetrieveReaderOrWriterFromChannelTask = null;
-                                        sourcePort.Parent.Refresh();
-                                    });
-                                // if (InteractiveMode)
-                                //     CreateChannel(sourcePort, inPort);
-                                InteractiveModeChanged += cllm.ToggleInteractiveMode;
-                                nl.Labels.Add(cllm);
-                                nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
-                                nl.TargetMarker = LinkMarker.Arrow;
-                                Diagram.Links.Add(nl);
-                                Diagram.Links.Remove(l);
-                                sourcePort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
-                                inPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
-                                sourcePort.Refresh();
-                                inPort.Refresh();
-                            };
-                            break;
-                        default: throw new ArgumentOutOfRangeException();
-                    }
-
+                    l.Labels.Add(new LinkLabelModel(l, sourceInPort.Name, 0.2));
+                    l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "out", 0.8));
+                    l.SourceMarker = LinkMarker.Arrow;
+                    l.TargetChanged += (link, oldTarget, newTarget) => {
+                        if (newTarget.Model is not CapnpFbpOutPortModel outPort) return;
+                        var nl = new RememberCapnpPortsLinkModel(outPort.Parent,
+                            sourceInPort.Parent) {
+                            OutPortModel = outPort,
+                            InPortModel = sourceInPort,
+                            Color = outPort.Writer == null
+                                ? "#ff0000"
+                                : "#1ac12e",
+                        };
+                        nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
+                        var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
+                        // if the input port has already a channel attached, get a new writer for that channel
+                        // to attach to the IIP's out port
+                        if (sourceInPort.Channel != null)
+                            outPort.RetrieveWriterFromChannelTask = Task.Run(async () => {
+                                (outPort.Writer, outPort.WriterSturdyRef) =
+                                    await Shared.Shared.GetNewWriterFromChannel(sourceInPort.Channel);
+                                outPort.RetrieveWriterFromChannelTask = null;
+                                outPort.Parent.Refresh();
+                            });
+                        nl.Labels.Add(cllm);
+                        nl.Labels.Add(new LinkLabelModel(nl, sourceInPort.Name, 0.8));
+                        nl.TargetMarker = LinkMarker.Arrow;
+                        Diagram.Links.Add(nl);
+                        Diagram.Links.Remove(l);
+                        outPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
+                        sourceInPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
+                        sourceInPort.Refresh();
+                        outPort.Refresh();
+                        outPort.Parent.RefreshAll();
+                    };
                     break;
                 }
-                case CapnpFbpIipPortModel iipPortModel: {
+                case CapnpFbpOutPortModel sourceOutPort: {
                     var targetPort = l.Target.Model as CapnpFbpPortModel;
+                    l.Labels.Add(new LinkLabelModel(l, sourceOutPort.Name, 0.2));
                     l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
                     l.TargetMarker = LinkMarker.Arrow;
                     l.TargetChanged += (link, oldTarget, newTarget) => {
-                        if (newTarget.Model is not CapnpFbpPortModel inPort) return;
-                        var nl = new RememberCapnpPortsLinkModel(iipPortModel.Parent, inPort.Parent) {
-                            OutPortModel = iipPortModel,
+                        if (newTarget.Model is not CapnpFbpInPortModel inPort) return;
+                        var nl = new RememberCapnpPortsLinkModel(sourceOutPort.Parent,
+                            inPort.Parent) {
+                            OutPortModel = sourceOutPort,
                             InPortModel = inPort,
-                            Color =
-                                inPort.Reader == null && inPort.Writer == null
+                            Color = inPort.Reader == null
                                     ? "#ff0000"
                                     : "#1ac12e",
                         };
-                        nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
+                        nl.Labels.Add(new LinkLabelModel(nl, sourceOutPort.Name, 0.2));
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                         // if the input port has already a channel attached, get a new writer for that channel
                         // to attach to the IIP's out port
                         if (inPort.Channel != null)
-                            iipPortModel.RetrieveWriterFromChannelTask = Task.Run(async () => {
-                                (iipPortModel.Writer, iipPortModel.WriterSturdyRef) =
+                            sourceOutPort.RetrieveWriterFromChannelTask = Task.Run(async () => {
+                                (sourceOutPort.Writer, sourceOutPort.WriterSturdyRef) =
                                     await Shared.Shared.GetNewWriterFromChannel(inPort.Channel);
-                                iipPortModel.RetrieveWriterFromChannelTask = null;
-                                iipPortModel.Parent.Refresh();
+                                sourceOutPort.RetrieveWriterFromChannelTask = null;
+                                sourceOutPort.Parent.Refresh();
                             });
-
-                        // if (InteractiveMode)
-                        //     CreateChannel(iipPortModel, inPort);
-                        InteractiveModeChanged += cllm.ToggleInteractiveMode;
                         nl.Labels.Add(cllm);
+                        nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
                         nl.TargetMarker = LinkMarker.Arrow;
                         Diagram.Links.Add(nl);
                         Diagram.Links.Remove(l);
+                        sourceOutPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
                         inPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
+                        sourceOutPort.Refresh();
+                        sourceOutPort.Parent.RefreshAll();
                         inPort.Refresh();
-                        iipPortModel.Parent.RefreshAll();
                     };
                     break;
                 }
@@ -635,7 +586,7 @@ public partial class Editor {
                 p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In });
             // might be an IIP
             sourcePort ??= sourceNode.Ports.Where(p =>
-                p is CapnpFbpIipPortModel iipPort
+                p is CapnpFbpOutPortModel iipPort
                 && iipPort.Alignment.ToString() == sourcePortName).DefaultIfEmpty(null).First();
             if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
                 sourcePort = AddPortControl.CreateAndAddPort(sn,
@@ -658,7 +609,6 @@ public partial class Editor {
             };
             if (sourceNode is not CapnpFbpIipModel) l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
-            InteractiveModeChanged += cllm.ToggleInteractiveMode;
             l.Labels.Add(cllm);
             l.Labels.Add(new LinkLabelModel(l, targetPortName, 0.8));
             l.TargetMarker = LinkMarker.Arrow;
@@ -786,14 +736,19 @@ public partial class Editor {
                                           + $"{confPortName}\" --> {CreateMermaidId(nodeId)}");
                         }
                     } else {
+                        var config = new JObject();
+                        try {
+                            config = JObject.Parse(fbpNode.ConfigString);
+                        } catch(Exception){}
+
                         var jn = new JObject {
                             { "nodeId", nodeId },
                             { "processName", fbpNode.ProcessName },
                             { "location", new JObject { { "x", fbpNode.Position.X }, { "y", fbpNode.Position.Y }, } },
                             { "editable", fbpNode.Editable },
                             { "parallelProcesses", fbpNode.InParallelCount },
-                            { "config", fbpNode.ConfigString },
-                            { "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines },
+                            { "config", config },
+                            //{ "displayNoOfConfigLines", fbpNode.DisplayNoOfConfigLines },
                         };
                         if (string.IsNullOrWhiteSpace(fbpNode.ComponentId)) {
                             // create inputs
@@ -813,6 +768,10 @@ public partial class Editor {
                                     && cp.ThePortType == CapnpFbpPortModel.PortType.Out).
                                 Select(p => p as CapnpFbpPortModel).Select(p => new JObject { { "name", p!.Name } });
 
+                            var defaultConfig = new JObject();
+                            try {
+                                defaultConfig = JObject.Parse(fbpNode.DefaultConfigString);
+                            } catch(Exception){}
                             jn.Add("component",
                                 new JObject {
                                     {
@@ -827,7 +786,7 @@ public partial class Editor {
                                     { "inPorts", new JArray(inputs) },
                                     { "outPorts", new JArray(outputs) },
                                     { "cmd", fbpNode.Cmd },
-                                    { "defaultConfig", fbpNode.DefaultConfigString },
+                                    { "defaultConfig", defaultConfig },
                                 });
                         } else {
                             jn.Add("componentId", fbpNode.ComponentId);
@@ -881,138 +840,129 @@ public partial class Editor {
             foreach (var pl in node.PortLinks.Concat(node.Links)) {
                 if (!pl.IsAttached || pl is not RememberCapnpPortsLinkModel rcplm) continue;
 
-                CapnpFbpIipPortModel outIipPort = null;
-                CapnpFbpPortModel outCapnpPort = null;
-                CapnpFbpPortModel inCapnpPort = null;
-                switch (rcplm.InPortModel) {
-                    case CapnpFbpPortModel inCapnpPort2
-                        when rcplm.OutPortModel is CapnpFbpIipPortModel outIipPort2: {
-                        outIipPort = outIipPort2;
-                        inCapnpPort = inCapnpPort2;
+                var outCapnpPort = rcplm.OutPortModel as CapnpFbpOutPortModel;
+                var inCapnpPort = rcplm.InPortModel as CapnpFbpInPortModel;;
+
+                switch (outCapnpPort) {
+                    case { Parent: CapnpFbpIipModel outIipModel }
+                        when inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel }: {
+                        var outIipNodeId = ShortIipId(outIipModel.Id, outIipModel.Content);
+                        var inNodeId = ShortProcId(inCapnpModel.Id, inCapnpModel.ProcessName);
+
+                        // make sure the link is only stored once
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (
+                            linkSet.Contains($"{checkOut}->{checkIn}")
+                            || linkSet.Contains($"{checkIn}->{checkOut}")
+                        )
+                            continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
+
+                        if (asMermaid) {
+                            sb.AppendLine($"{CreateMermaidId(outIipNodeId)} -- \""
+                                          + $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}");
+                        } else {
+                            var jl = new JObject {
+                                {
+                                    "source",
+                                    new JObject { { "nodeId", outIipNodeId }, { "port", outCapnpPort.Alignment.ToString() }, }
+                                },
+                                { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
+                            };
+                            if (dia["links"] is JArray links) links.Add(jl);
+                        }
+
                         break;
                     }
-                    case CapnpFbpPortModel inCapnpPort2
-                        when rcplm.OutPortModel is CapnpFbpPortModel outCapnpPort2:
-                        outCapnpPort = outCapnpPort2;
-                        inCapnpPort = inCapnpPort2;
+                    case { Parent: CapnpFbpComponentModel outCapnpModel }
+                        when inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel2 }: {
+                        var outNodeId = ShortProcId(outCapnpModel.Id, outCapnpModel.ProcessName);
+                        var inNodeId = ShortProcId(inCapnpModel2.Id, inCapnpModel2.ProcessName);
+
+                        // make sure the link is only stored once
+                        var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (
+                            linkSet.Contains($"{checkOut}->{checkIn}")
+                            || linkSet.Contains($"{checkIn}->{checkOut}")
+                        )
+                            continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
+
+                        if (asMermaid) {
+                            sb.AppendLine($"{CreateMermaidId(outNodeId)} -- "
+                                          + $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" "
+                                          + $"--> {CreateMermaidId(inNodeId)}");
+                        } else {
+                            var jl = new JObject {
+                                { "source", new JObject { { "nodeId", outNodeId }, { "port", outCapnpPort.Name }, } },
+                                { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
+                            };
+                            if (dia["links"] is JArray links) links.Add(jl);
+                        }
+
                         break;
-                }
-
-                if (
-                    outIipPort is { Parent: CapnpFbpIipModel outIipModel }
-                    && inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel }
-                ) {
-                    var outIipNodeId = ShortIipId(outIipModel.Id, outIipModel.Content);
-                    var inNodeId = ShortProcId(inCapnpModel.Id, inCapnpModel.ProcessName);
-
-                    // make sure the link is only stored once
-                    var checkOut = $"{outIipNodeId}.{outIipPort.Alignment.ToString()}";
-                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                    if (
-                        linkSet.Contains($"{checkOut}->{checkIn}")
-                        || linkSet.Contains($"{checkIn}->{checkOut}")
-                    )
-                        continue;
-                    linkSet.Add($"{checkOut}->{checkIn}");
-
-                    if (asMermaid) {
-                        sb.AppendLine($"{CreateMermaidId(outIipNodeId)} -- \""
-                                      + $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}");
-                    } else {
-                        var jl = new JObject {
-                            {
-                                "source",
-                                new JObject { { "nodeId", outIipNodeId }, { "port", outIipPort.Alignment.ToString() }, }
-                            },
-                            { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
-                        };
-                        if (dia["links"] is JArray links) links.Add(jl);
                     }
-                } else if (
-                    outCapnpPort is { Parent: CapnpFbpComponentModel outCapnpModel }
-                    && inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel2 }
-                ) {
-                    var outNodeId = ShortProcId(outCapnpModel.Id, outCapnpModel.ProcessName);
-                    var inNodeId = ShortProcId(inCapnpModel2.Id, inCapnpModel2.ProcessName);
+                    case { Parent: CapnpFbpIipModel outIipModel2 }
+                        when inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel }: {
+                        var outIipNodeId = ShortIipId(outIipModel2.Id, outIipModel2.Content);
+                        var inNodeId = inViewCapnpModel.Id;
 
-                    // make sure the link is only stored once
-                    var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
-                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                    if (
-                        linkSet.Contains($"{checkOut}->{checkIn}")
-                        || linkSet.Contains($"{checkIn}->{checkOut}")
-                    )
-                        continue;
-                    linkSet.Add($"{checkOut}->{checkIn}");
+                        // make sure the link is only stored once
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (
+                            linkSet.Contains($"{checkOut}->{checkIn}")
+                            || linkSet.Contains($"{checkIn}->{checkOut}")
+                        )
+                            continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
 
-                    if (asMermaid) {
-                        sb.AppendLine($"{CreateMermaidId(outNodeId)} -- "
-                                      + $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" "
-                                      + $"--> {CreateMermaidId(inNodeId)}");
-                    } else {
-                        var jl = new JObject {
-                            { "source", new JObject { { "nodeId", outNodeId }, { "port", outCapnpPort.Name }, } },
-                            { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
-                        };
-                        if (dia["links"] is JArray links) links.Add(jl);
+                        if (asMermaid) {
+                            sb.AppendLine($"{CreateMermaidId(outIipNodeId)} -- \""
+                                          + $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}");
+                        } else {
+                            var jl = new JObject {
+                                {
+                                    "source",
+                                    new JObject { { "nodeId", outIipNodeId }, { "port", outCapnpPort.Alignment.ToString() }, }
+                                },
+                                { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
+                            };
+                            if (dia["links"] is JArray links) links.Add(jl);
+                        }
+
+                        break;
                     }
-                } else if (
-                    outIipPort is { Parent: CapnpFbpIipModel outIipModel2 }
-                    && inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel }
-                ) {
-                    var outIipNodeId = ShortIipId(outIipModel2.Id, outIipModel2.Content);
-                    var inNodeId = inViewCapnpModel.Id;
+                    case { Parent: CapnpFbpComponentModel outCapnpModel2 }
+                        when inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel2 }: {
+                        var outNodeId = ShortProcId(outCapnpModel2.Id, outCapnpModel2.ProcessName);
+                        var inNodeId = inViewCapnpModel2.Id;
 
-                    // make sure the link is only stored once
-                    var checkOut = $"{outIipNodeId}.{outIipPort.Alignment.ToString()}";
-                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                    if (
-                        linkSet.Contains($"{checkOut}->{checkIn}")
-                        || linkSet.Contains($"{checkIn}->{checkOut}")
-                    )
-                        continue;
-                    linkSet.Add($"{checkOut}->{checkIn}");
+                        // make sure the link is only stored once
+                        var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
+                        var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
+                        if (
+                            linkSet.Contains($"{checkOut}->{checkIn}")
+                            || linkSet.Contains($"{checkIn}->{checkOut}")
+                        )
+                            continue;
+                        linkSet.Add($"{checkOut}->{checkIn}");
 
-                    if (asMermaid) {
-                        sb.AppendLine($"{CreateMermaidId(outIipNodeId)} -- \""
-                                      + $"{inCapnpPort.Name}\" --> {CreateMermaidId(inNodeId)}");
-                    } else {
-                        var jl = new JObject {
-                            {
-                                "source",
-                                new JObject { { "nodeId", outIipNodeId }, { "port", outIipPort.Alignment.ToString() }, }
-                            },
-                            { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
-                        };
-                        if (dia["links"] is JArray links) links.Add(jl);
-                    }
-                } else if (
-                    outCapnpPort is { Parent: CapnpFbpComponentModel outCapnpModel2 }
-                    && inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel2 }
-                ) {
-                    var outNodeId = ShortProcId(outCapnpModel2.Id, outCapnpModel2.ProcessName);
-                    var inNodeId = inViewCapnpModel2.Id;
+                        if (asMermaid) {
+                            sb.AppendLine($"{CreateMermaidId(outNodeId)} -- "
+                                          + $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" "
+                                          + $"--> {CreateMermaidId(inNodeId)}");
+                        } else {
+                            var jl = new JObject {
+                                { "source", new JObject { { "nodeId", outNodeId }, { "port", outCapnpPort.Name }, } },
+                                { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
+                            };
+                            if (dia["links"] is JArray links) links.Add(jl);
+                        }
 
-                    // make sure the link is only stored once
-                    var checkOut = $"{outNodeId}.{outCapnpPort.Name}";
-                    var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
-                    if (
-                        linkSet.Contains($"{checkOut}->{checkIn}")
-                        || linkSet.Contains($"{checkIn}->{checkOut}")
-                    )
-                        continue;
-                    linkSet.Add($"{checkOut}->{checkIn}");
-
-                    if (asMermaid) {
-                        sb.AppendLine($"{CreateMermaidId(outNodeId)} -- "
-                                      + $"\"{outCapnpPort.Name} : {inCapnpPort.Name}\" "
-                                      + $"--> {CreateMermaidId(inNodeId)}");
-                    } else {
-                        var jl = new JObject {
-                            { "source", new JObject { { "nodeId", outNodeId }, { "port", outCapnpPort.Name }, } },
-                            { "target", new JObject { { "nodeId", inNodeId }, { "port", inCapnpPort.Name } } },
-                        };
-                        if (dia["links"] is JArray links) links.Add(jl);
+                        break;
                     }
                 }
             }
@@ -1096,6 +1046,13 @@ public partial class Editor {
                 var procName =
                     initNode?["processName"]?.ToString() ?? initNode?["process_name"]?.ToString();
 
+                var config = initNode?.GetValue("config");
+                var configStr = (config?.Type ?? JTokenType.Null) switch {
+                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented),
+                    JTokenType.String => config?.ToString(),
+                    _ => ""
+                };
+
                 CapnpFbpComponentModel node = null;
                 switch (component.Type) {
                     case Component.ComponentType.standard: {
@@ -1113,7 +1070,7 @@ public partial class Editor {
                             Cmd = cmd,
                             ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
                             DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
-                            ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
+                            ConfigString = configStr,
                             DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                             Editable =
                                 initNode?.GetValue("editable")?.Value<bool>()
@@ -1147,7 +1104,7 @@ public partial class Editor {
                             Cmd = cmd,
                             ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
                             DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
-                            ConfigString = initNode?.GetValue("config")?.ToString() ?? "", //?.Value<string>() ?? "",
+                            ConfigString = configStr,
                             DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                             Editable =
                                 initNode?.GetValue("editable")?.Value<bool>()
@@ -1218,10 +1175,10 @@ public partial class Editor {
                 };
                 Diagram.Nodes.Add(node);
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                node.AddPort(new CapnpFbpIipPortModel(node, PortAlignment.Top));
-                node.AddPort(new CapnpFbpIipPortModel(node));
-                node.AddPort(new CapnpFbpIipPortModel(node, PortAlignment.Left));
-                node.AddPort(new CapnpFbpIipPortModel(node, PortAlignment.Right));
+                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Top){ Name = "IIP"});
+                node.AddPort(new CapnpFbpOutPortModel(node){ Name = ""});
+                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Left){ Name = "IIP"});
+                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Right){ Name = "IIP"});
                 node.RefreshAll();
                 return node;
             }

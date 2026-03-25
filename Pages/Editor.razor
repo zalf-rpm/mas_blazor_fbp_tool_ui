@@ -144,10 +144,10 @@
                 @*         </MudButton> *@
                 @*     </MudStack> *@
                 @* </MudExpansionPanel> *@
-                <MudSwitch @bind-Value="@InteractiveMode"
-                           Label="Interactive"
-                           Color="Color.Success"
-                           Style="padding-left: 10px"/>
+                @* <MudSwitch @bind-Value="@InteractiveMode" *@
+                @*            Label="Interactive" *@
+                @*            Color="Color.Success" *@
+                @*            Style="padding-left: 10px"/> *@
                 <MudTextField @bind-Value="@_query"
                               Label="Search component ..."
                               Variant="Variant.Outlined"
@@ -264,19 +264,6 @@
     private string _query;
     private const string DefaultCatId = "default";
     private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
-    private bool _interactiveMode = false;
-
-    private bool InteractiveMode
-    {
-        get => _interactiveMode;
-        set
-        {
-            _interactiveMode = value;
-            InteractiveModeChanged?.Invoke(value);
-        }
-    }
-
-    public event Action<bool> InteractiveModeChanged;
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>

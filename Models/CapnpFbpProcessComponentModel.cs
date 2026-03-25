@@ -79,19 +79,17 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel {
             var configInPortConnected = false;
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
             foreach (var pl in Links) {
-                if (pl is not RememberCapnpPortsLinkModel rcplm) {
+                if (pl is not RememberCapnpPortsLinkModel {
+                        InPortModel: CapnpFbpInPortModel inPort,
+                        OutPortModel: CapnpFbpOutPortModel outPort } rcplm) {
                     continue;
                 }
 
                 // deal with IN port
-                if (rcplm.InPortModel is not CapnpFbpPortModel inPort) {
-                    continue;
-                }
-
                 // the IN port (link) is not associated with a channel yet -> create channel
                 if (
-                    inPort.ReaderWriterSturdyRef == null
-                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                    inPort.ReaderSturdyRef == null
+                    && inPort.RetrieveReaderFromChannelTask == null
                 ) {
                     // if (inPort.Parent is not CapnpFbpComponentModel &&
                     //     inPort.Parent is not CapnpFbpViewComponentModel) {
@@ -102,7 +100,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel {
                         $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
                     await Shared.Shared.CreateChannel(conMan,
                         Editor.CurrentChannelStarterService,
-                        rcplm.OutPortModel,
+                        outPort,
                         inPort);
                 }
 
@@ -110,7 +108,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel {
                 if (inPort.Parent == this) {
                     Console.WriteLine($"{ProcessName}: setting in port '{inPort.Name}' at remote process");
                     inPort.Connected = await Process.ConnectInPort(inPort.Name,
-                        inPort.ReaderWriterSturdyRef,
+                        inPort.ReaderSturdyRef,
                         cancelToken);
                 }
 
@@ -122,57 +120,33 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel {
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
                 // deal with OUT port
-                switch (rcplm.OutPortModel) {
-                    case CapnpFbpPortModel outPort:
+                Console.WriteLine(
+                    $"{ProcessName}: dealing with out port '{outPort.Name}'\noutPort.RetrieveReaderOrWriterFromChannelTask: {outPort.RetrieveWriterFromChannelTask}\noutPort.ReaderWriterSturdyRef: {outPort.WriterSturdyRef} inPort.Channel: {inPort.Channel}");
+                // the task for setting the writer was not yet finished
+                // wait for the task so the writer will be set
+                if (outPort.RetrieveWriterFromChannelTask != null) {
+                    Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
+                    await outPort.RetrieveWriterFromChannelTask;
+                } else {
+                    // there is no task anymore, but also no sturdy ref available,
+                    // so get a new writer from the channel
+                    if (outPort.WriterSturdyRef == null) {
                         Console.WriteLine(
-                            $"{ProcessName}: dealing with out port '{outPort.Name}'\noutPort.RetrieveReaderOrWriterFromChannelTask: {outPort.RetrieveReaderOrWriterFromChannelTask}\noutPort.ReaderWriterSturdyRef: {outPort.ReaderWriterSturdyRef} inPort.Channel: {inPort.Channel}");
-                        // the task for setting the writer was not yet finished
-                        // wait for the task so the writer will be set
-                        if (outPort.RetrieveReaderOrWriterFromChannelTask != null) {
-                            Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
-                            await outPort.RetrieveReaderOrWriterFromChannelTask;
-                        } else {
-                            // there is no task anymore, but also no sturdy ref available,
-                            // so get a new writer from the channel
-                            if (outPort.ReaderWriterSturdyRef == null) {
-                                Console.WriteLine(
-                                    $"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
-                                (outPort.Writer, outPort.ReaderWriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                        cancelToken);
-                            }
-                        }
-
-                        outPort.Parent.Refresh();
-                        outPort.Parent.RefreshLinks();
-
-                        if (outPort.Parent == this) {
-                            Console.WriteLine($"{ProcessName}: setting out port '{outPort.Name}' at remote process");
-                            outPort.Connected = await Process.ConnectOutPort(outPort.Name,
-                                outPort.ReaderWriterSturdyRef,
+                            $"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
+                        (outPort.Writer, outPort.WriterSturdyRef) =
+                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
                                 cancelToken);
-                        }
-
-                        break;
-                    case CapnpFbpIipPortModel iipPort: {
-                        if (iipPort.WriterSturdyRef == null) {
-                            if (iipPort.RetrieveWriterFromChannelTask != null) {
-                                Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                await iipPort.RetrieveWriterFromChannelTask;
-                            } else {
-                                Console.WriteLine($"{ProcessName}: getting new writer for IIP port from channel");
-                                (iipPort.Writer, iipPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                        cancelToken);
-                            }
-
-                            iipPort.Parent.Refresh();
-                            iipPort.Parent.RefreshLinks();
-                        }
-
-                        break;
                     }
                 }
+
+                outPort.Parent.Refresh();
+                outPort.Parent.RefreshLinks();
+
+                if (outPort.Parent != this) continue;
+                Console.WriteLine($"{ProcessName}: setting out port '{outPort.Name}' at remote process");
+                outPort.Connected = await Process.ConnectOutPort(outPort.Name,
+                    outPort.WriterSturdyRef,
+                    cancelToken);
             }
 
             //there is no config port connected, so we setup up a config channel and send the process config on the fly

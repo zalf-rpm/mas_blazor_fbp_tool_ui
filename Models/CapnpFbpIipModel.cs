@@ -52,7 +52,7 @@ public class CapnpFbpIipModel : NodeModel, IDisposable {
             Debug.Assert(Links.Count < 2);
             foreach (var pl in Links) {
                 if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
-                if (rcplm.OutPortModel is not CapnpFbpIipPortModel iippm) continue;
+                if (rcplm.OutPortModel is not CapnpFbpOutPortModel iippm) continue;
 
                 _iipTask = Task.Run(async () => {
                         Console.WriteLine(

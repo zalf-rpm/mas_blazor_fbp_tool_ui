@@ -55,12 +55,7 @@ public class FbpDragNewLinkBehavior : Behavior
     // FBP semantics: allow only one link from an output port
     // at the moment also don't allow multiple links from IIPs even if we could actually support it 
     // due to copy semantics of strings in the future
-    switch (model)
-    {
-      case CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out, Links.Count: > 0 }:
-      case CapnpFbpIipPortModel iipPort when iipPort.Parent.Ports.Any(p => p is CapnpFbpIipPortModel { Links.Count: > 0 }):
-        return;
-    }
+    if (model is CapnpFbpOutPortModel { Links.Count: > 0 }) return;
     _targetPositionAnchor = new PositionAnchor(CalculateTargetPosition(e.ClientX, e.ClientY));
     OngoingLink = Diagram.Options.Links.Factory(Diagram, source, _targetPositionAnchor);
     if (OngoingLink == null) return;

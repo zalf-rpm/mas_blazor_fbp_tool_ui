@@ -24,8 +24,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
         : base(id, position) { }
 
     private CancellationTokenSource _cancellationTokenSource;
-    private CapnpFbpPortModel _configInPort;
-    private CapnpFbpIipPortModel _confIipOutPort;
+    private CapnpFbpInPortModel _configInPort;
+    private CapnpFbpOutPortModel _confIipOutPort;
     private SturdyRef _portInfosReaderSr;
     private Channel<PortInfos>.IWriter _portInfosWriter;
 
@@ -59,48 +59,53 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
             List<PortInfos.NameAndSR> inPortSRs = [];
             List<PortInfos.NameAndSR> outPortSRs = [];
 
-            async Task CollectPortSrs(CapnpFbpPortModel port, CapnpFbpPortModel inPort = null) {
+            async Task CollectPortSrs(CapnpFbpPortModel port, IChannel<IP> channel = null) {
                 Console.WriteLine($"{ProcessName}: collecting port srs");
-                if (port.ReaderWriterSturdyRef == null) {
-                    if (port.RetrieveReaderOrWriterFromChannelTask != null) {
-                        Console.WriteLine($"{ProcessName}: awaiting port.ChannelTask");
-                        await port.RetrieveReaderOrWriterFromChannelTask;
-                    } else {
-                        Debug.Assert(port.ThePortType == CapnpFbpPortModel.PortType.Out && inPort != null,
-                            "Only the out port could have been updated/renewed. The in port should always be there.");
-                        (port.Writer, port.ReaderWriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                cancelToken);
-                    }
-                }
 
-                switch (port.ThePortType) {
-                    case CapnpFbpPortModel.PortType.In:
-                        inPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
+                switch (port) {
+                    case CapnpFbpInPortModel inPort:
+                        // if there is no SR
+                        if (inPort.ReaderSturdyRef == null) {
+                            // but we have a task for the SR
+                            if (inPort.RetrieveReaderFromChannelTask != null) {
+                                Console.WriteLine($"{ProcessName}: awaiting inPort.ChannelTask");
+                                await inPort.RetrieveReaderFromChannelTask;
+                            }
+                        }
+                        inPortSRs.Add(new PortInfos.NameAndSR { Name = inPort.Name, Sr = inPort.ReaderSturdyRef, });
                         break;
-                    case CapnpFbpPortModel.PortType.Out:
-                        outPortSRs.Add(new PortInfos.NameAndSR { Name = port.Name, Sr = port.ReaderWriterSturdyRef, });
+                    case CapnpFbpOutPortModel outPort:
+                        // if there is no SR
+                        if (outPort.WriterSturdyRef == null) {
+                            // but we have a task to wait for that SR
+                            if (outPort.RetrieveWriterFromChannelTask != null) {
+                                Console.WriteLine($"{ProcessName}: awaiting outPort.ChannelTask");
+                                await outPort.RetrieveWriterFromChannelTask;
+                            } else {
+                                // no task, the outPort must have been updated and we get a new writer for that out port
+                                (outPort.Writer, outPort.WriterSturdyRef) =
+                                    await Shared.Shared.GetNewWriterFromChannel(channel, cancelToken);
+                            }
+                        }
+                        outPortSRs.Add(new PortInfos.NameAndSR { Name = outPort.Name, Sr = outPort.WriterSturdyRef, });
                         break;
-                    default: throw new ArgumentOutOfRangeException();
                 }
             }
 
             var configInPortConnected = false;
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
             foreach (var pl in Links) {
-                if (pl is not RememberCapnpPortsLinkModel rcplm) {
+                if (pl is not RememberCapnpPortsLinkModel {
+                        InPortModel: CapnpFbpInPortModel inPort,
+                        OutPortModel: CapnpFbpOutPortModel outPort } rcplm) {
                     continue;
                 }
 
                 // deal with IN port
-                if (rcplm.InPortModel is not CapnpFbpPortModel inPort) {
-                    continue;
-                }
-
                 // the IN port (link) is not associated with a channel yet -> create channel
                 if (
-                    inPort.ReaderWriterSturdyRef == null
-                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                    inPort.ReaderSturdyRef == null
+                    && inPort.RetrieveReaderFromChannelTask == null
                 ) {
                     //TODO: is bad to distinguish explicitly here, maybe we want to have more further component types later
                     if (inPort.Parent is not CapnpFbpComponentModel &&
@@ -112,7 +117,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
                         $"{ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
                     await Shared.Shared.CreateChannel(conMan,
                         Editor.CurrentChannelStarterService,
-                        rcplm.OutPortModel,
+                        outPort,
                         inPort);
                 }
 
@@ -128,36 +133,21 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
                 // deal with OUT port
-                switch (rcplm.OutPortModel) {
-                    case CapnpFbpPortModel outPort:
-                        if (outPort.ReaderWriterSturdyRef == null) {
-                            (outPort.Writer, outPort.ReaderWriterSturdyRef) =
-                                await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                    cancelToken);
-                        }
-
-                        if (outPort.Parent == this) {
-                            await CollectPortSrs(outPort, inPort);
-                        }
-
-                        break;
-                    case CapnpFbpIipPortModel iipPort: {
-                        if (iipPort.WriterSturdyRef == null) {
-                            if (iipPort.RetrieveWriterFromChannelTask != null) {
-                                Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                await iipPort.RetrieveWriterFromChannelTask;
-                            } else {
-                                (iipPort.Writer, iipPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                        cancelToken);
-                            }
-
-                            iipPort.Parent.Refresh();
-                        }
-
-                        break;
+                if (outPort.WriterSturdyRef == null) {
+                    if (outPort.RetrieveWriterFromChannelTask != null) {
+                        Console.WriteLine($"{ProcessName}: awaiting outPort.ChannelTask");
+                        await outPort.RetrieveWriterFromChannelTask;
+                    } else {
+                        (outPort.Writer, outPort.WriterSturdyRef) =
+                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
+                                cancelToken);
                     }
                 }
+
+                if (outPort.Parent == this) {
+                    await CollectPortSrs(outPort, inPort.Channel);
+                }
+                outPort.Parent.Refresh();
             }
 
             //there is no config port connected, so we setup up a config channel and send the process config on the fly
@@ -168,17 +158,17 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
 
                 //create ports, if this is the first time
                 if (_configInPort == null) {
-                    _configInPort = new CapnpFbpPortModel(null, CapnpFbpPortModel.PortType.In) { Name = "conf", };
+                    _configInPort = new CapnpFbpInPortModel(null) { Name = "conf", };
                 }
 
                 if (_confIipOutPort == null) {
-                    _confIipOutPort = new CapnpFbpIipPortModel(null);
+                    _confIipOutPort = new CapnpFbpOutPortModel(null);
                 }
 
                 //create channel, if not done before
                 if (
-                    _configInPort.ReaderWriterSturdyRef == null
-                    && _configInPort.RetrieveReaderOrWriterFromChannelTask == null
+                    _configInPort.ReaderSturdyRef == null
+                    && _configInPort.RetrieveReaderFromChannelTask == null
                 ) {
                     Console.WriteLine($"{ProcessName}: creating config channel");
                     await Shared.Shared.CreateChannel(conMan,
@@ -187,7 +177,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel {
                         _configInPort);
                 }
 
-                Console.WriteLine($"{ProcessName}: _configInPort.RWSR: {_configInPort.ReaderWriterSturdyRef}");
+                Console.WriteLine($"{ProcessName}: _configInPort.RWSR: {_configInPort.ReaderSturdyRef}");
                 //insert config port sturdy ref into collections for port info message later
                 await CollectPortSrs(_configInPort);
 

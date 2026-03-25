@@ -67,16 +67,6 @@ public class Shared
         };
     }
 
-    public static string PortName(PortModel port)
-    {
-        return port switch
-        {
-            CapnpFbpPortModel p => p.Name,
-            CapnpFbpIipPortModel => "IIP",
-            _ => "unknown_port",
-        };
-    }
-
     public static async Task<(Channel<IP>.IWriter, SturdyRef)> GetNewWriterFromChannel(
         IChannel<IP> channel,
         CancellationToken cancelToken = default
@@ -90,93 +80,52 @@ public class Shared
     public static Task CreateChannel(
         ConnectionManager conMan,
         IStartChannelsService css,
-        PortModel outPort,
-        CapnpFbpPortModel inPort
+        CapnpFbpOutPortModel outPort,
+        CapnpFbpInPortModel inPort
     )
     {
         if (css == null)
             return Task.CompletedTask;
 
-        var t = Task.Run(async () =>
-        {
-            if (inPort.Channel == null) // there is no channel for the IN port yet
-            {
-                var si = await css.Start(
-                    new StartChannelsService.Params
-                    {
-                        Name =
-                            $"{NodeNameFromPort(outPort)}.{PortName(outPort)}->"
-                            + $"{NodeNameFromPort(inPort)}.{PortName(inPort)}",
-                    }
-                );
-                if (
-                    si.Item1.Count <= 0
-                    || si.Item1[0].ReaderSRs.Count <= 0
-                    || si.Item1[0].WriterSRs.Count <= 0
-                )
-                    return;
-                switch (outPort)
+        var t = Task.Run(async () => {
+            if (inPort.Channel != null) return;
+            var si = await css.Start(
+                new StartChannelsService.Params
                 {
-                    case CapnpFbpPortModel sPort:
-                        sPort.ReaderWriterSturdyRef = si.Item1[0].WriterSRs[0];
-                        sPort.Writer = (
-                            si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
-                        )?.Cast<Channel<IP>.IWriter>(false);
-                        sPort.RetrieveReaderOrWriterFromChannelTask = null;
-                        sPort.Parent.Refresh();
-                        break;
-                    case CapnpFbpIipPortModel iipPort:
-                        iipPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
-                        iipPort.Writer = (
-                            si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
-                        )?.Cast<Channel<IP>.IWriter>(false);
-                        iipPort.RetrieveWriterFromChannelTask = null;
-                        iipPort.Parent?.Refresh();
-                        break;
+                    Name =
+                        $"{NodeNameFromPort(outPort)}.{outPort.Name}->"
+                        + $"{NodeNameFromPort(inPort)}.{inPort.Name}",
                 }
+            );
+            if (
+                si.Item1.Count <= 0
+                || si.Item1[0].ReaderSRs.Count <= 0
+                || si.Item1[0].WriterSRs.Count <= 0
+            )
+                return;
 
-                inPort.ReaderWriterSturdyRef = si.Item1[0].ReaderSRs[0];
-                inPort.Reader = (
-                    si.Item1[0].Readers[0] as Channel<object>.Reader_Proxy
-                )?.Cast<Channel<IP>.IReader>(false);
-                // attach channel cap to IN port (target port)
-                inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(
-                    false
-                );
-                // attach stop channel cap to IN port
-                inPort.StopChannel = si.Item2;
-                inPort.RetrieveReaderOrWriterFromChannelTask = null;
-                inPort.Parent?.Refresh();
-            }
-            else
-            {
-                Console.WriteLine("CreateChannel: inPort.channel was not null");
-                throw new Exception("CreateChannel: inPort.channel was null");
-                var writerSr = (await inPort.Channel.Writer().Result.Save(null)).SturdyRef;
-                switch (outPort)
-                {
-                    case CapnpFbpPortModel sPort:
-                        sPort.ReaderWriterSturdyRef = writerSr;
-                        break;
-                    case CapnpFbpIipPortModel iipPort:
-                        iipPort.WriterSturdyRef = writerSr;
-                        break;
-                }
+            outPort.WriterSturdyRef = si.Item1[0].WriterSRs[0];
+            outPort.Writer = (
+                si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
+            )?.Cast<Channel<IP>.IWriter>(false);
+            outPort.RetrieveWriterFromChannelTask = null;
+            outPort.Parent.Refresh();
 
-                Debug.Assert(inPort.ReaderWriterSturdyRef != null);
-            }
+            inPort.ReaderSturdyRef = si.Item1[0].ReaderSRs[0];
+            inPort.Reader = (
+                si.Item1[0].Readers[0] as Channel<object>.Reader_Proxy
+            )?.Cast<Channel<IP>.IReader>(false);
+            // attach channel cap to IN port (target port)
+            inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(
+                false
+            );
+            // attach stop channel cap to IN port
+            inPort.StopChannel = si.Item2;
+            inPort.RetrieveReaderFromChannelTask = null;
+            inPort.Parent?.Refresh();
         });
-        switch (outPort)
-        {
-            case CapnpFbpPortModel sPort:
-                sPort.RetrieveReaderOrWriterFromChannelTask = t;
-                break;
-            case CapnpFbpIipPortModel iipPort:
-                iipPort.RetrieveWriterFromChannelTask = t;
-                break;
-        }
-
-        inPort.RetrieveReaderOrWriterFromChannelTask = t;
+        outPort.RetrieveWriterFromChannelTask = t;
+        inPort.RetrieveReaderFromChannelTask = t;
         return t;
     }
 
@@ -252,5 +201,29 @@ public class Shared
     public const int CardWidth = 250;
     public const int CardHeight = 200;
 
+    public static MarkupString MakePortToolTipText(CapnpFbpPortModel port) {
+        var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
+        var cts = ct.Split('|');
+        List<string> cts2 = [];
+        foreach (var ct_ in cts) {
+            if (!ct_.Contains(':')) {
+                cts2.Add($"<b>{ct_}</b>");
+                continue;
+            }
+            var x = ct_.Split(':');
+            switch (x.Length) {
+                case 2: cts2.Add($"<small>{x[0]}:</small><b>{x[1]}</b>"); break;
+                case >= 1: cts2.Add(ct_); break;
+            }
+        }
+        ct = cts2.Aggregate("", (acc, s) => $"{acc}{(acc.Length==0 ? "" : " or ")}<b><em>{s}</em></b>");
+        var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
+            ? $"<b>{port.Name}</b> receives [{ct}]"
+            : $"<b>{port.Name}</b> sends [{ct}]";
+        if (!string.IsNullOrWhiteSpace(port.Description)) {
+            ms += $"<br/><small>{port.Description}</small>";
+        }
+        return new MarkupString(ms);
+    }
 
 }

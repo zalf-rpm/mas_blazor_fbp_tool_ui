@@ -9,15 +9,8 @@ using BlazorDrawFBP.Pages;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpIipPortModel : PortModel, IDisposable
+public class CapnpFbpIipPortModel : CapnpFbpOutPortModel
 {
-    public Task RetrieveWriterFromChannelTask { get; set; }
-    public Mas.Schema.Persistence.SturdyRef WriterSturdyRef { get; set; }
-
-    public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
-
-    public string ContentType { get; set; } = "Text | common.capnp:StructuredText";
-
     public CapnpFbpIipPortModel(
         NodeModel parent,
         PortAlignment alignment = PortAlignment.Bottom,
@@ -34,24 +27,52 @@ public class CapnpFbpIipPortModel : PortModel, IDisposable
         Size size = null
     )
         : base(id, parent, alignment, position, size) { }
-
-    public override bool CanAttachTo(ILinkable other)
-    {
-        // default constraints
-        if (!base.CanAttachTo(other))
-            return false;
-
-        if (other is not CapnpFbpPortModel otherPort)
-            return false;
-
-        // Only connect IIP to In ports
-        return otherPort.ThePortType == CapnpFbpPortModel.PortType.In;
-    }
-
-    public void Dispose()
-    {
-        Console.WriteLine($"CapnpFbpIipPortModel::Disposing");
-        //ChannelTask?.Dispose();
-        Writer?.Dispose();
-    }
 }
+
+
+// public class CapnpFbpIipPortModel : PortModel, IDisposable
+// {
+//     public Task RetrieveWriterFromChannelTask { get; set; }
+//     public Mas.Schema.Persistence.SturdyRef WriterSturdyRef { get; set; }
+//
+//     public Mas.Schema.Fbp.Channel<Mas.Schema.Fbp.IP>.IWriter Writer { get; set; }
+//
+//     public string ContentType { get; set; } = "Text | common.capnp:StructuredText";
+//
+//     public CapnpFbpIipPortModel(
+//         NodeModel parent,
+//         PortAlignment alignment = PortAlignment.Bottom,
+//         Point position = null,
+//         Size size = null
+//     )
+//         : base(parent, alignment, position, size) { }
+//
+//     public CapnpFbpIipPortModel(
+//         string id,
+//         NodeModel parent,
+//         PortAlignment alignment = PortAlignment.Bottom,
+//         Point position = null,
+//         Size size = null
+//     )
+//         : base(id, parent, alignment, position, size) { }
+//
+//     public override bool CanAttachTo(ILinkable other)
+//     {
+//         // default constraints
+//         if (!base.CanAttachTo(other))
+//             return false;
+//
+//         if (other is not CapnpFbpPortModel otherPort)
+//             return false;
+//
+//         // Only connect IIP to In ports
+//         return otherPort.ThePortType == CapnpFbpPortModel.PortType.In;
+//     }
+//
+//     public void Dispose()
+//     {
+//         Console.WriteLine($"CapnpFbpIipPortModel::Disposing");
+//         //ChannelTask?.Dispose();
+//         Writer?.Dispose();
+//     }
+// }

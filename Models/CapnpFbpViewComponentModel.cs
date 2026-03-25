@@ -72,19 +72,17 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
             foreach (var pl in Links) {
-                if (pl is not RememberCapnpPortsLinkModel rcplm) {
+                if (pl is not RememberCapnpPortsLinkModel {
+                        InPortModel: CapnpFbpInPortModel inPort,
+                        OutPortModel: CapnpFbpOutPortModel outPort } rcplm) {
                     continue;
                 }
 
                 // deal with IN port
-                if (rcplm.InPortModel is not CapnpFbpPortModel inPort) {
-                    continue;
-                }
-
                 // the IN port (link) is not associated with a channel yet -> create channel
                 if (
-                    inPort.ReaderWriterSturdyRef == null
-                    && inPort.RetrieveReaderOrWriterFromChannelTask == null
+                    inPort.ReaderSturdyRef == null
+                    && inPort.RetrieveReaderFromChannelTask == null
                 ) {
                     if (inPort.Parent is not CapnpFbpViewComponentModel m) {
                         continue;
@@ -94,7 +92,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                         $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
                     await Shared.Shared.CreateChannel(conMan,
                         Editor.CurrentChannelStarterService,
-                        rcplm.OutPortModel,
+                        outPort,
                         inPort);
                 }
 
@@ -105,42 +103,20 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
                 // deal with OUT port
-                switch (rcplm.OutPortModel) {
-                    case CapnpFbpPortModel outPort:
-                        if (outPort.RetrieveReaderOrWriterFromChannelTask != null) {
-                            Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
-                            await outPort.RetrieveReaderOrWriterFromChannelTask;
-                        } else {
-                            if (outPort.ReaderWriterSturdyRef == null) {
-                                Console.WriteLine($"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
-                                (outPort.Writer, outPort.ReaderWriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                        cancelToken);
-                                outPort.Parent.Refresh();
-                            }
-                        }
+                if (outPort.RetrieveWriterFromChannelTask != null) {
+                    Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
+                    await outPort.RetrieveWriterFromChannelTask;
+                } else {
+                    if (outPort.WriterSturdyRef == null) {
+                        Console.WriteLine($"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
+                        (outPort.Writer, outPort.WriterSturdyRef) =
+                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
+                                cancelToken);
                         outPort.Parent.Refresh();
-                        outPort.Parent.RefreshLinks();
-
-                        break;
-                    case CapnpFbpIipPortModel iipPort: {
-                        if (iipPort.WriterSturdyRef == null) {
-                            if (iipPort.RetrieveWriterFromChannelTask != null) {
-                                Console.WriteLine($"{ProcessName}: awaiting iipPort.ChannelTask");
-                                await iipPort.RetrieveWriterFromChannelTask;
-                            } else {
-                                Console.WriteLine($"{ProcessName}: getting new writer for IIP port from channel");
-                                (iipPort.Writer, iipPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                        cancelToken);
-                            }
-
-                            iipPort.Parent.Refresh();
-                        }
-
-                        break;
                     }
                 }
+                outPort.Parent.Refresh();
+                outPort.Parent.RefreshLinks();
             }
 
             //run loop to receive messages on in-port

@@ -37,12 +37,18 @@
             </MudItem>
         </MudGrid>
     </MudPaper>
+    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
+        @CardToolTipText
+    </MudText>
 
     @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
     {
-        string PortColor()
-        {
-            return capnpPort.Reader == null && capnpPort.Writer == null ? "#d4d4d4" : "#1ac12e";
+        string PortColor() {
+            return capnpPort switch {
+                CapnpFbpInPortModel { Reader: null } => "#d4d4d4",
+                CapnpFbpOutPortModel { Writer: null } => "#d4d4d4",
+                _ => "#1ac12e"
+            };
         }
 
         string Style()
@@ -50,9 +56,14 @@
             return $"top: 50%; border: 1px solid {PortColor()};";
         }
 
-        <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
-            in
-        </CapnpFbpPortRenderer>
+        <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
+             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
+            <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
+                in
+            </CapnpFbpPortRenderer>
+        </div>
+
+
     }
 </div>
 
@@ -72,4 +83,7 @@
     }
 
     private bool ProcessStarted => Node.ProcessStarted;
+
+    private MarkupString CardToolTipText { get; set; }
+    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
 }

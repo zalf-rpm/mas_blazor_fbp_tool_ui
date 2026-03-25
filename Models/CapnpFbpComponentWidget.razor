@@ -223,15 +223,15 @@
         };
 
         string PortColor() {
-            if (Node is CapnpFbpRunnableComponentModel { Runnable: not null }) {
-                return capnpPort.Reader == null && capnpPort.Writer == null ? "#ff0000" : "#1ac12e";
-            }
-
-            if (Node is CapnpFbpProcessComponentModel { Process: not null }) {
-                return capnpPort.Connected ? "#1ac12e" : "#ff0000";
-            }
-
-            return "#d4d4d4";
+            return Node switch {
+                CapnpFbpRunnableComponentModel { Runnable: not null } => capnpPort switch {
+                    CapnpFbpInPortModel { Reader: null } => "#ff0000",
+                    CapnpFbpOutPortModel { Writer: null } => "#ff0000",
+                    _ => "#1ac12e"
+                },
+                CapnpFbpProcessComponentModel { Process: not null } => capnpPort.Connected ? "#1ac12e" : "#ff0000",
+                _ => "#d4d4d4"
+            };
         }
 
         var style = capnpPort.Alignment switch {
@@ -243,7 +243,7 @@
         };
 
         // Console.WriteLine(capnpPort.ThePortType.ToString() + " OrderNo: " + capnpPort.OrderNo + " -> " + style);
-        <div @onmouseenter="@(() => CardToolTipText = MakeCardToolTipText(capnpPort))"
+        <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="port" Port="capnpPort" Style="@style">
                 @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
@@ -263,32 +263,6 @@
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
-
-    private static MarkupString MakeCardToolTipText(CapnpFbpPortModel port) {
-        var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
-        var cts = ct.Split('|');
-        List<string> cts2 = [];
-        foreach (var ct_ in cts) {
-            if (!ct_.Contains(":")) {
-                cts2.Add($"<b>{ct_}</b>");
-                continue;
-            }
-            var x = ct_.Split(':');
-            if (x.Length == 2) {
-                cts2.Add($"<small>{x[0]}:</small><b>{x[1]}</b>");
-            } else if(x.Length >=1) {
-                cts2.Add(ct_);
-            }
-        }
-        ct = cts2.Aggregate("", (acc, s) => $"{acc}{(acc.Length==0 ? "" : " or ")}<b><em>{s}</em></b>");
-        var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
-            ? $"<b>{port.Name}</b> receives [{ct}]"
-            : $"<b>{port.Name}</b> sends [{ct}]";
-        if (!string.IsNullOrWhiteSpace(port.Description)) {
-            ms += $"<br/><small>{port.Description}</small>";
-        }
-        return new MarkupString(ms);
-    }
 
     private string MinHeight =>
         $@"min-height: {Math.Max(200, Math.Max(
