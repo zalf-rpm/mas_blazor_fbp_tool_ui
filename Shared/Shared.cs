@@ -109,7 +109,7 @@ public class Shared
                 si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
             )?.Cast<Channel<IP>.IWriter>(false);
             outPort.RetrieveWriterFromChannelTask = null;
-            outPort.Parent.Refresh();
+            outPort.Parent?.Refresh();
 
             inPort.ReaderSturdyRef = si.Item1[0].ReaderSRs[0];
             inPort.Reader = (
