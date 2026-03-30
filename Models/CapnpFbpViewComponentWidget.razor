@@ -1,12 +1,14 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
 
 @using BlazorDrawFBP.Renderers
+@using Mas.Infrastructure.BlazorComponents
+@inject IDialogService DialogService
 
 <div>
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
               Elevation="3">
         <MudGrid Justify="Justify.Center" Spacing="1">
-            <MudItem xs="5">
+            <MudItem xs="4">
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
@@ -16,7 +18,17 @@
                     </MudButton>
                 </MudPaper>
             </MudItem>
-            <MudItem Class="align-content-end" xs="7">
+            <MudItem Class="align-content-end" xs="4">
+                <MudPaper Class="d-flex justify-center mud-width-full pr-3 pt-3" Outlined="false"
+                          Elevation="0">
+                    <MudButton Color="@Color.Primary"
+                               EndIcon="@Icons.Material.Filled.OpenInNew"
+                               OnClick="@ShowDetails">
+                        Large
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+            <MudItem Class="align-content-end" xs="4">
                 <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
@@ -31,7 +43,8 @@
             <MudItem xs="12" Class="pl-3 pr-3 pt-2 pb-3">
                 <Display WidthPx="@Node.DisplayWidthPx"
                          HeightPx="@Node.DisplayHeightPx"
-                         Editor="@Node.Editor">
+                         EnableZoom="@(() => { Node.Editor?.Diagram.Options.Zoom.Enabled = true; })"
+                         DisableZoom="@(() => { Node.Editor?.Diagram.Options.Zoom.Enabled = false; })">
                     @Node.ViewContent
                 </Display>
             </MudItem>
@@ -70,7 +83,7 @@
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"height: 200px; width: 250px;{FrameWidth};{FrameColor}";
+    private string CardStyle => $"height: 200px; width: 350px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: {(ProcessStarted ? 1 : 1)}px";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
@@ -86,4 +99,17 @@
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+
+    async void ShowDetails(MouseEventArgs e)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Content"] = Node.ViewContent,
+            ["EnableZoom"] = () => { Node.Editor?.Diagram.Options.Zoom.Enabled = true; },
+            ["DisableZoom"] = () => { Node.Editor?.Diagram.Options.Zoom.Enabled = false; },
+        };
+
+        await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters);
+        StateHasChanged();
+    }
 }
