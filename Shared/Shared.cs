@@ -87,8 +87,10 @@ public class Shared
         if (css == null)
             return Task.CompletedTask;
 
-        var t = Task.Run(async () => {
-            if (inPort.Channel != null) return;
+        var t = Task.Run(async () =>
+        {
+            if (inPort.Channel != null)
+                return;
             var si = await css.Start(
                 new StartChannelsService.Params
                 {
@@ -123,6 +125,9 @@ public class Shared
             inPort.StopChannel = si.Item2;
             inPort.RetrieveReaderFromChannelTask = null;
             inPort.Parent?.Refresh();
+
+            // and receive status information from channel
+            await inPort.ReceiveChannelStats();
         });
         outPort.RetrieveWriterFromChannelTask = t;
         inPort.RetrieveReaderFromChannelTask = t;
@@ -187,43 +192,57 @@ public class Shared
         }
     }
 
-    public static string FormatStructuredTextType(StructuredText.Type sst) {
-        return sst switch {
+    public static string FormatStructuredTextType(StructuredText.Type sst)
+    {
+        return sst switch
+        {
             StructuredText.Type.unstructured => "as (structured) plain text",
             StructuredText.Type.json => "as JSON",
             StructuredText.Type.xml => "as XML",
             StructuredText.Type.toml => "as TOML",
             StructuredText.Type.sturdyRef => "as SturdyRef",
-            _ => "is unknown text type"
+            _ => "is unknown text type",
         };
     }
 
     public const int CardWidth = 250;
     public const int CardHeight = 200;
 
-    public static MarkupString MakePortToolTipText(CapnpFbpPortModel port) {
+    public static MarkupString MakePortToolTipText(CapnpFbpPortModel port)
+    {
         var ct = string.IsNullOrWhiteSpace(port.ContentType) ? "?" : port.ContentType;
         var cts = ct.Split('|');
         List<string> cts2 = [];
-        foreach (var ct_ in cts) {
-            if (!ct_.Contains(':')) {
+        foreach (var ct_ in cts)
+        {
+            if (!ct_.Contains(':'))
+            {
                 cts2.Add($"<b>{ct_}</b>");
                 continue;
             }
             var x = ct_.Split(':');
-            switch (x.Length) {
-                case 2: cts2.Add($"<small>{x[0]}:</small><b>{x[1]}</b>"); break;
-                case >= 1: cts2.Add(ct_); break;
+            switch (x.Length)
+            {
+                case 2:
+                    cts2.Add($"<small>{x[0]}:</small><b>{x[1]}</b>");
+                    break;
+                case >= 1:
+                    cts2.Add(ct_);
+                    break;
             }
         }
-        ct = cts2.Aggregate("", (acc, s) => $"{acc}{(acc.Length==0 ? "" : " or ")}<b><em>{s}</em></b>");
-        var ms = port.ThePortType == CapnpFbpPortModel.PortType.In
-            ? $"<b>{port.Name}</b> receives [{ct}]"
-            : $"<b>{port.Name}</b> sends [{ct}]";
-        if (!string.IsNullOrWhiteSpace(port.Description)) {
+        ct = cts2.Aggregate(
+            "",
+            (acc, s) => $"{acc}{(acc.Length == 0 ? "" : " or ")}<b><em>{s}</em></b>"
+        );
+        var ms =
+            port.ThePortType == CapnpFbpPortModel.PortType.In
+                ? $"<b>{port.Name}</b> receives [{ct}]"
+                : $"<b>{port.Name}</b> sends [{ct}]";
+        if (!string.IsNullOrWhiteSpace(port.Description))
+        {
             ms += $"<br/><small>{port.Description}</small>";
         }
         return new MarkupString(ms);
     }
-
 }

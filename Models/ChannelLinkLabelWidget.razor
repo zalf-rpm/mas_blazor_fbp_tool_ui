@@ -1,34 +1,40 @@
-<div class="channel-link-label" style="@(Visibility)">
-    <MudCarousel Class="mud-width-full" 
-                 Style="height:50px;" 
-                 ShowArrows="@true" 
-                 ShowBullets="@false" 
-                 EnableSwipeGesture="@true" 
-                 AutoCycle="@false" 
-                 TData="object">
-        <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default">
-                    <MudChip T="string" Color="Color.Default">113 Msgs</MudChip>
-                </MudCarouselItem>
-        <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default">
-            <MudChip T="string"
-                     Icon="@Icons.Material.Filled.OpenInNew"
-                     OnClick="OpenChannelInfo" 
-                     Color="Color.Default">Channel</MudChip>
-        </MudCarouselItem>
-        @*<MudCarouselItem Transition="@Transition.Slide">
-            <div class="d-flex" style="height:100%">
-                <MudIcon Class="mx-auto my-auto" Icon="@Icons.Custom.Brands.MudBlazor" Color="@Color.Primary" Size="@Size.Large" />
-            </div>
-        </MudCarouselItem>*@
-    </MudCarousel>
+@using Mas.Schema.Fbp
+<div class="channel-link-label" style="@(ShowStats)">
+    <MudText Typo="Typo.caption">
+        @($"{Stats.NoOfWaitingWriters} |{Stats.NoOfIpsInQueue}| S({Stats.TotalNoOfIpsReceived})  {Stats.NoOfWaitingReaders}")
+    </MudText>
+    @* <MudCarousel Class="mud-width-full"  *@
+    @*              Style="height:50px;"  *@
+    @*              ShowArrows="@true"  *@
+    @*              ShowBullets="@false"  *@
+    @*              EnableSwipeGesture="@true"  *@
+    @*              AutoCycle="@false"  *@
+    @*              TData="object"> *@
+    @*     <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default"> *@
+    @*                 <MudChip T="string" Color="Color.Default">113 Msgs</MudChip> *@
+    @*             </MudCarouselItem> *@
+    @*     <MudCarouselItem Transition="@Transition.Slide" Color="@Color.Default"> *@
+    @*         <MudChip T="string" *@
+    @*                  Icon="@Icons.Material.Filled.OpenInNew" *@
+    @*                  OnClick="OpenChannelInfo"  *@
+    @*                  Color="Color.Default">Channel</MudChip> *@
+    @*     </MudCarouselItem> *@
+    @*     @*<MudCarouselItem Transition="@Transition.Slide"> *@
+    @*         <div class="d-flex" style="height:100%"> *@
+    @*             <MudIcon Class="mx-auto my-auto" Icon="@Icons.Custom.Brands.MudBlazor" Color="@Color.Primary" Size="@Size.Large" /> *@
+    @*         </div> *@
+    @*     </MudCarouselItem>*@
+    @* </MudCarousel> *@
 </div>
 
 @code 
 {
     [Parameter] 
     public ChannelLinkLabelModel Label { get; set; }
-    
-    private string Visibility => Label.InteractiveMode ? "" : "display: none";
+
+    private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel.Stats;
+
+    private string ShowStats => Label.ShowStats ? "" : "display: none";
     
     private void OpenChannelInfo()
     {
