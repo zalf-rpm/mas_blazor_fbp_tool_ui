@@ -16,8 +16,8 @@ using Process = Mas.Schema.Fbp.Process;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpComponentModel : NodeModel, IDisposable {
-
+public class CapnpFbpComponentModel : NodeModel, IDisposable
+{
     public CapnpFbpComponentModel(Point position = null)
         : base(position) { }
 
@@ -44,34 +44,49 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable {
 
     public virtual bool RemoteProcessAttached() => false;
 
-    public virtual async Task StartProcess(ConnectionManager conMan) {
-        Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StartProcess!");
+    public virtual async Task StartProcess(ConnectionManager conMan)
+    {
+        Console.WriteLine(
+            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StartProcess!"
+        );
         ProcessStarted = false;
     }
 
-    public virtual async Task StopProcess(ConnectionManager conMan) {
-        Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StopProcess");
+    public virtual async Task StopProcess(ConnectionManager conMan)
+    {
+        Console.WriteLine(
+            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StopProcess"
+        );
         ProcessStarted = false;
     }
 
-    public virtual async Task CancelAndDisposeRemoteComponent() {
-        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::CancelAndDisposeRemoteComponent");
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
-    public virtual void Dispose() {
-        foreach (var baseLinkModel in Links) {
+    protected virtual void Dispose(bool disposing)
+    {
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
+        if (!disposing)
+            return;
+        foreach (var baseLinkModel in Links)
+        {
             Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
         }
-
-        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
-        Task.Run(CancelAndDisposeRemoteComponent);
-        FreeRemoteChannelsAttachedToPorts();
+        DisposeStandardPorts();
     }
 
-    public virtual void FreeRemoteChannelsAttachedToPorts() {
-        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::FreeRemoteChannelsAttachedToPorts");
-        foreach (var port in Ports) {
-            if (port is IDisposable disposable) {
+    private void DisposeStandardPorts()
+    {
+        Console.WriteLine(
+            $"{ProcessName}: CapnpFbpComponentModel::FreeRemoteChannelsAttachedToPorts"
+        );
+        foreach (var port in Ports)
+        {
+            if (port is IDisposable disposable)
+            {
                 disposable.Dispose();
             }
         }

@@ -17,9 +17,7 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel, IDisposable
         Point position = null,
         Size size = null
     )
-        : base(parent, PortType.Out, alignment, position, size)
-    {
-    }
+        : base(parent, PortType.Out, alignment, position, size) { }
 
     public CapnpFbpOutPortModel(
         string id,
@@ -28,9 +26,7 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel, IDisposable
         Point position = null,
         Size size = null
     )
-        : base(id, parent, PortType.Out, alignment, position, size)
-    {
-    }
+        : base(id, parent, PortType.Out, alignment, position, size) { }
 
     public Task RetrieveWriterFromChannelTask { get; set; }
     public SturdyRef WriterSturdyRef { get; set; }
@@ -39,15 +35,26 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel, IDisposable
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
         Console.WriteLine($"Port {Name}: CapnpFbpOutPortModel::Dispose");
         FreeRemoteChannelResources();
     }
 
-    public void FreeRemoteChannelResources()
+    private void FreeRemoteChannelResources()
     {
         Console.WriteLine($"Port {Name}: FreeRemoteChannelResources");
         Writer?.Dispose();
         Writer = null;
-        RetrieveWriterFromChannelTask?.ContinueWith(t => t.Dispose());
+        if (RetrieveWriterFromChannelTask != null)
+            Task.Run(async () =>
+                await RetrieveWriterFromChannelTask.ContinueWith(t => t.Dispose())
+            );
     }
 }

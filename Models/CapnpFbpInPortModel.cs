@@ -100,6 +100,14 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel, IDisposable
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpPortModel::Dispose"
         );

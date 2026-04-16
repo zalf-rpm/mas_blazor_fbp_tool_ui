@@ -284,6 +284,14 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
         foreach (var baseLinkModel in Links)
         {
             Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
@@ -293,7 +301,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         Task.Run(CancelAndDisposeViewTasks);
     }
 
-    public void FreeRemoteChannelsAttachedToPorts()
+    private void FreeRemoteChannelsAttachedToPorts()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
@@ -307,7 +315,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         }
     }
 
-    public async Task CancelAndDisposeViewTasks()
+    private async Task CancelAndDisposeViewTasks()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks"

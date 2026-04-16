@@ -18,7 +18,8 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpIipModel : NodeModel, IDisposable {
+public class CapnpFbpIipModel : NodeModel, IDisposable
+{
     public CapnpFbpIipModel(Point position = null)
         : base(position) { }
 
@@ -37,9 +38,12 @@ public class CapnpFbpIipModel : NodeModel, IDisposable {
     private CancellationTokenSource _cancellationTokenSource;
     private Task _iipTask;
 
-    public async Task SendIip(ConnectionManager conMan) {
-        try {
-            if (Editor.CurrentChannelStarterService == null) {
+    public async Task SendIip(ConnectionManager conMan)
+    {
+        try
+        {
+            if (Editor.CurrentChannelStarterService == null)
+            {
                 return;
             }
 
@@ -50,52 +54,83 @@ public class CapnpFbpIipModel : NodeModel, IDisposable {
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
             Debug.Assert(Links.Count < 2);
-            foreach (var pl in Links) {
-                if (pl is not RememberCapnpPortsLinkModel rcplm) continue;
-                if (rcplm.OutPortModel is not CapnpFbpOutPortModel iippm) continue;
+            foreach (var pl in Links)
+            {
+                if (pl is not RememberCapnpPortsLinkModel rcplm)
+                    continue;
+                if (rcplm.OutPortModel is not CapnpFbpOutPortModel iippm)
+                    continue;
 
-                _iipTask = Task.Run(async () => {
+                _iipTask = Task.Run(
+                    async () =>
+                    {
                         Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: async code for automatically writing IIP: '{Content}' to channel");
+                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: async code for automatically writing IIP: '{Content}' to channel"
+                        );
 
                         var retryCount = 5;
-                        while (retryCount > 0 && iippm.Writer == null) {
+                        while (retryCount > 0 && iippm.Writer == null)
+                        {
                             Console.WriteLine(
-                                $"T{Thread.CurrentThread.ManagedThreadId} IIP: waiting for connected channel. Retrying {retryCount} more times.");
+                                $"T{Thread.CurrentThread.ManagedThreadId} IIP: waiting for connected channel. Retrying {retryCount} more times."
+                            );
                             await Task.Delay(1000);
                             retryCount--;
                         }
-                        if (retryCount == 0) return;
+                        if (retryCount == 0)
+                            return;
 
                         Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: writing IIP: '{Content}' to channel");
-                        await iippm.Writer.Write(new Channel<IP>.Msg {
-                                Value = new IP {
+                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: writing IIP: '{Content}' to channel"
+                        );
+                        await iippm.Writer.Write(
+                            new Channel<IP>.Msg
+                            {
+                                Value = new IP
+                                {
                                     Content = PlainTextOrContentType.Item1
                                         ? Content
-                                        : new StructuredText { TheType = PlainTextOrContentType.Item2, Value = Content }
+                                        : new StructuredText
+                                        {
+                                            TheType = PlainTextOrContentType.Item2,
+                                            Value = Content,
+                                        },
                                 },
                             },
-                            cancelToken);
+                            cancelToken
+                        );
                         Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} IIP: wrote IIP: '{Content}' to channel");
+                            $"T{Environment.CurrentManagedThreadId} IIP: wrote IIP: '{Content}' to channel"
+                        );
                     },
-                    cancelToken);
+                    cancelToken
+                );
             }
 
             RefreshAll();
             RefreshLinks();
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             Console.WriteLine($"T{Environment.CurrentManagedThreadId} IIP: Caught exception: " + e);
         }
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-    public void Dispose() {
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
         Console.WriteLine($"CapnpFbpIipModel::Disposing");
 
         //cancel task
-        if (_cancellationTokenSource != null) {
+        if (_cancellationTokenSource != null)
+        {
             _cancellationTokenSource.Cancel();
         }
 
@@ -105,12 +140,15 @@ public class CapnpFbpIipModel : NodeModel, IDisposable {
         _iipTask?.Dispose();
         _iipTask = null;
 
-        foreach (var baseLinkModel in Links) {
+        foreach (var baseLinkModel in Links)
+        {
             Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
         }
 
-        foreach (var port in Ports) {
-            if (port is IDisposable disposable) {
+        foreach (var port in Ports)
+        {
+            if (port is IDisposable disposable)
+            {
                 disposable.Dispose();
             }
         }

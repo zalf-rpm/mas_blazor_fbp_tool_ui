@@ -263,22 +263,30 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task CancelAndDisposeRemoteComponent()
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (!disposing)
+            return;
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::Dispose"
+        );
+        Task.Run(CancelAndDisposeRemoteComponent);
+        ProcessFactory?.Dispose();
+    }
+
+    private async Task CancelAndDisposeRemoteComponent()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent"
         );
 
         if (Process == null)
-        {
             return;
-        }
 
         //cancel task
         if (_cancellationTokenSource != null)
-        {
             await _cancellationTokenSource.CancelAsync();
-        }
 
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
@@ -297,15 +305,6 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Process = null;
         _processStateTransitionCallback?.Dispose();
         _processStateTransitionCallback = null;
-    }
-
-    public override void Dispose()
-    {
-        Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::Dispose"
-        );
-        base.Dispose();
-        ProcessFactory?.Dispose();
     }
 
     public class ProcessStateTransition(Action<Process.State, Process.State> action)

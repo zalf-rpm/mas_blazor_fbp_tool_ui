@@ -18,12 +18,39 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 {
+    public class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)
+        : Mas.Schema.Fbp.Runnable.IStoppedCallback
+    {
+        public void Dispose()
+        {
+            // Console.WriteLine(
+            //     $"T{Environment.CurrentManagedThreadId} StoppedCallback::Stopped"
+            // );
+        }
+
+        public Task Stopped(CancellationToken cancellationToken_ = default)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
+            );
+            return Task.CompletedTask;
+            //return runnableModel.StopProcess(null);
+        }
+    }
+
     public CapnpFbpRunnableComponentModel(Point position = null)
-        : base(position) { }
+        : base(position)
+    {
+        _stoppedCallback = new StoppedCallback(this);
+    }
 
     public CapnpFbpRunnableComponentModel(string id, Point position = null)
-        : base(id, position) { }
+        : base(id, position)
+    {
+        _stoppedCallback = new StoppedCallback(this);
+    }
 
+    private StoppedCallback _stoppedCallback;
     private CancellationTokenSource _cancellationTokenSource;
     private CapnpFbpInPortModel _configInPort;
     private CapnpFbpOutPortModel _confIipOutPort;
@@ -211,7 +238,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 
             //there is no config port connected, so we setup up a config channel and send the process config on the fly
             Console.WriteLine(
-                $"{ProcessName}: configInPort connected: {configInPortConnected} ConfigString: {ConfigString}"
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: configInPort connected: {configInPortConnected} ConfigString: {ConfigString}"
             );
             if (!configInPortConnected && !string.IsNullOrWhiteSpace(ConfigString))
             {
@@ -220,15 +247,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 );
 
                 //create ports, if this is the first time
-                if (_configInPort == null)
-                {
-                    _configInPort = new CapnpFbpInPortModel(null) { Name = "conf" };
-                }
-
-                if (_confIipOutPort == null)
-                {
-                    _confIipOutPort = new CapnpFbpOutPortModel(null);
-                }
+                _configInPort ??= new CapnpFbpInPortModel(null) { Name = "conf" };
+                _confIipOutPort ??= new CapnpFbpOutPortModel(null);
 
                 //create channel, if not done before
                 if (
@@ -343,7 +363,12 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 return;
             }
 
-            ProcessStarted = await Runnable.Start(_portInfosReaderSr, ProcessName, null);
+            ProcessStarted = await Runnable.Start(
+                _portInfosReaderSr,
+                ProcessName,
+                _stoppedCallback,
+                cancelToken
+            );
             if (!ProcessStarted)
             {
                 return;
@@ -368,9 +393,6 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Wrote port infos to port info channel"
             );
-            //don't close writer to reuse channel for further restarts
-            //close writer
-            //await writer.Close(cancelToken);
             RefreshAll();
             RefreshLinks();
         }
@@ -397,22 +419,32 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task CancelAndDisposeRemoteComponent()
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (!disposing)
+            return;
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::Dispose"
+        );
+        DisposeAdditionalRunnablePorts();
+        Task.Run(CancelAndDisposeRemoteComponent);
+        RunnableFactory?.Dispose();
+        _portInfosWriter?.Dispose();
+    }
+
+    public async Task CancelAndDisposeRemoteComponent()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent"
         );
 
         if (Runnable == null)
-        {
             return;
-        }
 
         //cancel task
         if (_cancellationTokenSource != null)
-        {
             await _cancellationTokenSource.CancelAsync();
-        }
 
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
@@ -434,22 +466,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         Runnable = null;
     }
 
-    public override void Dispose()
+    private void DisposeAdditionalRunnablePorts()
     {
         Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::Dispose"
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts"
         );
-        base.Dispose();
-        RunnableFactory?.Dispose();
-        _portInfosWriter?.Dispose();
-    }
-
-    public override void FreeRemoteChannelsAttachedToPorts()
-    {
-        Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::FreeRemoteChannelsAttachedToPorts"
-        );
-        base.FreeRemoteChannelsAttachedToPorts();
 
         _configInPort?.Dispose();
         _configInPort = null;
