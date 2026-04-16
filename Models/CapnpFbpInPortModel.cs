@@ -13,22 +13,35 @@ namespace BlazorDrawFBP.Models;
 public class StatsCallback(CapnpFbpInPortModel inPortModel)
     : Mas.Schema.Fbp.Channel<IP>.IStatsCallback
 {
+    public string ChannelName { get; set; } = "no-name";
+
     public Task Status(
         Channel<IP>.StatsCallback.Stats stats,
         CancellationToken cancellationToken_ = default
     )
     {
-        foreach (var link in inPortModel.Links)
+        // Console.WriteLine(
+        //     $"T{Environment.CurrentManagedThreadId} {ChannelName} StatsCallback::Status@port {inPortModel.Name}: received status message {stats.Timestamp} Int:{stats.UpdateIntervalInMs} #bws:{stats.NoOfWaitingWriters} #q:{stats.NoOfIpsInQueue} #tot:{stats.TotalNoOfIpsReceived} #brs:{stats.NoOfWaitingReaders}"
+        // );
+        foreach (var link in inPortModel.Parent.Links)
         {
-            if (link is RememberCapnpPortsLinkModel rcplm)
-            {
-                rcplm.Stats = stats;
-            }
+            if (
+                link is not RememberCapnpPortsLinkModel rcplm
+                || rcplm.InPortModel.Channel != inPortModel.Channel
+            )
+                continue;
+            rcplm.Stats = stats;
+            link.Refresh();
         }
         return Task.CompletedTask;
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        // Console.WriteLine(
+        //     $"T{Environment.CurrentManagedThreadId} StatsCallback::Dispose@port {inPortModel.Name}"
+        // );
+    }
 }
 
 public class CapnpFbpInPortModel : CapnpFbpPortModel, IDisposable
@@ -61,48 +74,73 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel, IDisposable
     public IChannel<IP> Channel { get; set; }
     public IStoppable StopChannel { get; set; }
 
-    private readonly StatsCallback _statsCallback;
+    private StatsCallback _statsCallback;
     private Channel<IP>.StatsCallback.IUnregister _unregisterCallback;
 
     public bool ReceivingStats => _statsCallback != null;
 
     public async Task ReceiveChannelStats(uint updateIntervalInMs = 2000)
     {
+        var info = await Channel.Info();
+        _statsCallback.ChannelName = info.Name ?? info.Id;
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} Port {Name}: ReceiveChannelStats Channel.id: {info.Id} updateIntervalInMs: {updateIntervalInMs}"
+        );
         if (_unregisterCallback != null)
             await _unregisterCallback.Unreg();
         _unregisterCallback = await Channel.RegisterStatsCallback(
             _statsCallback,
             updateIntervalInMs
         );
+
+        // Console.WriteLine(
+        //     $"T{Environment.CurrentManagedThreadId} Port {Name}: Unregister callback not null: {_unregisterCallback != null}"
+        // );
     }
 
     public void Dispose()
     {
-        Console.WriteLine($"Port {Name}: CapnpFbpPortModel::Dispose");
-        FreeRemoteChannelResources();
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpPortModel::Dispose"
+        );
+        Task.Run(async () => await FreeRemoteChannelResources());
     }
 
-    public void FreeRemoteChannelResources()
+    private async Task FreeRemoteChannelResources()
     {
-        Console.WriteLine($"Port {Name}: FreeRemoteChannelResources");
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} Port {Name}: FreeRemoteChannelResources"
+        );
         if (StopChannel != null && ThePortType == PortType.In)
         {
-            Console.WriteLine($"Port {Name}: FreeRemoteChannelResources: Stop Channel");
-            Task.Run(async () => await StopChannel.Stop())
-                .ContinueWith(t =>
-                {
-                    Console.WriteLine(
-                        $"Port {Name}: FreeRemoteChannelResources: Stopped and disposing port now."
-                    );
-                    StopChannel.Dispose();
-                    StopChannel = null;
-                });
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} Port {Name}: FreeRemoteChannelResources: Stop Channel"
+            );
+            await StopChannel.Stop();
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} Port {Name}: FreeRemoteChannelResources: Stopped and disposing port now."
+            );
+            StopChannel.Dispose();
+            StopChannel = null;
+        }
+
+        if (_unregisterCallback != null)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} Port {Name}: FreeRemoteChannelResources: unregistering StatsCallback"
+            );
+            var success = await _unregisterCallback.Unreg();
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} Port {Name}: FreeRemoteChannelResources: unregistered StatsCallback successfully? {success}."
+            );
+            _statsCallback.Dispose();
         }
 
         Channel?.Dispose();
         Channel = null;
         Reader?.Dispose();
         Reader = null;
-        RetrieveReaderFromChannelTask?.ContinueWith(t => t.Dispose());
+        if (RetrieveReaderFromChannelTask != null)
+            await RetrieveReaderFromChannelTask.ContinueWith(t => t.Dispose());
     }
 }

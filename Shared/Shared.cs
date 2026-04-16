@@ -16,6 +16,7 @@ using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components;
+using MudBlazor.Extensions;
 using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Shared;
@@ -126,8 +127,9 @@ public class Shared
             inPort.RetrieveReaderFromChannelTask = null;
             inPort.Parent?.Refresh();
 
+            // var ms = Random.Shared.Next(2) * 1000;
             // and receive status information from channel
-            await inPort.ReceiveChannelStats();
+            await inPort.ReceiveChannelStats(2000); //(uint)ms);
         });
         outPort.RetrieveWriterFromChannelTask = t;
         inPort.RetrieveReaderFromChannelTask = t;

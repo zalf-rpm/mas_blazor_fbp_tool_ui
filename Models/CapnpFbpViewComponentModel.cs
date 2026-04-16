@@ -42,26 +42,35 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
     public bool AppendMode { get; set; } = true;
 
-    public void ResetViewContent() {
+    public void ResetViewContent()
+    {
         _viewContent = new MarkupString();
         Refresh();
     }
 
-    public MarkupString ViewContent {
+    public MarkupString ViewContent
+    {
         get => _viewContent;
         set =>
             _viewContent = AppendMode
-                ? new MarkupString(_viewContent.Value
-                                   + (string.IsNullOrWhiteSpace(_viewContent.Value) ? "" : "<br>")
-                                   + value.Value)
+                ? new MarkupString(
+                    _viewContent.Value
+                        + (string.IsNullOrWhiteSpace(_viewContent.Value) ? "" : "<br>")
+                        + value.Value
+                )
                 : value;
     }
 
-    public async Task StartProcess(ConnectionManager conMan) {
-        try {
-            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess");
+    public async Task StartProcess(ConnectionManager conMan)
+    {
+        try
+        {
+            Console.WriteLine(
+                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess"
+            );
 
-            if (Editor.CurrentChannelStarterService == null || ProcessStarted) {
+            if (Editor.CurrentChannelStarterService == null || ProcessStarted)
+            {
                 return;
             }
 
@@ -71,47 +80,65 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
             Channel<IP>.IReader reader = null;
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            foreach (var pl in Links) {
-                if (pl is not RememberCapnpPortsLinkModel {
-                        InPortModel: CapnpFbpInPortModel inPort,
-                        OutPortModel: CapnpFbpOutPortModel outPort } rcplm) {
+            foreach (var pl in Links)
+            {
+                if (
+                    pl
+                    is not RememberCapnpPortsLinkModel
+                    {
+                        InPortModel: { } inPort,
+                        OutPortModel: { } outPort
+                    } rcplm
+                )
+                {
                     continue;
                 }
 
                 // deal with IN port
                 // the IN port (link) is not associated with a channel yet -> create channel
-                if (
-                    inPort.ReaderSturdyRef == null
-                    && inPort.RetrieveReaderFromChannelTask == null
-                ) {
-                    if (inPort.Parent is not CapnpFbpViewComponentModel m) {
+                if (inPort.ReaderSturdyRef == null && inPort.RetrieveReaderFromChannelTask == null)
+                {
+                    if (inPort.Parent is not CapnpFbpViewComponentModel m)
                         continue;
-                    }
 
                     Console.WriteLine(
-                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel");
-                    await Shared.Shared.CreateChannel(conMan,
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
+                    );
+                    await Shared.Shared.CreateChannel(
+                        conMan,
                         Editor.CurrentChannelStarterService,
                         outPort,
-                        inPort);
+                        inPort
+                    );
                 }
 
-                if (inPort.Parent == this) {
+                if (inPort.Parent == this)
+                {
                     reader = Proxy.Share(inPort.Reader);
                 }
 
                 rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
 
                 // deal with OUT port
-                if (outPort.RetrieveWriterFromChannelTask != null) {
-                    Console.WriteLine($"{ProcessName}: awaiting out port '{outPort.Name}' ChannelTask");
+                if (outPort.RetrieveWriterFromChannelTask != null)
+                {
+                    Console.WriteLine(
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting out port '{outPort.Name}' ChannelTask"
+                    );
                     await outPort.RetrieveWriterFromChannelTask;
-                } else {
-                    if (outPort.WriterSturdyRef == null) {
-                        Console.WriteLine($"{ProcessName}: getting new writer for out port '{outPort.Name}' from channel");
+                }
+                else
+                {
+                    if (outPort.WriterSturdyRef == null)
+                    {
+                        Console.WriteLine(
+                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: getting new writer for out port '{outPort.Name}' from channel"
+                        );
                         (outPort.Writer, outPort.WriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(inPort.Channel,
-                                cancelToken);
+                            await Shared.Shared.GetNewWriterFromChannel(
+                                inPort.Channel,
+                                cancelToken
+                            );
                         outPort.Parent.Refresh();
                     }
                 }
@@ -120,50 +147,74 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
             }
 
             //run loop to receive messages on in-port
-            ViewMsgReceiveTask = Task.Run(async () => {
+            ViewMsgReceiveTask = Task.Run(
+                async () =>
+                {
                     Console.WriteLine(
-                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: starting view's receive loop");
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: starting view's receive loop"
+                    );
                     var leave = false;
-                    while (!leave && reader != null) {
-                        try {
+                    while (!leave && reader != null)
+                    {
+                        try
+                        {
                             Console.WriteLine(
-                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel");
+                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel"
+                            );
                             var msg = await reader.Read(cancelToken);
                             // Console.WriteLine(
                             //     $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read msg: {msg}"
                             // );
-                            switch (msg.which) {
+                            switch (msg.which)
+                            {
                                 case Channel<IP>.Msg.WHICH.Done:
                                     Console.WriteLine(
-                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received done msg");
+                                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: received done msg"
+                                    );
                                     leave = true;
                                     break;
                                 case Channel<IP>.Msg.WHICH.Value:
-                                    // Console.WriteLine($"{ProcessName}: received value msg");
-                                    if (msg.Value.Content is DeserializerState ds) {
-                                        try {
-                                            if (CapnpSerializable.Create<StructuredText>(ds) is { } st) {
+                                    // Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: received value msg");
+                                    if (msg.Value.Content is DeserializerState ds)
+                                    {
+                                        try
+                                        {
+                                            if (
+                                                CapnpSerializable.Create<StructuredText>(ds) is
+                                                { } st
+                                            )
+                                            {
                                                 var str = st.Value;
                                                 str = str.ReplaceLineEndings("<br>");
                                                 var stStr =
                                                     $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
                                                 Console.WriteLine(
-                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
+                                                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
+                                                );
                                                 ViewContent = new MarkupString(stStr);
                                             }
-                                        } catch (DeserializationException) {
+                                        }
+                                        catch (DeserializationException)
+                                        {
                                             Console.WriteLine(
-                                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no StructuredText.");
-                                            try {
-                                                if (CapnpSerializable.Create<string>(ds) is { } str) {
+                                                $"T{Environment.CurrentManagedThreadId} {ProcessName}: Message content was no StructuredText."
+                                            );
+                                            try
+                                            {
+                                                if (CapnpSerializable.Create<string>(ds) is { } str)
+                                                {
                                                     str = str.ReplaceLineEndings("<br>");
                                                     Console.WriteLine(
-                                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: read: '{str}' from channel");
+                                                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
+                                                    );
                                                     ViewContent = new MarkupString(str);
                                                 }
-                                            } catch (DeserializationException) {
+                                            }
+                                            catch (DeserializationException)
+                                            {
                                                 Console.WriteLine(
-                                                    $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: Message content was no string.");
+                                                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: Message content was no string."
+                                                );
                                             }
                                         }
 
@@ -173,15 +224,20 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                                     break;
                                 case Channel<IP>.Msg.WHICH.NoMsg:
                                     Console.WriteLine(
-                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received noMsg msg");
+                                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: received noMsg msg"
+                                    );
                                     break;
                                 case Channel<IP>.Msg.WHICH.undefined:
                                     Console.WriteLine(
-                                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: received undefined msg");
+                                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: received undefined msg"
+                                    );
                                     break;
-                                default: throw new ArgumentOutOfRangeException();
+                                default:
+                                    throw new ArgumentOutOfRangeException();
                             }
-                        } catch (TaskCanceledException tce) {
+                        }
+                        catch (TaskCanceledException tce)
+                        {
                             await reader.Close();
                             leave = true;
                         }
@@ -189,32 +245,47 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
 
                     reader?.Dispose();
                     Console.WriteLine(
-                        $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: left view's receive loop");
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: left view's receive loop"
+                    );
                     ProcessStarted = false;
                 },
-                cancelToken);
+                cancelToken
+            );
 
             ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
             RefreshAll();
             RefreshLinks();
-        } catch (Exception e) {
-            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: " + e);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
+                    + e
+            );
         }
     }
 
-    public async Task StopProcess(ConnectionManager conMan) {
-        Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: stop process");
-        try {
+    public async Task StopProcess(ConnectionManager conMan)
+    {
+        Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: stop process");
+        try
+        {
             await CancelAndDisposeViewTasks();
             ProcessStarted = false;
-        } catch (Exception e) {
-            Console.WriteLine($"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: " + e);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(
+                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
+                    + e
+            );
         }
     }
 
-
-    public void Dispose() {
-        foreach (var baseLinkModel in Links) {
+    public void Dispose()
+    {
+        foreach (var baseLinkModel in Links)
+        {
             Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
         }
 
@@ -222,34 +293,43 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         Task.Run(CancelAndDisposeViewTasks);
     }
 
-    public void FreeRemoteChannelsAttachedToPorts() {
+    public void FreeRemoteChannelsAttachedToPorts()
+    {
         Console.WriteLine(
-            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts");
-        foreach (var port in Ports) {
-            if (port is IDisposable disposable) {
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
+        );
+        foreach (var port in Ports)
+        {
+            if (port is IDisposable disposable)
+            {
                 disposable.Dispose();
             }
         }
     }
 
-    public async Task CancelAndDisposeViewTasks() {
+    public async Task CancelAndDisposeViewTasks()
+    {
         Console.WriteLine(
-            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks");
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::CancelAndDisposeViewTasks"
+        );
         //cancel task
-        if (_cancellationTokenSource != null) {
+        if (_cancellationTokenSource != null)
+        {
             await _cancellationTokenSource.CancelAsync();
         }
 
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
         //dispose the IIP tasks
-        foreach (var t in _iipTasks) {
+        foreach (var t in _iipTasks)
+        {
             t.ContinueWith(t => t.Dispose());
         }
 
         _iipTasks.Clear();
         //dispose the actual view task
-        ViewMsgReceiveTask?.ContinueWith(t => {
+        ViewMsgReceiveTask?.ContinueWith(t =>
+        {
             t.Dispose();
             ViewMsgReceiveTask = null;
         });
