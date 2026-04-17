@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Pages;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
@@ -16,13 +17,15 @@ using Process = Mas.Schema.Fbp.Process;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpComponentModel : NodeModel, IDisposable
+public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 {
     public CapnpFbpComponentModel(Point position = null)
         : base(position) { }
 
     public CapnpFbpComponentModel(string id, Point position = null)
         : base(id, position) { }
+
+    // public BlazorDispatcher Dispatcher { get; set; }
 
     public Editor Editor { get; set; }
     public string ComponentId { get; set; }
@@ -47,7 +50,7 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public virtual async Task StartProcess(ConnectionManager conMan)
     {
         Console.WriteLine(
-            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StartProcess!"
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StartProcess!"
         );
         ProcessStarted = false;
     }
@@ -55,40 +58,35 @@ public class CapnpFbpComponentModel : NodeModel, IDisposable
     public virtual async Task StopProcess(ConnectionManager conMan)
     {
         Console.WriteLine(
-            $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: override StopProcess"
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StopProcess"
         );
         ProcessStarted = false;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Dispose(true);
+        await DisposeAsyncCore();
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    protected virtual async ValueTask DisposeAsyncCore()
     {
-        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::Dispose");
-        if (!disposing)
-            return;
-        foreach (var baseLinkModel in Links)
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeAsyncCore");
+        foreach (var blm in new List<BaseLinkModel>(Links))
         {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
+            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
+            Editor.Diagram.Links.Remove(blm);
         }
-        DisposeStandardPorts();
+        await DisposeStandardPorts();
     }
 
-    private void DisposeStandardPorts()
+    private async ValueTask DisposeStandardPorts()
     {
-        Console.WriteLine(
-            $"{ProcessName}: CapnpFbpComponentModel::FreeRemoteChannelsAttachedToPorts"
-        );
+        Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeStandardPorts");
         foreach (var port in Ports)
         {
-            if (port is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            if (port is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync();
         }
     }
 }

@@ -9,6 +9,7 @@
 @using Mas.Schema.Common
 @inject IDialogService DialogService
 @inject ConnectionManager ConMan
+@* @inject BlazorDispatcher Dispatcher *@
 
 <div>
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
@@ -80,7 +81,7 @@
 
 @code
 {
-    [Parameter] public CapnpFbpIipModel Node { get; set; }
+    [Parameter] public CapnpFbpIipComponentModel Node { get; set; }
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: 1px";
@@ -90,6 +91,11 @@
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+
+    protected override void OnInitialized()
+    {
+        // Node.Dispatcher = Dispatcher;
+    }
 
     private void DisableZoom()
     {

@@ -1,8 +1,10 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
 
+@using System.Threading
 @using BlazorDrawFBP.Renderers
 @using Mas.Infrastructure.BlazorComponents
 @inject IDialogService DialogService
+@* @inject BlazorDispatcher Dispatcher *@
 
 <div>
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
@@ -13,7 +15,7 @@
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
                                StartIcon="@(ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
-                               OnClick="async (e) => { await StartProcess(!ProcessStarted); }">
+                               OnClick="@(async (e) => await StartProcess(!ProcessStarted))">
                         @(ProcessStarted ? "Stop" : "Start")
                     </MudButton>
                 </MudPaper>
@@ -99,6 +101,11 @@
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+
+    protected override void OnInitialized()
+    {
+        // Node.Dispatcher = Dispatcher;
+    }
 
     async void ShowDetails(MouseEventArgs e)
     {

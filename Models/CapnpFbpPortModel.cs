@@ -9,7 +9,7 @@ using Mas.Schema.Service;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpPortModel : PortModel
+public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 {
     public enum PortType
     {
@@ -77,4 +77,12 @@ public class CapnpFbpPortModel : PortModel
         // Only link Ins with Outs
         return ThePortType != otherPort.ThePortType;
     }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore() { }
 }

@@ -21,7 +21,7 @@ using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Shared;
 
-public class Shared
+public static class Shared
 {
     public static readonly ulong ChannelStarterInterfaceId =
         typeof(IStartChannelsService).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0;
@@ -63,7 +63,7 @@ public class Shared
         {
             CapnpFbpComponentModel m => m.ProcessName,
             CapnpFbpViewComponentModel m2 => m2.ProcessName,
-            CapnpFbpIipModel m2 => m2.Id,
+            CapnpFbpIipComponentModel m2 => m2.Id,
             _ => "unknown_process",
         };
     }
@@ -143,7 +143,7 @@ public class Shared
             foreach (var p in sourceNode.Ports)
             {
                 if (
-                    p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out } ocp
+                    p is CapnpFbpOutPortModel ocp
                     && ocp.Name == baseLinkModel.Labels.First().Content
                 )
                 {
@@ -151,7 +151,7 @@ public class Shared
                 }
             }
 
-            if (sourceNode is CapnpFbpIipModel { Links.Count: 1 } iipModel)
+            if (sourceNode is CapnpFbpIipComponentModel { Links.Count: 1 } iipModel)
             {
                 foreach (var p in iipModel.Ports)
                 {

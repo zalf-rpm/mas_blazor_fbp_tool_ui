@@ -18,26 +18,6 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 {
-    public class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)
-        : Mas.Schema.Fbp.Runnable.IStoppedCallback
-    {
-        public void Dispose()
-        {
-            // Console.WriteLine(
-            //     $"T{Environment.CurrentManagedThreadId} StoppedCallback::Stopped"
-            // );
-        }
-
-        public Task Stopped(CancellationToken cancellationToken_ = default)
-        {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
-            );
-            return Task.CompletedTask;
-            //return runnableModel.StopProcess(null);
-        }
-    }
-
     public CapnpFbpRunnableComponentModel(Point position = null)
         : base(position)
     {
@@ -419,21 +399,19 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
     }
 
-    protected override void Dispose(bool disposing)
+    protected override async ValueTask DisposeAsyncCore()
     {
-        base.Dispose(disposing);
-        if (!disposing)
-            return;
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::Dispose"
         );
-        DisposeAdditionalRunnablePorts();
-        Task.Run(CancelAndDisposeRemoteComponent);
+        await base.DisposeAsyncCore();
+        await DisposeAdditionalRunnablePorts();
+        await CancelAndDisposeRemoteComponent();
         RunnableFactory?.Dispose();
         _portInfosWriter?.Dispose();
     }
 
-    public async Task CancelAndDisposeRemoteComponent()
+    private async Task CancelAndDisposeRemoteComponent()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent"
@@ -466,15 +444,32 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         Runnable = null;
     }
 
-    private void DisposeAdditionalRunnablePorts()
+    private async Task DisposeAdditionalRunnablePorts()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts"
         );
 
-        _configInPort?.Dispose();
+        if (_configInPort != null)
+            await _configInPort.DisposeAsync();
         _configInPort = null;
-        _confIipOutPort?.Dispose();
+        if (_confIipOutPort != null)
+            await _confIipOutPort.DisposeAsync();
         _confIipOutPort = null;
+    }
+
+    private class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)
+        : Mas.Schema.Fbp.Runnable.IStoppedCallback
+    {
+        public void Dispose() { }
+
+        public Task Stopped(CancellationToken cancellationToken = default)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
+            );
+            return Task.CompletedTask;
+            //return runnableModel.StopProcess(null);
+        }
     }
 }

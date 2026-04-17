@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Pages;
 using Capnp;
 using Capnp.Rpc;
@@ -18,10 +19,12 @@ namespace BlazorDrawFBP.Models;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 
-public class CapnpFbpIipModel : NodeModel, IDisposable
+public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 {
-    public CapnpFbpIipModel(Point position = null)
+    public CapnpFbpIipComponentModel(Point position = null)
         : base(position) { }
+
+    // public BlazorDispatcher Dispatcher { get; set; }
 
     public Editor Editor { get; set; }
 
@@ -58,21 +61,21 @@ public class CapnpFbpIipModel : NodeModel, IDisposable
             {
                 if (pl is not RememberCapnpPortsLinkModel rcplm)
                     continue;
-                if (rcplm.OutPortModel is not CapnpFbpOutPortModel iippm)
+                if (rcplm.OutPortModel is not { } iippm)
                     continue;
 
                 _iipTask = Task.Run(
                     async () =>
                     {
                         Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: async code for automatically writing IIP: '{Content}' to channel"
+                            $"T{Environment.CurrentManagedThreadId} IIP: async code for automatically writing IIP: '{Content}' to channel"
                         );
 
                         var retryCount = 5;
                         while (retryCount > 0 && iippm.Writer == null)
                         {
                             Console.WriteLine(
-                                $"T{Thread.CurrentThread.ManagedThreadId} IIP: waiting for connected channel. Retrying {retryCount} more times."
+                                $"T{Environment.CurrentManagedThreadId} IIP: waiting for connected channel. Retrying {retryCount} more times."
                             );
                             await Task.Delay(1000);
                             retryCount--;
@@ -81,7 +84,11 @@ public class CapnpFbpIipModel : NodeModel, IDisposable
                             return;
 
                         Console.WriteLine(
-                            $"T{Thread.CurrentThread.ManagedThreadId} IIP: writing IIP: '{Content}' to channel"
+                            $"T{Environment.CurrentManagedThreadId} IIP: writing IIP: '{Content}' to channel"
+                        );
+                        Debug.Assert(
+                            iippm.Writer != null,
+                            "Writer should be non null here else the retries have failed."
                         );
                         await iippm.Writer.Write(
                             new Channel<IP>.Msg
@@ -116,41 +123,35 @@ public class CapnpFbpIipModel : NodeModel, IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Dispose(true);
+        await DisposeAsyncCore();
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
+    protected virtual async ValueTask DisposeAsyncCore()
     {
-        if (!disposing)
-            return;
         Console.WriteLine($"CapnpFbpIipModel::Disposing");
 
         //cancel task
         if (_cancellationTokenSource != null)
-        {
-            _cancellationTokenSource.Cancel();
-        }
-
+            await _cancellationTokenSource.CancelAsync();
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
 
         _iipTask?.Dispose();
         _iipTask = null;
 
-        foreach (var baseLinkModel in Links)
+        foreach (var blm in new List<BaseLinkModel>(Links))
         {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
+            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
+            Editor.Diagram.Links.Remove(blm);
         }
 
         foreach (var port in Ports)
         {
-            if (port is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            if (port is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync();
         }
     }
 }

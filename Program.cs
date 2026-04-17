@@ -1,13 +1,13 @@
 using BlazorDrawFBP.Shared;
+using Blazored.LocalStorage;
+using Brism;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
-using MudBlazor.Services;
-using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Brism;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,10 +19,13 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
 builder.Services.AddSingleton<Mas.Infrastructure.Common.ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
+
 //builder.Services.AddTransient<Allegiance.Blazor.Highcharts.Services.IChartService, Allegiance.Blazor.Highcharts.Services.ChartService>();
 //builder.Services.AddTransient<MonicaBlazorUI.Services.MonicaIO>();
 // builder.Services.AddTransient<MonicaBlazorUI.Services.RunMonica>();
 builder.Services.AddBrism();
+
+// builder.Services.AddScoped<BlazorDispatcher>();
 
 var app = builder.Build();
 
@@ -44,4 +47,3 @@ app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
 app.Run();
-

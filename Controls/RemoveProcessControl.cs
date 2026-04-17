@@ -36,10 +36,10 @@ public class RemoveProcessControl : ExecutableControl
             return;
         }
 
-        DeleteModel(diagram, model);
+        await DeleteModel(diagram, model);
     }
 
-    private static void DeleteModel(Diagram diagram, Model model)
+    private static async ValueTask DeleteModel(Diagram diagram, Model model)
     {
         switch (model)
         {
@@ -47,19 +47,8 @@ public class RemoveProcessControl : ExecutableControl
                 diagram.Groups.Delete(group);
                 break;
             case NodeModel nodeModel:
-                switch (nodeModel)
-                {
-                    case CapnpFbpComponentModel cfcm:
-                        cfcm.Dispose();
-                        break;
-                    case CapnpFbpIipModel iipm:
-                        iipm.Dispose();
-                        break;
-                    case CapnpFbpViewComponentModel viewm:
-                        viewm.Dispose();
-                        break;
-                }
-
+                if (nodeModel is IAsyncDisposable asyncDisposable)
+                    await asyncDisposable.DisposeAsync();
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
@@ -71,9 +60,7 @@ public class RemoveProcessControl : ExecutableControl
     private static async ValueTask<bool> ShouldDeleteModel(Diagram diagram, Model model)
     {
         if (model.Locked)
-        {
             return false;
-        }
 
         bool flag;
         switch (model)

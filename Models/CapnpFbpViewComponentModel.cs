@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Pages;
 using Capnp;
 using Capnp.Rpc;
@@ -16,11 +17,9 @@ using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpComponentModel
+public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 {
-    private readonly List<Task> _iipTasks = [];
     private CancellationTokenSource _cancellationTokenSource;
-
     private MarkupString _viewContent;
 
     public CapnpFbpViewComponentModel(Point position = null)
@@ -29,13 +28,15 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
     public CapnpFbpViewComponentModel(string id, Point position = null)
         : base(id, position) { }
 
+    // public BlazorDispatcher Dispatcher { get; set; }
+
     public Editor Editor { get; set; }
     public string ComponentId { get; set; }
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
 
     public bool ProcessStarted { get; protected set; }
-    public Task ViewMsgReceiveTask { get; set; }
+    private Task ViewMsgReceiveTask { get; set; }
 
     public int DisplayWidthPx { get; set; } = 100;
     public int DisplayHeightPx { get; set; } = 140;
@@ -159,7 +160,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
                         try
                         {
                             Console.WriteLine(
-                                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: reading from channel"
+                                $"T{Environment.CurrentManagedThreadId} {ProcessName}: reading from channel"
                             );
                             var msg = await reader.Read(cancelToken);
                             // Console.WriteLine(
@@ -276,42 +277,40 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         catch (Exception e)
         {
             Console.WriteLine(
-                $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Dispose(true);
+        await DisposeAsyncCore();
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposing)
-            return;
-        foreach (var baseLinkModel in Links)
-        {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, baseLinkModel);
-        }
+    public Action SendStateHasChanged { get; set; }
 
-        FreeRemoteChannelsAttachedToPorts();
-        Task.Run(CancelAndDisposeViewTasks);
+    protected virtual async ValueTask DisposeAsyncCore()
+    {
+        foreach (var blm in new List<BaseLinkModel>(Links))
+        {
+            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
+            Editor.Diagram.Links.Remove(blm);
+        }
+        await FreeRemoteChannelsAttachedToPorts();
+        await CancelAndDisposeViewTasks();
     }
 
-    private void FreeRemoteChannelsAttachedToPorts()
+    private async Task FreeRemoteChannelsAttachedToPorts()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
         );
         foreach (var port in Ports)
         {
-            if (port is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            if (port is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync();
         }
     }
 
@@ -322,24 +321,16 @@ public class CapnpFbpViewComponentModel : NodeModel, IDisposable // : CapnpFbpCo
         );
         //cancel task
         if (_cancellationTokenSource != null)
-        {
             await _cancellationTokenSource.CancelAsync();
-        }
-
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
-        //dispose the IIP tasks
-        foreach (var t in _iipTasks)
-        {
-            t.ContinueWith(t => t.Dispose());
-        }
 
-        _iipTasks.Clear();
-        //dispose the actual view task
-        ViewMsgReceiveTask?.ContinueWith(t =>
-        {
-            t.Dispose();
-            ViewMsgReceiveTask = null;
-        });
+        // dispose the actual view task
+        if (ViewMsgReceiveTask != null)
+            await ViewMsgReceiveTask.ContinueWith(t =>
+            {
+                t.Dispose();
+                ViewMsgReceiveTask = null;
+            });
     }
 }

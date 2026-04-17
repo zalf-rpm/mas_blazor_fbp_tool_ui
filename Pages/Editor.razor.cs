@@ -308,7 +308,7 @@ public partial class Editor
         Diagram.RegisterComponent<CapnpFbpProcessComponentModel, CapnpFbpComponentWidget>();
         // Diagram.RegisterComponent<CapnpFbpComponentContentModel, CapnpFbpComponentContentWidget>();
         Diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
-        Diagram.RegisterComponent<CapnpFbpIipModel, CapnpFbpIipWidget>();
+        Diagram.RegisterComponent<CapnpFbpIipComponentModel, CapnpFbpIipComponentWidget>();
         Diagram.RegisterComponent<UpdatePortNameNode, UpdatePortNameNodeWidget>();
         Diagram.RegisterComponent<PortOptionsNode, PortOptionsNodeWidget>();
         Diagram.RegisterComponent<NodeInformationControl, NodeInformationControlWidget>();
@@ -758,7 +758,7 @@ public partial class Editor
                 OutPortModel = scp,
                 InPortModel = tcp,
             };
-            if (sourceNode is not CapnpFbpIipModel)
+            if (sourceNode is not CapnpFbpIipComponentModel)
                 l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
             l.Labels.Add(cllm);
@@ -1014,7 +1014,7 @@ public partial class Editor
 
                     break;
                 }
-                case CapnpFbpIipModel iipNode:
+                case CapnpFbpIipComponentModel iipNode:
                 {
                     var iipNodeId = ShortIipId(iipNode.Id, iipNode.Content);
                     if (asMermaid)
@@ -1089,7 +1089,7 @@ public partial class Editor
 
                 switch (outCapnpPort)
                 {
-                    case { Parent: CapnpFbpIipModel outIipModel }
+                    case { Parent: CapnpFbpIipComponentModel outIipModel }
                         when inCapnpPort is { Parent: CapnpFbpComponentModel inCapnpModel }:
                     {
                         var outIipNodeId = ShortIipId(outIipModel.Id, outIipModel.Content);
@@ -1190,7 +1190,7 @@ public partial class Editor
 
                         break;
                     }
-                    case { Parent: CapnpFbpIipModel outIipModel2 }
+                    case { Parent: CapnpFbpIipComponentModel outIipModel2 }
                         when inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel }:
                     {
                         var outIipNodeId = ShortIipId(outIipModel2.Id, outIipModel2.Content);
@@ -1329,7 +1329,7 @@ public partial class Editor
                     case CapnpFbpViewComponentModel viewNode:
                         await viewNode.StartProcess(ConMan);
                         break;
-                    case CapnpFbpIipModel iipNode:
+                    case CapnpFbpIipComponentModel iipNode:
                         await iipNode.SendIip(ConMan);
                         break;
                     default:
@@ -1552,7 +1552,7 @@ public partial class Editor
             case Component.ComponentType.iip:
             {
                 var compId = component.Info.Id;
-                var node = new CapnpFbpIipModel(new Point(position.X, position.Y))
+                var node = new CapnpFbpIipComponentModel(new Point(position.X, position.Y))
                 {
                     Editor = this,
                     ComponentId = compId,

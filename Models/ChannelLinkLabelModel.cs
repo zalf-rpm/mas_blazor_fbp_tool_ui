@@ -43,7 +43,6 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
 
     public void Dispose()
     {
-        Console.WriteLine("bla");
-        // TODO release managed resources here
+        Console.WriteLine("ChannelLinkLabelModel::Dispose()");
     }
 }

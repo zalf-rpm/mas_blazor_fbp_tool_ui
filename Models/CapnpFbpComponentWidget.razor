@@ -6,6 +6,7 @@
 @using Newtonsoft.Json.Linq
 @inject ConnectionManager ConMan
 @inject IDialogService DialogService
+@* @inject BlazorDispatcher Dispatcher *@
 
 <div>
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
@@ -283,6 +284,11 @@
     private bool ParallelOn {
         get => Node.InParallelCount > 1;
         set => Node.InParallelCount = value ? 2 : 1;
+    }
+
+    protected override void OnInitialized()
+    {
+        // Node.Dispatcher = Dispatcher;
     }
 
     private async Task StartProcess(bool start) {

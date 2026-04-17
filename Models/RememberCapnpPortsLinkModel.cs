@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Anchors;
@@ -6,7 +7,7 @@ using Mas.Schema.Fbp;
 
 namespace BlazorDrawFBP.Models;
 
-public class RememberCapnpPortsLinkModel : LinkModel
+public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
 {
     // public RememberCapnpPortsLinkModel(Anchor source, Anchor target)
     //     : base(source, target) { }
@@ -31,4 +32,9 @@ public class RememberCapnpPortsLinkModel : LinkModel
     public CapnpFbpInPortModel InPortModel { get; set; }
 
     public Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats { get; set; } = new();
+
+    public void Dispose()
+    {
+        Console.WriteLine("RememberCapnpPortsLinkModel::Dispose()");
+    }
 }

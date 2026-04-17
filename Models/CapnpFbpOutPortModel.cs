@@ -9,7 +9,7 @@ using Mas.Schema.Service;
 
 namespace BlazorDrawFBP.Models;
 
-public class CapnpFbpOutPortModel : CapnpFbpPortModel, IDisposable
+public class CapnpFbpOutPortModel : CapnpFbpPortModel
 {
     public CapnpFbpOutPortModel(
         NodeModel parent,
@@ -33,28 +33,12 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel, IDisposable
 
     public Channel<IP>.IWriter Writer { get; set; }
 
-    public void Dispose()
+    protected override async ValueTask DisposeAsyncCore()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposing)
-            return;
-        Console.WriteLine($"Port {Name}: CapnpFbpOutPortModel::Dispose");
-        FreeRemoteChannelResources();
-    }
-
-    private void FreeRemoteChannelResources()
-    {
-        Console.WriteLine($"Port {Name}: FreeRemoteChannelResources");
+        Console.WriteLine($"Port {Name}: CapnpFbpOutPortModel::DisposeAsyncCore");
+        if (RetrieveWriterFromChannelTask != null)
+            await RetrieveWriterFromChannelTask.ContinueWith(t => t.Dispose());
         Writer?.Dispose();
         Writer = null;
-        if (RetrieveWriterFromChannelTask != null)
-            Task.Run(async () =>
-                await RetrieveWriterFromChannelTask.ContinueWith(t => t.Dispose())
-            );
     }
 }
