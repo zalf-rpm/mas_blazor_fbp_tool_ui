@@ -289,15 +289,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 
-    public Action SendStateHasChanged { get; set; }
-
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        foreach (var blm in new List<BaseLinkModel>(Links))
-        {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
-            Editor.Diagram.Links.Remove(blm);
-        }
+        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
         await FreeRemoteChannelsAttachedToPorts();
         await CancelAndDisposeViewTasks();
     }

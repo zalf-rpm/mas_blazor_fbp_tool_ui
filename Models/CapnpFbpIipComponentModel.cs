@@ -142,11 +142,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         _iipTask?.Dispose();
         _iipTask = null;
 
-        foreach (var blm in new List<BaseLinkModel>(Links))
-        {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
-            Editor.Diagram.Links.Remove(blm);
-        }
+        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
 
         foreach (var port in Ports)
         {

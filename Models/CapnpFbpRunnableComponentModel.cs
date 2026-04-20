@@ -10,6 +10,7 @@ using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
+using Mas.Schema.Service;
 using Newtonsoft.Json.Linq;
 using Tomlyn;
 using Process = Mas.Schema.Fbp.Process;
@@ -30,12 +31,13 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         _stoppedCallback = new StoppedCallback(this);
     }
 
-    private StoppedCallback _stoppedCallback;
+    private readonly StoppedCallback _stoppedCallback;
     private CancellationTokenSource _cancellationTokenSource;
-    private CapnpFbpInPortModel _configInPort;
-    private CapnpFbpOutPortModel _confIipOutPort;
+    private CapnpFbpInPortModel _embeddedConfigInPort;
+    private CapnpFbpOutPortModel _embeddedConfIipOutPort;
     private SturdyRef _portInfosReaderSr;
     private Channel<PortInfos>.IWriter _portInfosWriter;
+    private IStoppable _stopPortInfosChannel { get; set; }
 
     public IRunnable Runnable { get; set; }
 
@@ -144,8 +146,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     pl
                     is not RememberCapnpPortsLinkModel
                     {
-                        InPortModel: CapnpFbpInPortModel inPort,
-                        OutPortModel: CapnpFbpOutPortModel outPort
+                        InPortModel: { } inPort,
+                        OutPortModel: { } outPort
                     } rcplm
                 )
                 {
@@ -227,70 +229,70 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 );
 
                 //create ports, if this is the first time
-                _configInPort ??= new CapnpFbpInPortModel(null) { Name = "conf" };
-                _confIipOutPort ??= new CapnpFbpOutPortModel(null);
+                _embeddedConfigInPort ??= new CapnpFbpInPortModel(null) { Name = "conf" };
+                _embeddedConfIipOutPort ??= new CapnpFbpOutPortModel(null);
 
                 //create channel, if not done before
                 if (
-                    _configInPort.ReaderSturdyRef == null
-                    && _configInPort.RetrieveReaderFromChannelTask == null
+                    _embeddedConfigInPort.ReaderSturdyRef == null
+                    && _embeddedConfigInPort.RetrieveReaderFromChannelTask == null
                 )
                 {
                     Console.WriteLine(
-                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: creating config channel"
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: creating embedded config channel"
                     );
                     await Shared.Shared.CreateChannel(
                         conMan,
                         Editor.CurrentChannelStarterService,
-                        _confIipOutPort,
-                        _configInPort
+                        _embeddedConfIipOutPort,
+                        _embeddedConfigInPort
                     );
                 }
 
                 Console.WriteLine(
-                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: _configInPort.RWSR: {_configInPort.ReaderSturdyRef}"
+                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: _embeddedConfigInPort.RWSR: {_embeddedConfigInPort.ReaderSturdyRef}"
                 );
                 //insert config port sturdy ref into collections for port info message later
-                await CollectPortSrs(_configInPort);
+                await CollectPortSrs(_embeddedConfigInPort);
 
                 //now insert the current toml configuration into the config channel
                 //check if channel creation task has been finished
-                if (_confIipOutPort.WriterSturdyRef == null)
+                if (_embeddedConfIipOutPort.WriterSturdyRef == null)
                 {
-                    if (_confIipOutPort.RetrieveWriterFromChannelTask != null)
+                    if (_embeddedConfIipOutPort.RetrieveWriterFromChannelTask != null)
                     {
                         Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting configIipOutPort.ChannelTask"
+                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting embeddedConfigIipOutPort.ChannelTask"
                         );
-                        await _confIipOutPort.RetrieveWriterFromChannelTask;
+                        await _embeddedConfIipOutPort.RetrieveWriterFromChannelTask;
                     }
                     else
                     {
-                        (_confIipOutPort.Writer, _confIipOutPort.WriterSturdyRef) =
+                        (_embeddedConfIipOutPort.Writer, _embeddedConfIipOutPort.WriterSturdyRef) =
                             await Shared.Shared.GetNewWriterFromChannel(
-                                _configInPort.Channel,
+                                _embeddedConfigInPort.Channel,
                                 cancelToken
                             );
                     }
                 }
 
                 //if we didn't connect yet to the writer, do so
-                if (_confIipOutPort.Writer == null)
+                if (_embeddedConfIipOutPort.Writer == null)
                 {
                     Debug.Assert(
-                        _confIipOutPort.Writer != null,
+                        _embeddedConfIipOutPort.Writer != null,
                         "Here we should already have a writer, so no need to connect."
                     );
                     Console.WriteLine(
-                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: before connecting to writer for iipPort.ChannelTask: {_confIipOutPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
+                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: before connecting to writer for embeddedConfIipOutPort.ChannelTask: {_embeddedConfIipOutPort.RetrieveWriterFromChannelTask?.IsCompletedSuccessfully}"
                     );
-                    _confIipOutPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
-                        _confIipOutPort.WriterSturdyRef
+                    _embeddedConfIipOutPort.Writer = await conMan.Connect<Channel<IP>.IWriter>(
+                        _embeddedConfIipOutPort.WriterSturdyRef
                     );
                 }
 
                 //send actual config string into channel
-                await _confIipOutPort.Writer.Write(
+                await _embeddedConfIipOutPort.Writer.Write(
                     new Channel<IP>.Msg
                     {
                         Value = new IP
@@ -305,7 +307,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     cancelToken
                 );
                 Console.WriteLine(
-                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: sent config IIP to config port"
+                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: sent embedded config IIP to config port"
                 );
                 //_configSendTask = CreateTaskAndSendIip(conMan, _confIipOutPort, ConfigString, cancelToken);
             }
@@ -317,7 +319,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: Trying to start port info channel"
                 );
                 var si = await Editor.CurrentChannelStarterService.Start(
-                    new StartChannelsService.Params { Name = $"config_{ProcessName}" },
+                    new StartChannelsService.Params { Name = $"port-infos_{ProcessName}" },
                     cancelToken
                 );
                 Console.WriteLine(
@@ -336,12 +338,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 _portInfosWriter = (
                     si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                 )?.Cast<Channel<PortInfos>.IWriter>(false);
+                _stopPortInfosChannel = si.Item2;
             }
 
             if (_portInfosWriter == null)
-            {
                 return;
-            }
 
             ProcessStarted = await Runnable.Start(
                 _portInfosReaderSr,
@@ -431,11 +432,29 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent stopping runnable/process"
         );
+        // we have to write a DONE into the channel as Runnable channels might block on the port infos channel and
+        // wait for a done before exiting, even if they are actually done, just to keep the event loop running so
+        // they can transport messages from capabilities downstream to components upstream
         await _portInfosWriter.Write(
             new Channel<PortInfos>.Msg { which = Channel<PortInfos>.Msg.WHICH.Done }
         );
         await Task.Delay(500); // let the process stop
         ProcessStarted = !(await Runnable.Stop());
+
+        // stop the port infos channel
+        if (_stopPortInfosChannel != null)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stop port infos channel"
+            );
+            await _stopPortInfosChannel.Stop();
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stopped port infos channel"
+            );
+            _stopPortInfosChannel.Dispose();
+            _stopPortInfosChannel = null;
+            _portInfosWriter?.Dispose();
+        }
 
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
@@ -450,12 +469,12 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts"
         );
 
-        if (_configInPort != null)
-            await _configInPort.DisposeAsync();
-        _configInPort = null;
-        if (_confIipOutPort != null)
-            await _confIipOutPort.DisposeAsync();
-        _confIipOutPort = null;
+        if (_embeddedConfigInPort != null)
+            await _embeddedConfigInPort.DisposeAsync();
+        _embeddedConfigInPort = null;
+        if (_embeddedConfIipOutPort != null)
+            await _embeddedConfIipOutPort.DisposeAsync();
+        _embeddedConfIipOutPort = null;
     }
 
     private class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)

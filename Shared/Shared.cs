@@ -247,4 +247,16 @@ public static class Shared
         }
         return new MarkupString(ms);
     }
+
+    public static void RestoreDefaultPortVisibilityOfAttachedComponent(
+        IReadOnlyCollection<BaseLinkModel> links,
+        Diagram diagram
+    )
+    {
+        foreach (var blm in new List<BaseLinkModel>(links))
+        {
+            RestoreDefaultPortVisibility(diagram, blm);
+            diagram.Links.Remove(blm);
+        }
+    }
 }

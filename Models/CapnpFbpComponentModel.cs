@@ -72,11 +72,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     protected virtual async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeAsyncCore");
-        foreach (var blm in new List<BaseLinkModel>(Links))
-        {
-            Shared.Shared.RestoreDefaultPortVisibility(Editor.Diagram, blm);
-            Editor.Diagram.Links.Remove(blm);
-        }
+        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
         await DisposeStandardPorts();
     }
 

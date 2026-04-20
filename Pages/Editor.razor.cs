@@ -1309,8 +1309,8 @@ public partial class Editor
     private async Task ClearDiagram()
     {
         foreach (var node in Diagram.Nodes)
-            if (node is IDisposable disposable)
-                disposable.Dispose();
+            if (node is IAsyncDisposable disposable)
+                await disposable.DisposeAsync();
         Diagram.Nodes.Clear();
         Diagram.Refresh();
     }
