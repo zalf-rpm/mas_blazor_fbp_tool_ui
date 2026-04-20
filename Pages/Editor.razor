@@ -6,6 +6,7 @@
 @inject Mas.Infrastructure.Common.ConnectionManager ConMan
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
+@inject CleanupDiagramService CleanupService
 
 @using System.Collections.Immutable
 @using System.Reflection
@@ -14,6 +15,7 @@
 @using Newtonsoft.Json.Linq
 @using MudBlazor
 @using System.Timers
+@using BlazorDrawFBP.Services
 @using Capnp.Rpc
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Schema.Fbp

@@ -1,8 +1,10 @@
+using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Shared;
 using Blazored.LocalStorage;
 using Brism;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,13 +19,18 @@ StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configurat
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
-builder.Services.AddSingleton<Mas.Infrastructure.Common.ConnectionManager>();
+
+//builder.Services.AddSingleton<Mas.Infrastructure.Common.ConnectionManager>();
+builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
 
 //builder.Services.AddTransient<Allegiance.Blazor.Highcharts.Services.IChartService, Allegiance.Blazor.Highcharts.Services.ChartService>();
 //builder.Services.AddTransient<MonicaBlazorUI.Services.MonicaIO>();
 // builder.Services.AddTransient<MonicaBlazorUI.Services.RunMonica>();
 builder.Services.AddBrism();
+
+builder.Services.AddScoped<CleanupDiagramService>();
+builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
 
 // builder.Services.AddScoped<BlazorDispatcher>();
 

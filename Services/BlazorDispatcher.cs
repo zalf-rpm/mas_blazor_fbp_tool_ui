@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+namespace BlazorDrawFBP.Services;
+
 public class BlazorDispatcher
 {
     private SynchronizationContext? _context;

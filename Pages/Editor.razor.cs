@@ -248,6 +248,8 @@ public partial class Editor
 
     protected override void OnInitialized()
     {
+        CleanupService.Editor = this;
+
         var options = new BlazorDiagramOptions
         {
             AllowMultiSelection = true,
@@ -1306,7 +1308,7 @@ public partial class Editor
         );
     }
 
-    private async Task ClearDiagram()
+    public async Task ClearDiagram()
     {
         foreach (var node in Diagram.Nodes)
             if (node is IAsyncDisposable disposable)
