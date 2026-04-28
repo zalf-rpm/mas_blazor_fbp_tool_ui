@@ -109,6 +109,8 @@
 
     async void ShowDetails(MouseEventArgs e)
     {
+        DialogOptions options = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
         var parameters = new DialogParameters
         {
             ["Content"] = Node.ViewContent,
@@ -116,7 +118,7 @@
             ["DisableZoom"] = () => { Node.Editor?.Diagram.Options.Zoom.Enabled = false; },
         };
 
-        await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters);
+        await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters, options);
         StateHasChanged();
     }
 }

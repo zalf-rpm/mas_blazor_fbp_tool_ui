@@ -39,7 +39,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     private Task ViewMsgReceiveTask { get; set; }
 
     public int DisplayWidthPx { get; set; } = 100;
-    public int DisplayHeightPx { get; set; } = 140;
+    public int DisplayHeightPx { get; set; } = 132;
 
     public bool AppendMode { get; set; } = true;
 
