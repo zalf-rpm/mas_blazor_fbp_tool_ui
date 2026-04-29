@@ -11,7 +11,6 @@ using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Newtonsoft.Json.Linq;
-using Tomlyn;
 using Process = Mas.Schema.Fbp.Process;
 
 namespace BlazorDrawFBP.Models;
@@ -200,7 +199,6 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: sending config on the fly"
                 );
 
-                //var model = Toml.ToModel(ConfigString);
                 var model = JObject.Parse(ConfigString);
                 foreach (var kv in model)
                 {
