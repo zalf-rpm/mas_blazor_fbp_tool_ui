@@ -34,7 +34,10 @@
         <a class="dismiss">🗙</a>
     </div>
 
-    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=@GoogleMapsApiKey&v=3&callback=Function.prototype"></script>
+    @if (!string.IsNullOrWhiteSpace(GoogleMapsApiKey))
+    {
+        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=@GoogleMapsApiKey&v=3&loading=async&callback=Function.prototype"></script>
+    }
     <script src="js/JSInterop.min.js"></script>
     <script src="js/SaveAsBase64.js"></script>
     <script src="_framework/blazor.web.js"></script>
