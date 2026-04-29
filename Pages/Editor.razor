@@ -30,7 +30,7 @@
         <MudIconButton Icon="@(_componentListVisible ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
                        Color="Color.Inherit"
                        Edge="Edge.Start"
-                       Title="@(_componentListVisible ? "Hide components" : "Show components")"
+                       title="@(_componentListVisible ? "Hide components" : "Show components")"
                        OnClick="@ToggleComponentList"/>
         <MudImage Class="ml-1 mr-1" Src="img/ocapi_just_logo.png" Height="45"/>
         <MudText Typo="Typo.h4">OCAPI-Flow Tool</MudText>
@@ -185,13 +185,14 @@
                     <MudFileUpload T="IBrowserFile"
                                    FilesChanged="LoadFlow"
                                    Class="mt-0">
-                        <ActivatorContent>
+                        <CustomContent Context="fileUpload">
                             <MudButton StartIcon="@Icons.Material.Filled.Upload"
                                        Variant="@Variant.Filled"
-                                       Color="@Color.Primary">
+                                       Color="@Color.Primary"
+                                       OnClick="@(() => fileUpload.OpenFilePickerAsync())">
                                 Load Flow
                             </MudButton>
-                        </ActivatorContent>
+                        </CustomContent>
                     </MudFileUpload>
                     <MudButton StartIcon="@Icons.Material.Filled.Download"
                                Variant="@Variant.Filled"
@@ -217,7 +218,7 @@
                                 Variant="@Variant.Filled"
                                 Color="@Color.Success"
                                 Disabled="@(!CanExecuteFlow)"
-                                Title="@ExecuteFlowButtonTitle"
+                                title="@ExecuteFlowButtonTitle"
                                 @onclick="@ExecuteFlow">
                         Execute flow
                     </MudButton>
