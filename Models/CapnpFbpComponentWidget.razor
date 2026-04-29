@@ -281,8 +281,6 @@
             }) * 2 * 20
         ))}px";
 
-    private bool _linesOn;
-
     private bool ParallelOn {
         get => Node.InParallelCount > 1;
         set => Node.InParallelCount = value ? 2 : 1;
@@ -316,8 +314,6 @@
     };
 
     private readonly List<int> _topBottomOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
-
-    private CapnpFbpComponentContentModel _contentModel = null;
 
     private async Task ShowJsonDetails(MouseEventArgs e) {
         var parameters = new DialogParameters {

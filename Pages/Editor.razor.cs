@@ -773,7 +773,7 @@ public partial class Editor
         Diagram.SuspendRefresh = true;
         Diagram.Refresh();
 
-        InvokeAsync(async () =>
+        await InvokeAsync(async () =>
         {
             await Task.Delay(500);
             Diagram.SuspendRefresh = true;

@@ -237,7 +237,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                     throw new ArgumentOutOfRangeException();
                             }
                         }
-                        catch (TaskCanceledException tce)
+                        catch (TaskCanceledException)
                         {
                             await reader.Close();
                             leave = true;

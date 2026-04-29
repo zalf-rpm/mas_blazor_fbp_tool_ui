@@ -336,7 +336,7 @@
         _expandedPanels[catId] = expanded;
     }
 
-    private void ClearButtonClicked()
+    private async Task ClearButtonClicked()
     {
         if (ClearButtonDisabled)
         {
@@ -353,7 +353,7 @@
         }
         else
         {
-            ClearDiagram();
+            await ClearDiagram();
             ClearButtonDisabled = true;
         }
     }

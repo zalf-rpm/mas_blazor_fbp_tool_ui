@@ -38,8 +38,6 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     if (!Label.Visible)
       return;
     var position = FindPosition();
-    if (position == null)
-      return;
     var type = BlazorDiagram.GetComponent(Label);
     if ((object) type == null)
       type = typeof (DefaultLinkLabelWidget);
@@ -67,7 +65,7 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     InvokeAsync(StateHasChanged);
   }
 
-  private Blazor.Diagrams.Core.Geometry.Point? FindPosition()
+  private Blazor.Diagrams.Core.Geometry.Point FindPosition()
   {
     var length = Path.Length;
     var distance = Label.Distance;

@@ -8,7 +8,7 @@ namespace BlazorDrawFBP.Services;
 
 public class BlazorDispatcher
 {
-    private SynchronizationContext? _context;
+    private SynchronizationContext _context;
 
     public void Capture() => _context = SynchronizationContext.Current;
 
