@@ -1,7 +1,6 @@
 using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Shared;
 using Blazored.LocalStorage;
-using Brism;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -27,7 +26,6 @@ builder.Services.AddBlazoredLocalStorage();
 //builder.Services.AddTransient<Allegiance.Blazor.Highcharts.Services.IChartService, Allegiance.Blazor.Highcharts.Services.ChartService>();
 //builder.Services.AddTransient<MonicaBlazorUI.Services.MonicaIO>();
 // builder.Services.AddTransient<MonicaBlazorUI.Services.RunMonica>();
-builder.Services.AddBrism();
 
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();

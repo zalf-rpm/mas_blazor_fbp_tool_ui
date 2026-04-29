@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Brism" Version="1.0.1" />
     <PackageReference Include="Tomlyn" Version="0.20.0" />
     <PackageReference Include="Z.Blazor.Diagrams" Version="3.0.3" />
     <PackageReference Include="Z.Blazor.Diagrams.Algorithms" Version="3.0.3" />

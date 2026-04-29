@@ -14,6 +14,30 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Regular.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Italic.woff2') format('woff2');
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Bold.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
 html, body {
     font-family: 'Adwaita Sans', 'Helvetica Neue', Arial, sans-serif;
     font-optical-sizing: auto;
