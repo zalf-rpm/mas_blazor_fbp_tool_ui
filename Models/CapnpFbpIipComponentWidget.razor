@@ -107,13 +107,13 @@
         Node.Editor?.Diagram.Options.Zoom.Enabled = true;
     }
 
-    private async void SendIip()
+    private async Task SendIip()
     {
         await Node.SendIip(ConMan);
         StateHasChanged();
     }
 
-    async void ShowDetails(MouseEventArgs e)
+    private async Task ShowDetails(MouseEventArgs e)
     {
         var parameters = new DialogParameters
         {

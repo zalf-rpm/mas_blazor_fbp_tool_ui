@@ -319,7 +319,7 @@
 
     private CapnpFbpComponentContentModel _contentModel = null;
 
-    async void ShowJsonDetails(MouseEventArgs e) {
+    private async Task ShowJsonDetails(MouseEventArgs e) {
         var parameters = new DialogParameters {
             ["JsonString"] = Node.ConfigString ?? "",
             ["DefaultsJsonString"] = Node.DefaultConfigString
@@ -333,7 +333,7 @@
         StateHasChanged();
     }
 
-    async void ShowTomlDetails(MouseEventArgs e) {
+    private async Task ShowTomlDetails(MouseEventArgs e) {
         var parameters = new DialogParameters { ["TomlString"] = string.IsNullOrWhiteSpace(Node.ConfigString) ? Node.DefaultConfigString : Node.ConfigString };
 
         var dialog = await DialogService.ShowAsync<TomlEditorDialog>("Edit Configuration", parameters);

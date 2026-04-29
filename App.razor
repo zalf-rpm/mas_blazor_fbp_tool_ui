@@ -1,17 +1,50 @@
-﻿@* <Router AppAssembly="@typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(SharedDemo.Home).Assembly }"> *@
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        @* <RouteView RouteData="@routeData" DefaultLayout="@typeof(SharedDemo.Layouts.DocsLayout)" /> *@
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        @* <FocusOnNavigate RouteData="@routeData" Selector="h1" /> *@
-    </Found>
-    <NotFound>
-        @* <LayoutView Layout="@typeof(SharedDemo.Layouts.EmptyLayout)"> *@
-        @*     <p>Sorry, there's nothing at this address.</p> *@
-        @* </LayoutView> *@
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+﻿@namespace BlazorDrawFBP
+@using Microsoft.Extensions.Hosting
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment WebHostEnvironment
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="_content/Z.Blazor.Diagrams/style.css" rel="stylesheet" />
+    <link href="_content/Z.Blazor.Diagrams/default.styles.css" rel="stylesheet" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link rel="stylesheet" href="@(nameof(BlazorDrawFBP)).styles.css" />
+    <link href="_content/Brism/prism.css" rel="stylesheet" />
+    <link href="_content/Brism/prism-synthwave84.css" rel="stylesheet" />
+    <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+</head>
+<body>
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+
+    <div id="blazor-error-ui">
+        @if (WebHostEnvironment.IsDevelopment())
+        {
+            <text>An unhandled exception has occurred. See browser dev tools for details.</text>
+        }
+        else
+        {
+            <text>An error has occurred. This application may no longer respond until reloaded.</text>
+        }
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=@GoogleMapsApiKey&v=3&callback=Function.prototype"></script>
+    <script src="js/JSInterop.min.js"></script>
+    <script src="js/SaveAsBase64.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_content/Z.Blazor.Diagrams/script.min.js"></script>
+    <script src="_content/Brism/prism.js"></script>
+    <script type="module" src="_content/Brism/prismInterop.js"></script>
+</body>
+</html>
+
+@code {
+    private string GoogleMapsApiKey => Environment.GetEnvironmentVariable("GOOGLE_MAPS_API_KEY") ?? "";
+}

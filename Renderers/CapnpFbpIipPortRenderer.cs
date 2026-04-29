@@ -151,17 +151,33 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
         }
     }
 
-    private async void OnPortChanged(Model _)
+    private void OnPortChanged(Model model)
     {
-        var portRenderer = this;
-        if (portRenderer._updatingDimensions)
-            portRenderer._shouldRefreshPort = true;
-        if (portRenderer.Port.Initialized)
+        _ = InvokeAsync(async () =>
         {
-            portRenderer._shouldRender = true;
-            await portRenderer.InvokeAsync(portRenderer.StateHasChanged);
+            try
+            {
+                await HandlePortChangedAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex);
+            }
+        });
+    }
+
+    private async Task HandlePortChangedAsync()
+    {
+        if (_updatingDimensions)
+            _shouldRefreshPort = true;
+        if (Port.Initialized)
+        {
+            _shouldRender = true;
+            StateHasChanged();
         }
         else
-            await portRenderer.UpdateDimensions();
+        {
+            await UpdateDimensions();
+        }
     }
 }
