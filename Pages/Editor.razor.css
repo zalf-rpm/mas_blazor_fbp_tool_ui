@@ -13,6 +13,11 @@
     position: relative;
 }
 
+::deep .components-list {
+    min-height: 0;
+    scrollbar-gutter: stable both-edges;
+}
+
 ::deep .editor-minimap {
     background-color: var(--mud-palette-surface, #fff) !important;
 }
