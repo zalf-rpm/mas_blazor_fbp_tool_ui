@@ -24,167 +24,151 @@
 <MudDialogProvider/>
 <MudPopoverProvider/>
 
-<div class="editor-shell">
-    <MudGrid Class="editor-grid" Spacing="2">
-        <MudItem xs="12" Class="editor-header">
-            @code { private static string HeaderStyle => $"background-color: {Color.Primary}; width: 100%"; }
-
-            <MudPaper Class="pa-2 align-start d-flex" Style="@HeaderStyle">
-                <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                               Color="Color.Inherit"
-                               Edge="Edge.Start"/>
-                <MudImage Class="ml-3 mr-3" Src="img/ocapi_just_logo.png" Height="45"/>
-                <MudText Class="mt-1" Typo="Typo.h4">OCAPI-Flow Tool</MudText>
-                <MudSpacer/>
-                <MudButtonGroup Class="mt-1">
-                    <MudButton StartIcon="@Icons.Material.Filled.Add"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Inherit"
-                               @onclick="AddComponentServiceSturdyRef">
-                        Components
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.Add"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Inherit"
-                               @onclick="AddChannelServiceSturdyRef">
-                        Channels
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.Settings"
-                               Color="Color.Inherit"
-                               Variant="Variant.Filled"
-                               OnClick="@ShowSturdyRefDialog">
-                        Edit SturdyRefs
-                    </MudButton>
-                </MudButtonGroup>
-                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" Class="editor-toolbar">
-            <MudStack Class="editor-actions" Row="true" Spacing="1">
-                <MudFileUpload T="IBrowserFile"
-                               FilesChanged="LoadFlow"
-                               Style="margin-top:0;">
-                    <ActivatorContent>
-                        <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Primary">
-                            Load Flow
-                        </MudButton>
-                    </ActivatorContent>
-                </MudFileUpload>
-                <MudButton StartIcon="@Icons.Material.Filled.Download"
+<div class="editor-shell mud-background-gray">
+<MudStack Spacing="1" Style="height: 100%; min-height: 0;">
+    <MudPaper Outlined="true" Class="pa-2 align-start d-flex">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"/>
+        <MudImage Class="ml-3 mr-3" Src="img/ocapi_just_logo.png" Height="45"/>
+        <MudText Class="mt-1" Typo="Typo.h4">OCAPI-Flow Tool</MudText>
+        <MudSpacer/>
+        <MudButtonGroup Class="mt-1">
+            <MudButton StartIcon="@Icons.Material.Filled.Add"
+                       Variant="@Variant.Filled"
+                       Color="@Color.Inherit"
+                       @onclick="AddComponentServiceSturdyRef">
+                Components
+            </MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Add"
+                       Variant="@Variant.Filled"
+                       Color="@Color.Inherit"
+                       @onclick="AddChannelServiceSturdyRef">
+                Channels
+            </MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Settings"
+                       Color="Color.Inherit"
+                       Variant="Variant.Filled"
+                       OnClick="@ShowSturdyRefDialog">
+                Edit SturdyRefs
+            </MudButton>
+        </MudButtonGroup>
+        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
+    </MudPaper>
+    <MudStack Row="true" Spacing="1" Class="flex-wrap">
+        <MudFileUpload T="IBrowserFile"
+                       FilesChanged="LoadFlow"
+                       Style="margin-top:0;">
+            <ActivatorContent>
+                <MudButton StartIcon="@Icons.Material.Filled.Upload"
                            Variant="@Variant.Filled"
-                           Color="@Color.Primary"
-                           @onclick="() => SaveFlow(false)">
-                    Save Flow
+                           Color="@Color.Primary">
+                    Load Flow
                 </MudButton>
-                <MudButton StartIcon="@Icons.Material.Filled.Download"
-                           Variant="@Variant.Filled"
-                           Color="@Color.Primary"
-                           @onclick="() => SaveFlow(true)">
-                    Export as Mermaid Flow
-                </MudButton>
-                <MudButton
-                    StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                    Variant="@Variant.Filled"
-                    Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                    OnClick="ClearButtonClicked">
-                    @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
-                </MudButton>
-                <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
-                           Variant="@Variant.Filled"
-                           Color="@Color.Default"
-                           @onclick="@ExecuteFlow">
-                    Execute flow
-                </MudButton>
-            </MudStack>
-        </MudItem>
-        <MudItem xs="2" Class="editor-sidebar">
-            <MudPaper>
-                @* <MudExpansionPanel Text="Actions" Expanded="true"> *@
-                @*     <MudStack Spacing="1"> *@
-                @*         <MudFileUpload T="IBrowserFile" *@
-                @*                        FilesChanged="LoadFlow" *@
-                @*                        Style="margin-top:0;"> *@
-                @*             <ActivatorContent> *@
-                @*                 <MudButton StartIcon="@Icons.Material.Filled.Upload" *@
-                @*                            Variant="@Variant.Filled" *@
-                @*                            Color="@Color.Primary" *@
-                @*                            FullWidth="true"> *@
-                @*                     Load Flow *@
-                @*                 </MudButton> *@
-                @*             </ActivatorContent> *@
-                @*         </MudFileUpload> *@
-                @*         <MudButton StartIcon="@Icons.Material.Filled.Download" *@
-                @*                    Variant="@Variant.Filled" *@
-                @*                    Color="@Color.Primary" *@
-                @*                    FullWidth="true" *@
-                @*                    @onclick="() => SaveFlow(false)"> *@
-                @*             Save Flow *@
-                @*         </MudButton> *@
-                @*         <MudButton StartIcon="@Icons.Material.Filled.Download" *@
-                @*                    Variant="@Variant.Filled" *@
-                @*                    Color="@Color.Primary" *@
-                @*                    FullWidth="true" *@
-                @*                    @onclick="() => SaveFlow(true)"> *@
-                @*             Export as Mermaid Flow *@
-                @*         </MudButton> *@
-                @*         <MudButton *@
-                @*             StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)" *@
-                @*             Variant="@Variant.Filled" *@
-                @*             Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)" *@
-                @*             FullWidth="true" *@
-                @*             OnClick="ClearButtonClicked"> *@
-                @*             @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow") *@
-                @*         </MudButton> *@
-                @*         <MudButton StartIcon="@Icons.Material.Filled.PlayCircle" *@
-                @*                    Variant="@Variant.Filled" *@
-                @*                    Color="@Color.Default" *@
-                @*                    FullWidth="true" *@
-                @*                    @onclick="@ExecuteFlow"> *@
-                @*             Execute flow *@
-                @*         </MudButton> *@
-                @*     </MudStack> *@
-                @* </MudExpansionPanel> *@
-                @* <MudSwitch @bind-Value="@InteractiveMode" *@
-                @*            Label="Interactive" *@
-                @*            Color="Color.Success" *@
-                @*            Style="padding-left: 10px"/> *@
-                <MudTextField @bind-Value="@_query"
-                              Label="Search component ..."
-                              Variant="Variant.Outlined"
-                              Margin="Margin.Dense"
-                              Adornment="Adornment.End"
-                              AdornmentIcon="@Icons.Material.Filled.Cancel"
-                              OnAdornmentClick="() => { _query = null; }"/>
-            </MudPaper>
-            <MudPaper Class="editor-component-list overflow-scroll">
-                <MudExpansionPanels MultiExpansion="true">
-                    @foreach (var catId in sortedCatIds)
-                    {
-                        var compIds = CatId2CompServiceIdAndComponentIds[catId];
-                        if (compIds.Count > 0)
-                        {
-                            <MudExpansionPanel Text="@(CatId2Info[catId].Name)"
-                                               Expanded="@(!string.IsNullOrWhiteSpace(_query)
-                                                         || _expandedPanels.GetValueOrDefault(catId, false))"
-                                               ExpandedChanged="b => { if (string.IsNullOrWhiteSpace(_query)) _expandedPanels[catId] = b; }">
-                                <MudStack Spacing="1">
-                                    @foreach (var compId in compIds)
-                                    {
-                                        if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
-                                        if (comp.Type == Component.ComponentType.subflow) continue;
-                                        var desc = comp.Info.Description ?? "";
+            </ActivatorContent>
+        </MudFileUpload>
+        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   @onclick="() => SaveFlow(false)">
+            Save Flow
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   @onclick="() => SaveFlow(true)">
+            Export as Mermaid Flow
+        </MudButton>
+        <MudButton
+            StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+            Variant="@Variant.Filled"
+            Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+            OnClick="ClearButtonClicked">
+            @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Default"
+                   @onclick="@ExecuteFlow">
+            Execute flow
+        </MudButton>
+    </MudStack>
+    <MudStack Row="true"
+              Wrap="Wrap.NoWrap"
+              AlignItems="AlignItems.Stretch"
+              Spacing="1"
+              Class="flex-grow-1 overflow-hidden"
+              Style="min-height: 0;">
+        <MudPaper Outlined="true"
+                  Class="d-flex flex-column flex-shrink-0 overflow-hidden pa-2"
+                  Style="width: 24rem; min-height: 0;">
+            <MudTextField @bind-Value="@_query"
+                          Placeholder="Search components"
+                          Variant="Variant.Text"
+                          Margin="Margin.Dense"
+                          Class="flex-grow-0 mt-0 mb-0"
+                          Style="margin-inline-start: -4px;"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Clearable="true"
+                          ClearIcon="@Icons.Material.Filled.Close"/>
+            <MudNavMenu Dense="true" Class="flex-grow-1 overflow-auto" Style="min-height: 0;">
+                @{
+                    var categoryIds = sortedCatIds
+                        .Where(catId => CatId2CompServiceIdAndComponentIds[catId].Count > 0)
+                        .ToList();
+                }
+                @for (var i = 0; i < categoryIds.Count; i++)
+                {
+                    var catId = categoryIds[i];
+                    var compIds = CatId2CompServiceIdAndComponentIds[catId];
+                    var isExpanded = IsCategoryExpanded(catId);
 
-                                        if (!string.IsNullOrWhiteSpace(_query) &&
-                                            comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
-                                            desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
-                                        {
-                                            continue;
-                                        }
+                    <MudNavGroup Title="@CatId2Info[catId].Name"
+                                 Expanded="@isExpanded"
+                                 ExpandedChanged="@((bool expanded) => SetCategoryExpanded(catId, expanded))"
+                                 ExpandIcon="@Icons.Material.Filled.ExpandMore"
+                                 Ripple="false">
+                        <MudStack Spacing="1" Class="px-1 pb-2">
+                            @foreach (var compId in compIds)
+                            {
+                                if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
+                                if (comp.Type == Component.ComponentType.subflow) continue;
+                                var desc = comp.Info.Description ?? "";
 
-                                        if (string.IsNullOrEmpty(comp.Info.Description))
-                                        {
+                                if (!string.IsNullOrWhiteSpace(_query) &&
+                                    comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
+                                    desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
+                                {
+                                    continue;
+                                }
+
+                                if (string.IsNullOrEmpty(comp.Info.Description))
+                                {
+                                    <MudChip Style="position: relative; top: +7px;"
+                                             Variant="Variant.Text"
+                                             Color="Color.Info"
+                                             Label="true"
+                                             Size="Size.Small"
+                                             T="string">
+                                        @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
+                                    </MudChip>
+                                    <MudButton style="cursor: grab;"
+                                               draggable="true"
+                                               @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
+                                               Variant="Variant.Filled"
+                                               StartIcon="@Icons.Material.Filled.DragIndicator"
+                                               IconColor="Color.Primary"
+                                               Color="Color.Default"
+                                               FullWidth="true"
+                                               Size="Size.Large">
+                                        @comp.Info.Name
+                                    </MudButton>
+                                }
+                                else
+                                {
+                                    <MudTooltip>
+                                        <ChildContent>
                                             <MudChip Style="position: relative; top: +7px;"
                                                      Variant="Variant.Text"
                                                      Color="Color.Info"
@@ -199,64 +183,44 @@
                                                        Variant="Variant.Filled"
                                                        StartIcon="@Icons.Material.Filled.DragIndicator"
                                                        IconColor="Color.Primary"
-                                                       Color="Color.Default"
                                                        FullWidth="true"
-                                                       Size="Size.Large">
+                                                       Color="Color.Default">
                                                 @comp.Info.Name
                                             </MudButton>
-                                        }
-                                        else
-                                        {
-                                            <MudTooltip>
-                                                <ChildContent>
-                                                    <MudChip Style="position: relative; top: +7px;"
-                                                             Variant="Variant.Text"
-                                                             Color="Color.Info"
-                                                             Label="true"
-                                                             Size="Size.Small"
-                                                             T="string">
-                                                        @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
-                                                    </MudChip>
-                                                    <MudButton style="cursor: grab;"
-                                                               draggable="true"
-                                                               @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
-                                                               Variant="Variant.Filled"
-                                                               StartIcon="@Icons.Material.Filled.DragIndicator"
-                                                               IconColor="Color.Primary"
-                                                               FullWidth="true"
-                                                               Color="Color.Default">
-                                                        @comp.Info.Name
-                                                    </MudButton>
-                                                </ChildContent>
-                                                <TooltipContent>
-                                                    <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
-                                                </TooltipContent>
-                                            </MudTooltip>
-                                        }
-                                    }
-                                </MudStack>
-                            </MudExpansionPanel>
-                        }
+                                        </ChildContent>
+                                        <TooltipContent>
+                                            <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
+                                        </TooltipContent>
+                                    </MudTooltip>
+                                }
+                            }
+                        </MudStack>
+                    </MudNavGroup>
+                    @if (i < categoryIds.Count - 1)
+                    {
+                        <MudDivider Class="my-0"/>
                     }
-                </MudExpansionPanels>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="10" Class="editor-main">
-            <MudPaper Outlined="true" class="diagram-container" ondragover="event.preventDefault();"
-                      @ondrop="OnNodeDrop">
-                <CascadingValue Value="Diagram" IsFixed="true">
-                    <DiagramCanvas>
-                        <Widgets>
-                            <NavigatorWidget Width="200"
-                                             Height="120"
-                                             Class="border border-black bg-white absolute"
-                                             Style="bottom: 15px; right: 15px;"/>
-                        </Widgets>
-                    </DiagramCanvas>
-                </CascadingValue>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+                }
+            </MudNavMenu>
+        </MudPaper>
+        <MudPaper Outlined="true"
+                  Class="diagram-container flex-grow-1"
+                  Style="min-width: 0; min-height: 0;"
+                  ondragover="event.preventDefault();"
+                  @ondrop="OnNodeDrop">
+            <CascadingValue Value="Diagram" IsFixed="true">
+                <DiagramCanvas>
+                    <Widgets>
+                        <NavigatorWidget Width="200"
+                                         Height="120"
+                                         Class="border border-black bg-white absolute"
+                                         Style="bottom: 15px; right: 15px;"/>
+                    </Widgets>
+                </DiagramCanvas>
+            </CascadingValue>
+        </MudPaper>
+    </MudStack>
+</MudStack>
 </div>
 
 @code {
@@ -277,6 +241,19 @@
             .Where(catId => catId != DefaultCatId)
             .ToImmutableSortedSet()
             .AsEnumerable());
+
+    private bool IsCategoryExpanded(string catId) =>
+        !string.IsNullOrWhiteSpace(_query) || _expandedPanels.GetValueOrDefault(catId, false);
+
+    private void SetCategoryExpanded(string catId, bool expanded)
+    {
+        if (!string.IsNullOrWhiteSpace(_query))
+        {
+            return;
+        }
+
+        _expandedPanels[catId] = expanded;
+    }
 
     private void ClearButtonClicked()
     {

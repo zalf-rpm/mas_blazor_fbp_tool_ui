@@ -6,67 +6,15 @@
     width: 100%;
 }
 
-::deep .editor-grid {
-    align-items: stretch;
-    display: grid;
-    gap: 0.5rem;
-    grid-template-columns: minmax(12rem, 2fr) minmax(0, 10fr);
-    grid-template-rows: auto auto minmax(0, 1fr);
-    height: 100%;
-    margin: 0;
-    width: 100%;
-}
-
-::deep .editor-grid > .mud-grid-item {
-    flex-basis: auto;
-    max-width: none;
-    min-width: 0;
-    padding: 0;
-}
-
-::deep .editor-header,
-::deep .editor-toolbar {
-    grid-column: 1 / -1;
-}
-
-::deep .editor-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-height: 0;
-}
-
-::deep .editor-main {
-    min-height: 0;
-}
-
-::deep .editor-actions {
-    flex-wrap: wrap;
-}
-
-::deep .editor-component-list {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
 ::deep .diagram-container {
     width: 100%;
     height: 100%;
-    border: 1px solid black; /* Just visual */
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
 }
 
-::deep .diagram-node {
-    /*min-width: max-content;*/
-    min-width: 250px;
-    width: 250px;
-    max-width: 250px;
-    min-height: 200px;
-    height: 200px;
-    max-height: 200px;
-    /*min-width: 100px;*/
-    /*max-width: 100px;*/
-}
-
+::deep .diagram-node,
 ::deep .diagram-node.selected {
     min-width: 250px;
     width: 250px;
@@ -74,49 +22,21 @@
     min-height: 200px;
     height: 200px;
     max-height: 200px;
-    border: 0px solid #6e9fd4;
-    /*border: 2px solid #6e9fd4;*/
+}
+
+::deep .diagram-node.selected {
+    border: 0 solid #6e9fd4;
     border-radius: var(--mud-default-borderradius);
 }
 
-/*::deep .diagram-node .selected .port {*/
-/*    border: 1px solid #6e9fd4;*/
-/*}*/
-
-/*::deep .channel-link-label {*/
-/*    pointer-events: all;*/
-/*    display: inline-block;*/
-/*    color: #d4d4d4;*/
-/*    background-color: rgb(212, 212, 212);*/
-/*    border-radius: 0.25rem;*/
-/*    padding: 0.25rem;*/
-/*    text-align: center;*/
-/*    font-size: 0.875rem;*/
-/*    -webkit-user-select: none;*/
-/*    -moz-user-select: none;*/
-/*    -ms-user-select: none;*/
-/*    user-select: none;*/
-/*    min-width: 3rem;*/
-/*    -webkit-transform: translate(-50%, -50%);*/
-/*    -ms-transform: translate(-50%, -50%);*/
-/*    transform: translate(-50%, -50%);*/
-/*}*/
-
 ::deep .channel-link-label {
-    /*pointer-events: all;*/
     display: inline-block;
     color: #d4d4d4;
-    /*background-color: rgb(212, 212, 212);*/
     border-radius: 0.25rem;
     padding: 0.25rem;
     text-align: center;
     font-size: 0.875rem;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     user-select: none;
     min-width: 3rem;
-    -webkit-transform: translate(-75%, -45%);
-    -ms-transform: translate(-75%, -45%);
     transform: translate(-75%, -45%);
 }
