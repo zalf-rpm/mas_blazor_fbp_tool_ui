@@ -68,14 +68,18 @@
             <MudPaper Outlined="true"
                       Class="d-flex flex-column flex-shrink-0 overflow-hidden pa-1"
                       Style="width: 24rem; min-height: 0;">
-                <MudTextField @bind-Value="@_query"
+                <MudTextField @bind-Value="@_searchText"
                               Placeholder="Search components"
                               Variant="Variant.Text"
                               Margin="Margin.Dense"
                               Class="flex-grow-0 mt-0 mb-0"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              OnDebounceIntervalElapsed="ApplyComponentSearch"
                               Clearable="true"
+                              OnClearButtonClick="ClearComponentSearch"
                               ClearIcon="@Icons.Material.Filled.Close"/>
                 <MudNavMenu Dense="true"
                             Class="components-list d-flex flex-column gap-1 flex-grow-1 overflow-auto pa-1">
@@ -89,6 +93,7 @@
                         var catId = categoryIds[i];
                         var compIds = CatId2CompServiceIdAndComponentIds[catId];
                         var isExpanded = IsCategoryExpanded(catId);
+                        var categoryMatchesSearch = CategoryMatchesSearch(catId);
 
                         <MudNavGroup Expanded="@isExpanded"
                                      ExpandedChanged="@((bool expanded) => SetCategoryExpanded(catId, expanded))"
@@ -104,11 +109,8 @@
                                     {
                                         if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
                                         if (comp.Type == Component.ComponentType.subflow) continue;
-                                        var desc = comp.Info.Description ?? "";
 
-                                        if (!string.IsNullOrWhiteSpace(_query) &&
-                                            comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) == false &&
-                                            desc.Contains(_query, StringComparison.OrdinalIgnoreCase) == false)
+                                        if (SearchActive && !categoryMatchesSearch && !ComponentMatchesSearch(comp))
                                         {
                                             continue;
                                         }
@@ -241,7 +243,9 @@
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
     private Editor _editor;
-    private string _query;
+    private string _searchText = "";
+    private string _query = "";
+    private const int MinSearchChars = 3;
     private const string DefaultCatId = "default";
     private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
     private bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
@@ -262,14 +266,68 @@
             .ToImmutableSortedSet()
             .AsEnumerable());
 
+    private bool SearchActive => _query.Length >= MinSearchChars;
+
     private bool IsCategoryExpanded(string catId) =>
-        !string.IsNullOrWhiteSpace(_query) || _expandedPanels.GetValueOrDefault(catId, false);
+        SearchActive
+            ? CategoryHasMatchingComponent(catId)
+            : _expandedPanels.GetValueOrDefault(catId, false);
+
+    private Task ApplyComponentSearch(string searchText)
+    {
+        _searchText = searchText ?? "";
+        var trimmedSearchText = _searchText.Trim();
+        _query = trimmedSearchText.Length >= MinSearchChars ? trimmedSearchText : "";
+        return Task.CompletedTask;
+    }
+
+    private void ClearComponentSearch()
+    {
+        _searchText = "";
+        _query = "";
+    }
+
+    private bool CategoryHasMatchingComponent(string catId) =>
+        CategoryMatchesSearch(catId) ||
+        CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var compIds) &&
+        compIds.Any(compId =>
+            ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp) &&
+            comp.Type != Component.ComponentType.subflow &&
+            ComponentMatchesSearch(comp));
+
+    private bool CategoryMatchesSearch(string catId)
+    {
+        if (!SearchActive)
+        {
+            return true;
+        }
+
+        if (!CatId2Info.TryGetValue(catId, out var info))
+        {
+            return catId.Contains(_query, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return info.Id.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+               (info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (info.Description?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private bool ComponentMatchesSearch(Component comp)
+    {
+        if (!SearchActive)
+        {
+            return true;
+        }
+
+        return (comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (comp.Info.Description?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
 
     private void ToggleComponentList() => _componentListVisible = !_componentListVisible;
 
     private void SetCategoryExpanded(string catId, bool expanded)
     {
-        if (!string.IsNullOrWhiteSpace(_query))
+        if (SearchActive)
         {
             return;
         }
