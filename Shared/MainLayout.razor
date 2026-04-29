@@ -78,8 +78,29 @@
 
     MudTheme _currentTheme = new();
 
+    private static readonly string[] AppFontFamily = ["Adwaita Sans", "Helvetica Neue", "Arial", "sans-serif"];
+
+    private static Typography AppTypography => new()
+    {
+        Default = new DefaultTypography { FontFamily = AppFontFamily },
+        H1 = new H1Typography { FontFamily = AppFontFamily },
+        H2 = new H2Typography { FontFamily = AppFontFamily },
+        H3 = new H3Typography { FontFamily = AppFontFamily },
+        H4 = new H4Typography { FontFamily = AppFontFamily },
+        H5 = new H5Typography { FontFamily = AppFontFamily },
+        H6 = new H6Typography { FontFamily = AppFontFamily },
+        Subtitle1 = new Subtitle1Typography { FontFamily = AppFontFamily },
+        Subtitle2 = new Subtitle2Typography { FontFamily = AppFontFamily },
+        Body1 = new Body1Typography { FontFamily = AppFontFamily },
+        Body2 = new Body2Typography { FontFamily = AppFontFamily },
+        Button = new ButtonTypography { FontFamily = AppFontFamily },
+        Caption = new CaptionTypography { FontFamily = AppFontFamily },
+        Overline = new OverlineTypography { FontFamily = AppFontFamily }
+    };
+
     readonly MudTheme _defaultTheme = new()
     {
+        Typography = AppTypography,
         PaletteLight = new PaletteLight()
         {
             Black = "#272c34",
@@ -92,6 +113,7 @@
     // The dark theme is just placed here for later use if needed
     readonly MudTheme _darkTheme = new()
     {
+        Typography = AppTypography,
         PaletteDark = new PaletteDark()
         {
             Black = "#27272f",
