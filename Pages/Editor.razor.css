@@ -1,6 +1,57 @@
+.editor-shell {
+    box-sizing: border-box;
+    height: 100dvh;
+    overflow: hidden;
+    padding: 0.5rem;
+    width: 100%;
+}
+
+::deep .editor-grid {
+    align-items: stretch;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(12rem, 2fr) minmax(0, 10fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    height: 100%;
+    margin: 0;
+    width: 100%;
+}
+
+::deep .editor-grid > .mud-grid-item {
+    flex-basis: auto;
+    max-width: none;
+    min-width: 0;
+    padding: 0;
+}
+
+::deep .editor-header,
+::deep .editor-toolbar {
+    grid-column: 1 / -1;
+}
+
+::deep .editor-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+}
+
+::deep .editor-main {
+    min-height: 0;
+}
+
+::deep .editor-actions {
+    flex-wrap: wrap;
+}
+
+::deep .editor-component-list {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 ::deep .diagram-container {
     width: 100%;
-    height: 90vh;
+    height: 100%;
     border: 1px solid black; /* Just visual */
 }
 

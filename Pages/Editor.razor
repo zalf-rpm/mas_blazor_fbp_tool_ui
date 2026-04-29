@@ -24,9 +24,9 @@
 <MudDialogProvider/>
 <MudPopoverProvider/>
 
-<div>
-    <MudGrid Spacing="2">
-        <MudItem xs="12">
+<div class="editor-shell">
+    <MudGrid Class="editor-grid" Spacing="2">
+        <MudItem xs="12" Class="editor-header">
             @code { private static string HeaderStyle => $"background-color: {Color.Primary}; width: 100%"; }
 
             <MudPaper Class="pa-2 align-start d-flex" Style="@HeaderStyle">
@@ -59,8 +59,8 @@
                 <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12">
-            <MudStack Row="true" Spacing="1">
+        <MudItem xs="12" Class="editor-toolbar">
+            <MudStack Class="editor-actions" Row="true" Spacing="1">
                 <MudFileUpload T="IBrowserFile"
                                FilesChanged="LoadFlow"
                                Style="margin-top:0;">
@@ -99,7 +99,7 @@
                 </MudButton>
             </MudStack>
         </MudItem>
-        <MudItem xs="2">
+        <MudItem xs="2" Class="editor-sidebar">
             <MudPaper>
                 @* <MudExpansionPanel Text="Actions" Expanded="true"> *@
                 @*     <MudStack Spacing="1"> *@
@@ -158,7 +158,7 @@
                               AdornmentIcon="@Icons.Material.Filled.Cancel"
                               OnAdornmentClick="() => { _query = null; }"/>
             </MudPaper>
-            <MudPaper Height="80vh" Class="overflow-scroll">
+            <MudPaper Class="editor-component-list overflow-scroll">
                 <MudExpansionPanels MultiExpansion="true">
                     @foreach (var catId in sortedCatIds)
                     {
@@ -241,7 +241,7 @@
                 </MudExpansionPanels>
             </MudPaper>
         </MudItem>
-        <MudItem xs="10">
+        <MudItem xs="10" Class="editor-main">
             <MudPaper Outlined="true" class="diagram-container" ondragover="event.preventDefault();"
                       @ondrop="OnNodeDrop">
                 <CascadingValue Value="Diagram" IsFixed="true">
