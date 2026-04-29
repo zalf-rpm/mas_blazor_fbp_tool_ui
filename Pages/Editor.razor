@@ -24,18 +24,18 @@
 <MudDialogProvider/>
 <MudPopoverProvider/>
 
-<div class="editor-shell mud-background-gray">
+<div class="editor-shell mud-background-gray pa-1">
 <MudStack Spacing="1" Style="height: 100%; min-height: 0;">
-    <MudPaper Outlined="true" Class="pa-2 align-start d-flex">
+    <MudPaper Outlined="true" Class="pa-1 d-flex align-center">
         <MudIconButton Icon="@(_componentListVisible ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
                        Color="Color.Inherit"
                        Edge="Edge.Start"
                        Title="@(_componentListVisible ? "Hide components" : "Show components")"
                        OnClick="@ToggleComponentList"/>
-        <MudImage Class="ml-3 mr-3" Src="img/ocapi_just_logo.png" Height="45"/>
-        <MudText Class="mt-1" Typo="Typo.h4">OCAPI-Flow Tool</MudText>
+        <MudImage Class="ml-1 mr-1" Src="img/ocapi_just_logo.png" Height="45"/>
+        <MudText Typo="Typo.h4">OCAPI-Flow Tool</MudText>
         <MudSpacer/>
-        <MudButtonGroup Class="mt-1">
+        <MudButtonGroup>
             <MudButton StartIcon="@Icons.Material.Filled.Add"
                        Variant="@Variant.Filled"
                        Color="@Color.Inherit"
@@ -66,19 +66,20 @@
         @if (_componentListVisible)
         {
             <MudPaper Outlined="true"
-                      Class="d-flex flex-column flex-shrink-0 overflow-hidden pa-2"
+                      Class="d-flex flex-column flex-shrink-0 overflow-hidden pa-1"
                       Style="width: 24rem; min-height: 0;">
                 <MudTextField @bind-Value="@_query"
                               Placeholder="Search components"
                               Variant="Variant.Text"
                               Margin="Margin.Dense"
                               Class="flex-grow-0 mt-0 mb-0"
-                              Style="margin-inline-start: -4px;"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
                               Clearable="true"
                               ClearIcon="@Icons.Material.Filled.Close"/>
-                <MudNavMenu Dense="true" Class="flex-grow-1 overflow-auto" Style="min-height: 0;">
+                <MudNavMenu Dense="true"
+                            Class="flex-grow-1 overflow-auto"
+                            Style="min-height: 0; scrollbar-gutter: stable;">
                     @{
                         var categoryIds = sortedCatIds
                             .Where(catId => CatId2CompServiceIdAndComponentIds[catId].Count > 0)
@@ -95,7 +96,7 @@
                                      ExpandedChanged="@((bool expanded) => SetCategoryExpanded(catId, expanded))"
                                      ExpandIcon="@Icons.Material.Filled.ExpandMore"
                                      Ripple="false">
-                            <MudStack Spacing="1" Class="px-1 pb-2">
+                            <MudStack Spacing="1" Class="px-1 pb-1">
                                 @foreach (var compId in compIds)
                                 {
                                     if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
@@ -170,67 +171,66 @@
                 </MudNavMenu>
             </MudPaper>
         }
-        <MudStack Spacing="1"
-                  Class="flex-grow-1 overflow-hidden"
-                  Style="min-width: 0; min-height: 0;">
-            <MudPaper Outlined="true"
-                      Class="diagram-container flex-grow-1"
-                      Style="min-width: 0; min-height: 0;"
-                      ondragover="event.preventDefault();"
-                      @ondrop="OnNodeDrop">
-                <div class="diagram-toolbar-overlay"
-                     style="position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; display: inline-block; max-width: calc(100% - 1rem);">
-                    <MudStack Row="true" Spacing="1" Class="flex-wrap">
-                        <MudFileUpload T="IBrowserFile"
-                                       FilesChanged="LoadFlow"
-                                       Style="margin-top:0;">
-                            <ActivatorContent>
-                                <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                                           Variant="@Variant.Filled"
-                                           Color="@Color.Primary">
-                                    Load Flow
-                                </MudButton>
-                            </ActivatorContent>
-                        </MudFileUpload>
-                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Primary"
-                                   @onclick="() => SaveFlow(false)">
-                            Save Flow
-                        </MudButton>
-                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Primary"
-                                   @onclick="() => SaveFlow(true)">
-                            Export as Mermaid Flow
-                        </MudButton>
-                        <MudButton
-                            StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                            Variant="@Variant.Filled"
-                            Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                            OnClick="ClearButtonClicked">
-                            @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
-                        </MudButton>
-                        <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
-                                   Variant="@Variant.Filled"
-                                   Color="@Color.Default"
-                                   @onclick="@ExecuteFlow">
-                            Execute flow
-                        </MudButton>
-                    </MudStack>
-                </div>
-                <CascadingValue Value="Diagram" IsFixed="true">
-                    <DiagramCanvas>
-                        <Widgets>
-                            <NavigatorWidget Width="200"
-                                             Height="120"
-                                             Class="border border-black bg-white absolute"
-                                             Style="bottom: 15px; right: 15px;"/>
-                        </Widgets>
-                    </DiagramCanvas>
-                </CascadingValue>
-            </MudPaper>
-        </MudStack>
+        <MudPaper Outlined="true"
+                  Class="diagram-container flex-grow-1"
+                  Style="min-width: 0; min-height: 0;"
+                  ondragover="event.preventDefault();"
+                  @ondrop="OnNodeDrop">
+            <div class="d-inline-block"
+                 style="position: absolute; top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
+                <MudStack Row="true" Spacing="1" Class="flex-wrap">
+                    <MudFileUpload T="IBrowserFile"
+                                   FilesChanged="LoadFlow"
+                                   Style="margin-top:0;">
+                        <ActivatorContent>
+                            <MudButton StartIcon="@Icons.Material.Filled.Upload"
+                                       Variant="@Variant.Filled"
+                                       Color="@Color.Primary">
+                                Load Flow
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    <MudButton StartIcon="@Icons.Material.Filled.Download"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Primary"
+                               @onclick="() => SaveFlow(false)">
+                        Save Flow
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Download"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Primary"
+                               @onclick="() => SaveFlow(true)">
+                        Export as Mermaid Flow
+                    </MudButton>
+                    <MudButton
+                        StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+                        Variant="@Variant.Filled"
+                        Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+                        OnClick="ClearButtonClicked">
+                        @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                                Class="execute-flow-button"
+                                Variant="@Variant.Filled"
+                                Color="@Color.Success"
+                                Disabled="@(!CanExecuteFlow)"
+                                Title="@ExecuteFlowButtonTitle"
+                                @onclick="@ExecuteFlow">
+                        Execute flow
+                    </MudButton>
+                </MudStack>
+            </div>
+            <CascadingValue Value="Diagram" IsFixed="true">
+                <DiagramCanvas>
+                    <Widgets>
+                        <NavigatorWidget Width="200"
+                                         Height="120"
+                                         Class="editor-minimap border border-black absolute"
+                                         Style="bottom: 15px; right: 15px;"/>
+                    </Widgets>
+                </DiagramCanvas>
+            </CascadingValue>
+        </MudPaper>
     </MudStack>
 </MudStack>
 </div>
@@ -243,6 +243,12 @@
     private string _query;
     private const string DefaultCatId = "default";
     private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
+    private bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
+    private bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
+    private bool CanExecuteFlow => HasConnectedComponentService && HasConnectedChannelService;
+    private string ExecuteFlowButtonTitle => CanExecuteFlow
+        ? "Execute flow"
+        : "Connect both a components service and a channel service to execute the flow.";
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
@@ -329,12 +335,15 @@
             await StoredSrData.SaveNew(LocalStorage, nb);
             if (nb.AutoConnect) await ConnectToStartChannelsService(ConMan, nb.PetName, nb.SturdyRef);
         }
+
+        StateHasChanged();
     }
 
     private async Task ShowSturdyRefDialog()
     {
         async Task HandleNewConnections((ulong, string, string) intIdAndSrAndPn)
         {
+            var updatedConnections = false;
             var sr = intIdAndSrAndPn.Item2;
             if (!SturdyRef2Services.TryGetValue(sr, out var value)) return;
             var intId = intIdAndSrAndPn.Item1;
@@ -347,6 +356,7 @@
                     var petName2 = Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName);
                     ServiceId2ChannelStarterServices[info.Id] = service;
                     ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
+                    updatedConnections = true;
                 }
             }
             else if (intId == Shared.RegistryInterfaceId && value is IRegistry reg)
@@ -356,7 +366,12 @@
                 ServiceId2Registries[info.Id] = Proxy.Share(reg);
                 RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
                 await LoadComponentsFromRegistry(Proxy.Share(reg), sr);
-                StateHasChanged();
+                updatedConnections = true;
+            }
+
+            if (updatedConnections)
+            {
+                await InvokeAsync(StateHasChanged);
             }
         }
 

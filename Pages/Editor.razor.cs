@@ -1319,6 +1319,14 @@ public partial class Editor
 
     private async Task ExecuteFlow()
     {
+        if (!CanExecuteFlow)
+        {
+            Console.WriteLine(
+                "Editor.razor.cs::ExecuteFlow: Connect both a components service and a channel service before executing the flow."
+            );
+            return;
+        }
+
         try
         {
             foreach (var node in Diagram.Nodes)
