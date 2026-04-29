@@ -182,18 +182,17 @@
             <div class="d-inline-block absolute"
                  style="top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
                 <MudStack Row="true" Spacing="1" Class="flex-wrap">
-                    <MudFileUpload T="IBrowserFile"
-                                   FilesChanged="LoadFlow"
-                                   Class="mt-0">
-                        <CustomContent Context="fileUpload">
-                            <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                                       Variant="@Variant.Filled"
-                                       Color="@Color.Primary"
-                                       OnClick="@(() => fileUpload.OpenFilePickerAsync())">
-                                Load Flow
-                            </MudButton>
-                        </CustomContent>
-                    </MudFileUpload>
+                    <InputFile @key="_loadFlowInputVersion"
+                               id="@LoadFlowInputId"
+                               class="d-none"
+                               OnChange="LoadFlowSelected" />
+                    <MudButton StartIcon="@Icons.Material.Filled.Upload"
+                               HtmlTag="label"
+                               for="@LoadFlowInputId"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Primary">
+                        Load Flow
+                    </MudButton>
                     <MudButton StartIcon="@Icons.Material.Filled.Download"
                                Variant="@Variant.Filled"
                                Color="@Color.Primary"
@@ -243,6 +242,7 @@
     private Timer ClearButtonTimer { get; set; }
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
+    private int _loadFlowInputVersion;
     private Editor _editor;
     private string _searchText = "";
     private string _query = "";

@@ -37,6 +37,7 @@ namespace BlazorDrawFBP.Pages;
 public partial class Editor
 {
     private const string NoRegistryServiceId = "no_service";
+    private const string LoadFlowInputId = "load-flow-input";
 
     private const int IipIdLength = 10;
     private const int ProcIdLength = 20;
@@ -784,6 +785,21 @@ public partial class Editor
             Diagram.SuspendRefresh = false;
             Diagram.Refresh();
         });
+    }
+
+    protected async Task LoadFlowSelected(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            if (args.FileCount > 0)
+            {
+                await LoadFlow(args.File);
+            }
+        }
+        finally
+        {
+            _loadFlowInputVersion++;
+        }
     }
 
     protected async Task SaveFlow(bool asMermaid)
