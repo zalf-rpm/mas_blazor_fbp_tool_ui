@@ -21,8 +21,9 @@
                         CheckMark
                         SelectionMode="SelectionMode.SingleSelection">
                 @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p))) {
-                    var style = $"position: absolute; left: 3px; top: {-15 - i * 25}px;";
-                    <MudChip Style="@style"
+                    var style = $"left: 3px; top: {-15 - i * 25}px;";
+                    <MudChip Class="absolute"
+                             Style="@style"
                              Color="Color.Info"
                              SelectedColor="Color.Info"
                              Label="true"
@@ -36,7 +37,8 @@
                 }
             </MudChipSet>
         } else {
-            <MudChip Style="position: absolute; left: 3px; top: -15px;"
+            <MudChip Class="absolute"
+                     Style="left: 3px; top: -15px;"
                      Color="Color.Info"
                      Label="true"
                      Size="Size.Small"

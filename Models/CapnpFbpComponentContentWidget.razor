@@ -2,7 +2,8 @@
 @using BlazorDrawFBP.Models;
 
 <div>
-    <MudFab Style="position: absolute; right: -20px; top: -20px; overflow: visible; transform: scale(0.5);"
+    <MudFab Class="absolute overflow-visible"
+            Style="right: -20px; top: -20px; transform: scale(0.5);"
             OnClick="RemoveWidget"
             Color="Color.Error"
             Size="Size.Small"
@@ -28,7 +29,8 @@
                                      Variant="Variant.Outlined"
                                      Min="1" Max="10000"/>
                 }
-                <MudToggleIconButton Style="position: absolute; right: -5px; top: 55px;"
+                <MudToggleIconButton Class="absolute"
+                                     Style="right: -5px; top: 55px;"
                                      @bind-Toggled="@_linesOn"
                                      Icon="@Icons.Material.Filled.MenuOpen"
                                      Color="@Color.Primary"
@@ -70,8 +72,9 @@
                                 SelectionMode="SelectionMode.SingleSelection">
                         @foreach (var (i, p) in Node.ComponentModel.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
                         {
-                            var style = $"position: absolute; left: 3px; top: {-15 - i * 25}px;";
-                            <MudChip Style="@style"
+                            var style = $"left: 3px; top: {-15 - i * 25}px;";
+                            <MudChip Class="absolute"
+                                     Style="@style"
                                      Color="Color.Info"
                                      SelectedColor="Color.Info"
                                      Label="true"
@@ -87,7 +90,8 @@
                 }
                 else
                 {
-                    <MudChip Style="position: absolute; left: 3px; top: -15px;"
+                    <MudChip Class="absolute"
+                             Style="left: 3px; top: -15px;"
                              Color="Color.Info"
                              Label="true"
                              Size="Size.Small"

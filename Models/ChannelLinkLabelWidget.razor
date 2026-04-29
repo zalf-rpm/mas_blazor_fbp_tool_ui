@@ -1,5 +1,5 @@
 @using Mas.Schema.Fbp
-<div class="channel-link-label d-flex" style="@(ShowStats)">
+<div class="channel-link-label d-flex @StatsVisibilityClass">
     <div>
         <MudBadge Class="d-inline-flex pa-1" Content="@(Stats.NoOfWaitingWriters.ToString())" Overlap="true">
             <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Default"/>
@@ -26,7 +26,7 @@
 
     private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel.Stats;
 
-    private string ShowStats => Label.ShowStats ? "" : "display: none";
+    private string StatsVisibilityClass => Label.ShowStats ? "" : "d-none";
     
     private void OpenChannelInfo()
     {

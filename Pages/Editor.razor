@@ -25,7 +25,7 @@
 <MudPopoverProvider/>
 
 <div class="editor-shell mud-background-gray pa-1">
-<MudStack Spacing="1" Style="height: 100%; min-height: 0;">
+<MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
     <MudPaper Outlined="true" Class="pa-1 d-flex align-center">
         <MudIconButton Icon="@(_componentListVisible ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
                        Color="Color.Inherit"
@@ -112,7 +112,8 @@
 
                                     if (string.IsNullOrEmpty(comp.Info.Description))
                                     {
-                                        <MudChip Style="position: relative; top: +7px;"
+                                        <MudChip Class="relative"
+                                                 Style="top: +7px;"
                                                  Variant="Variant.Text"
                                                  Color="Color.Info"
                                                  Label="true"
@@ -120,7 +121,7 @@
                                                  T="string">
                                             @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
                                         </MudChip>
-                                        <MudButton style="cursor: grab;"
+                                        <MudButton Class="cursor-grab"
                                                    draggable="true"
                                                    @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
                                                    Variant="Variant.Filled"
@@ -136,7 +137,8 @@
                                     {
                                         <MudTooltip>
                                             <ChildContent>
-                                                <MudChip Style="position: relative; top: +7px;"
+                                                <MudChip Class="relative"
+                                                         Style="top: +7px;"
                                                          Variant="Variant.Text"
                                                          Color="Color.Info"
                                                          Label="true"
@@ -144,7 +146,7 @@
                                                          T="string">
                                                     @(RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(compId.Item1, ("No Service", null)).Item1)
                                                 </MudChip>
-                                                <MudButton style="cursor: grab;"
+                                                <MudButton Class="cursor-grab"
                                                            draggable="true"
                                                            @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
                                                            Variant="Variant.Filled"
@@ -173,15 +175,14 @@
         }
         <MudPaper Outlined="true"
                   Class="diagram-container flex-grow-1"
-                  Style="min-width: 0; min-height: 0;"
                   ondragover="event.preventDefault();"
                   @ondrop="OnNodeDrop">
-            <div class="d-inline-block"
-                 style="position: absolute; top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
+            <div class="d-inline-block absolute"
+                 style="top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
                 <MudStack Row="true" Spacing="1" Class="flex-wrap">
                     <MudFileUpload T="IBrowserFile"
                                    FilesChanged="LoadFlow"
-                                   Style="margin-top:0;">
+                                   Class="mt-0">
                         <ActivatorContent>
                             <MudButton StartIcon="@Icons.Material.Filled.Upload"
                                        Variant="@Variant.Filled"

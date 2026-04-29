@@ -1,7 +1,7 @@
 @using Blazor.Diagrams.Core.Models.Base;
 @using BlazorDrawFBP.Models;;
 
-<div style="background-color: #eee; width: @(Node.Size!.Width)px; padding: 5px;">
+<div class="gray lighten-3 pa-1" style="width: @(Node.Size!.Width)px;">
     @if (Model is NodeModel)
     {
         <div>Width: @Node.Size.Width</div>
