@@ -81,7 +81,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
             Channel<IP>.IReader reader = null;
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            foreach (var pl in Links)
+            foreach (var pl in Shared.Shared.AttachedLinks(this))
             {
                 if (
                     pl
@@ -291,7 +291,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
+        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
         await FreeRemoteChannelsAttachedToPorts();
         await CancelAndDisposeViewTasks();
     }

@@ -119,7 +119,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             // Console.WriteLine(
             //     $"T{Environment.CurrentManagedThreadId} {ChannelName} StatsCallback::Status@port {inPortModel.Name}: received status message {stats.Timestamp} Int:{stats.UpdateIntervalInMs} #bws:{stats.NoOfWaitingWriters} #q:{stats.NoOfIpsInQueue} #tot:{stats.TotalNoOfIpsReceived} #brs:{stats.NoOfWaitingReaders}"
             // );
-            foreach (var link in inPortModel.Parent.Links)
+            foreach (var link in Shared.Shared.AttachedLinks(inPortModel.Parent))
             {
                 if (
                     link is not RememberCapnpPortsLinkModel rcplm

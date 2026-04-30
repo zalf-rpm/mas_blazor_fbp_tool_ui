@@ -138,6 +138,32 @@ public static class Shared
 
     public static void RestoreDefaultPortVisibility(Diagram diagram, BaseLinkModel baseLinkModel)
     {
+        if (baseLinkModel is RememberCapnpPortsLinkModel { OutPortModel: { } outPort, InPortModel: { } inPort })
+        {
+            outPort.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
+
+            var noOfLinksToInPort = diagram.Links.Count(l =>
+                l is RememberCapnpPortsLinkModel { InPortModel: { } otherInPort }
+                && otherInPort == inPort
+            );
+            if (noOfLinksToInPort == 1)
+            {
+                inPort.Visibility = CapnpFbpPortModel.VisibilityState.Visible;
+            }
+
+            if (outPort.Parent is CapnpFbpIipComponentModel iipModel)
+            {
+                foreach (var p in iipModel.Ports)
+                {
+                    p.Visible = true;
+                }
+            }
+
+            outPort.Parent?.RefreshAll();
+            inPort.Parent?.RefreshAll();
+            return;
+        }
+
         if (baseLinkModel.Source.Model is NodeModel sourceNode)
         {
             foreach (var p in sourceNode.Ports)
@@ -193,6 +219,11 @@ public static class Shared
             targetNode.RefreshAll();
         }
     }
+
+    public static IEnumerable<BaseLinkModel> AttachedLinks(NodeModel node) =>
+        node.PortLinks.Concat(node.Links).Distinct();
+
+    public static int AttachedLinkCount(NodeModel node) => AttachedLinks(node).Count();
 
     public static string FormatStructuredTextType(StructuredText.Type sst)
     {
@@ -259,4 +290,9 @@ public static class Shared
             diagram.Links.Remove(blm);
         }
     }
+
+    public static void RestoreDefaultPortVisibilityOfAttachedComponent(
+        NodeModel node,
+        Diagram diagram
+    ) => RestoreDefaultPortVisibilityOfAttachedComponent(AttachedLinks(node).ToList(), diagram);
 }

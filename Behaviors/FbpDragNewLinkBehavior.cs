@@ -131,7 +131,7 @@ public class FbpDragNewLinkBehavior : Behavior
     if (position == null) return null;
     foreach (var other in Diagram.Nodes.SelectMany((Func<NodeModel, IEnumerable<PortModel>>) (n => n.Ports)))
     {
-      var num2 = position.DistanceTo(other.Position);
+      var num2 = position.DistanceTo(other.MiddlePosition);
       if (num2 <= Diagram.Options.Links.SnappingRadius)
       {
         var model = OngoingLink.Source.Model;
@@ -152,4 +152,3 @@ public class FbpDragNewLinkBehavior : Behavior
     Diagram.PointerUp -= OnPointerUp;
   }
 }
-

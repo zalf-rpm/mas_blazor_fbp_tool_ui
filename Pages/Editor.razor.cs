@@ -425,6 +425,9 @@ public partial class Editor
         Diagram.Links.Added += async l =>
         {
             Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
+            if (l is RememberCapnpPortsLinkModel)
+                return;
+
             switch (l.Source.Model)
             {
                 case CapnpFbpInPortModel sourceInPort:
@@ -437,13 +440,8 @@ public partial class Editor
                     {
                         if (newTarget.Model is not CapnpFbpOutPortModel outPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(
-                            outPort.Parent,
-                            sourceInPort.Parent
-                        )
+                        var nl = new RememberCapnpPortsLinkModel(outPort, sourceInPort)
                         {
-                            OutPortModel = outPort,
-                            InPortModel = sourceInPort,
                             Color = outPort.Writer == null ? "#ff0000" : "#1ac12e",
                         };
                         nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
@@ -483,13 +481,8 @@ public partial class Editor
                     {
                         if (newTarget.Model is not CapnpFbpInPortModel inPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(
-                            sourceOutPort.Parent,
-                            inPort.Parent
-                        )
+                        var nl = new RememberCapnpPortsLinkModel(sourceOutPort, inPort)
                         {
-                            OutPortModel = sourceOutPort,
-                            InPortModel = inPort,
                             Color = inPort.Reader == null ? "#ff0000" : "#1ac12e",
                         };
                         nl.Labels.Add(new LinkLabelModel(nl, sourceOutPort.Name, 0.2));
@@ -799,11 +792,7 @@ public partial class Editor
                 continue;
             }
 
-            var l = new RememberCapnpPortsLinkModel(sourceNode, targetNode)
-            {
-                OutPortModel = scp,
-                InPortModel = tcp,
-            };
+            var l = new RememberCapnpPortsLinkModel(scp, tcp);
             if (sourceNode is not CapnpFbpIipComponentModel)
                 l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);

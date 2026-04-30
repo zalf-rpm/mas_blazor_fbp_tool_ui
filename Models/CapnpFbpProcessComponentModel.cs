@@ -89,7 +89,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
             var configInPortConnected = false;
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            foreach (var pl in Links)
+            foreach (var pl in Shared.Shared.AttachedLinks(this))
             {
                 if (
                     pl

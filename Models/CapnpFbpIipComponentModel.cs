@@ -56,8 +56,8 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
             var cancelToken = _cancellationTokenSource.Token;
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            Debug.Assert(Links.Count < 2);
-            foreach (var pl in Links)
+            Debug.Assert(Shared.Shared.AttachedLinkCount(this) < 2);
+            foreach (var pl in Shared.Shared.AttachedLinks(this))
             {
                 if (pl is not RememberCapnpPortsLinkModel rcplm)
                     continue;
@@ -142,7 +142,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         _iipTask?.Dispose();
         _iipTask = null;
 
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
+        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
 
         foreach (var port in Ports)
         {
