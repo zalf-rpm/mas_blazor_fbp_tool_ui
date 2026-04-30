@@ -106,10 +106,12 @@
                             Delay="600"
                             Arrow="true"
                             Disabled="@(Node.ProcessName.Length <= NoOfNameChars)">
-                    <MudText Class="@NameTextClass" Typo="@NameTypo" Align="Align.Center"
-                             @ondblclick="showAndFocusOnNameEdit">
-                        @(Node.ProcessName.Length > NoOfNameChars ? $"{Node.ProcessName[..NoOfNameChars]}..." : Node.ProcessName)
-                    </MudText>
+                    <span @ondblclick:stopPropagation="true">
+                        <MudText Class="@NameTextClass" Typo="@NameTypo" Align="Align.Center"
+                                 @ondblclick="showAndFocusOnNameEdit">
+                            @(Node.ProcessName.Length > NoOfNameChars ? $"{Node.ProcessName[..NoOfNameChars]}..." : Node.ProcessName)
+                        </MudText>
+                    </span>
                 </MudTooltip>
             </MudItem>
             <MudItem xs="12" Class="d-flex justify-center">
@@ -150,10 +152,12 @@
                             Delay="600"
                             Arrow="true"
                             Disabled="@(Node.ShortDescription.Length <= NoOfShortDescChars)">
-                    <MudText Class="@ShortDescTextClass" Typo="@ShortDescTypo" Align="Align.Left"
-                             @ondblclick="showAndFocusOnShortDescEdit">
-                        @(string.IsNullOrWhiteSpace(Node.ShortDescription) ? "no description" : Node.ShortDescription.Length > NoOfShortDescChars ? $"{Node.ShortDescription[..NoOfShortDescChars]}..." : Node.ShortDescription)
-                    </MudText>
+                    <span @ondblclick:stopPropagation="true">
+                        <MudText Class="@ShortDescTextClass" Typo="@ShortDescTypo" Align="Align.Left"
+                                 @ondblclick="showAndFocusOnShortDescEdit">
+                            @(string.IsNullOrWhiteSpace(Node.ShortDescription) ? "no description" : Node.ShortDescription.Length > NoOfShortDescChars ? $"{Node.ShortDescription[..NoOfShortDescChars]}..." : Node.ShortDescription)
+                        </MudText>
+                    </span>
                 </MudTooltip>
             </MudItem>
         </MudGrid>

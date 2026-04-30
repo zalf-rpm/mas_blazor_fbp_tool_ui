@@ -2,6 +2,13 @@
     box-sizing: border-box;
     height: 100dvh;
     overflow: hidden;
+    user-select: none;
+}
+
+::deep .editor-shell input,
+::deep .editor-shell textarea,
+::deep .editor-shell [contenteditable="true"] {
+    user-select: text;
 }
 
 ::deep .diagram-container {

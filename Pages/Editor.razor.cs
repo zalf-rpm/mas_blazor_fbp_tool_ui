@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Behaviors;
 using Blazor.Diagrams.Core.Controls;
+using Blazor.Diagrams.Core.Extensions;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.PathGenerators;
@@ -38,6 +39,9 @@ public partial class Editor
 {
     private const string NoRegistryServiceId = "no_service";
     private const string LoadFlowInputId = "load-flow-input";
+    private const double ZoomToFitMargin = 80;
+    private const int ViewNodeWidth = 350;
+    private const int ViewNodeHeight = 200;
 
     private const int IipIdLength = 10;
     private const int ProcIdLength = 20;
@@ -587,6 +591,7 @@ public partial class Editor
         Diagram.PointerDoubleClick += (m, e) =>
         {
             if (m is LinkModel link)
+            {
                 if (
                     link.Source.Model is CapnpFbpPortModel source
                     && link.Target.Model is CapnpFbpPortModel target
@@ -612,6 +617,11 @@ public partial class Editor
                     };
                     Diagram.Nodes.Add(node);
                 }
+            }
+            else if (m == null)
+            {
+                _ = InvokeAsync(ZoomToFitFlow);
+            }
 
             // Console.WriteLine(
             //     $"MouseDoubleClick, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
@@ -807,21 +817,26 @@ public partial class Editor
             Diagram.Links.Add(l);
         }
 
-        Diagram.SuspendRefresh = true;
+        Diagram.SuspendRefresh = false;
         Diagram.Refresh();
 
-        await InvokeAsync(async () =>
-        {
-            await Task.Delay(500);
-            Diagram.SuspendRefresh = true;
-            Diagram.SetPan(
-                dia["pan"]?["x"]?.Value<double>() ?? 0.0,
-                dia["pan"]?["y"]?.Value<double>() ?? 0.0
-            );
-            Diagram.SetZoom(dia["zoom"]?.Value<double>() ?? 1.0);
-            Diagram.SuspendRefresh = false;
-            Diagram.Refresh();
-        });
+        await InvokeAsync(ZoomToFitFlow);
+    }
+
+    private void ZoomToFitFlow()
+    {
+        if (Diagram.Nodes.Count == 0 || Diagram.Container == null)
+            return;
+
+        Diagram.UnselectAll();
+        var bounds = DiagramExtensions.GetBounds(Diagram.Nodes);
+        Diagram.ZoomToFit(ZoomToFitMargin);
+        var extraHeight =
+            Diagram.Container.Height - ((bounds.Height + 2 * ZoomToFitMargin) * Diagram.Zoom);
+        if (extraHeight > 0)
+            Diagram.UpdatePan(0, extraHeight / 2);
+
+        Diagram.Refresh();
     }
 
     protected async Task LoadFlowSelected(InputFileChangeEventArgs args)
@@ -1519,6 +1534,7 @@ public partial class Editor
                                 ?? 1,
                         };
 
+                        SetDefaultComponentSize(rnode);
                         if (component.Factory?.which == Component.factory.WHICH.Runnable)
                         {
                             rnode.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
@@ -1564,6 +1580,7 @@ public partial class Editor
                                 ?? initNode?.GetValue("parallel_processes")?.Value<int>()
                                 ?? 1,
                         };
+                        SetDefaultComponentSize(pnode);
                         if (component.Factory?.which == Component.factory.WHICH.Process)
                         {
                             pnode.ProcessFactory = Proxy.Share(component.Factory!.Process);
@@ -1629,6 +1646,7 @@ public partial class Editor
                     Content = initNode?["content"]?.ToString() ?? "",
                     DisplayNoOfLines = initNode?["displayNoOfLines"]?.Value<int>() ?? 3,
                 };
+                SetDefaultComponentSize(node);
                 Diagram.Nodes.Add(node);
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
                 node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Top) { Name = "IIP" });
@@ -1664,6 +1682,7 @@ public partial class Editor
                         procName
                         ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                 };
+                node.Size = new Size(ViewNodeWidth, ViewNodeHeight);
 
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
 
@@ -1695,4 +1714,7 @@ public partial class Editor
 
         return null;
     }
+
+    private static void SetDefaultComponentSize(NodeModel node) =>
+        node.Size = new Size(Shared.Shared.CardWidth, Shared.Shared.CardHeight);
 }
