@@ -212,7 +212,7 @@
             PortAlignment.Bottom => _topBottomOffsets,
             _ => []
         };
-        if (capnpPort.Alignment is PortAlignment.Right or PortAlignment.Bottom) {
+        if (capnpPort.Alignment is PortAlignment.Left or PortAlignment.Right or PortAlignment.Bottom) {
             offsets = new List<int>(offsets);
             offsets.Reverse();
         }
