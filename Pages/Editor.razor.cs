@@ -597,11 +597,16 @@ public partial class Editor
                     // find closest port, assuming the user will click on the label he actually wants to change
                     var sourceToPoint = relativePt.DistanceTo(source.MiddlePosition);
                     var targetToPoint = relativePt.DistanceTo(target.MiddlePosition);
-                    var labelIndex = sourceToPoint < targetToPoint ? 0 : 1;
+                    var labelModel = sourceToPoint < targetToPoint
+                        ? link.Labels.Find(blm => blm is not ChannelLinkLabelModel)
+                        : link.Labels.FindLast(blm => blm is not ChannelLinkLabelModel);
+                    if (labelModel == null)
+                        return;
+
                     var node = new UpdatePortNameNode(relativePt)
                     {
-                        Label = $"Change {link.Labels[labelIndex].Content}",
-                        LabelModel = link.Labels[labelIndex],
+                        Label = $"Change {labelModel.Content}",
+                        LabelModel = labelModel,
                         PortModel = sourceToPoint < targetToPoint ? source : target,
                         Container = Diagram,
                     };

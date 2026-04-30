@@ -155,11 +155,14 @@
     {
         foreach (var link in Node.PortModel.Links)
         {
-            var labelIndex = 0;
-            if (link.Source.Model == Node.PortModel) labelIndex = 0;
-            else if (link.Target.Model == Node.PortModel) labelIndex = 1;
-            link.Labels[labelIndex].Content = Node.PortModel.Name;
-            link.Labels[labelIndex].Refresh();
+            var label = link.Source.Model == Node.PortModel
+                ? link.Labels.Find(blm => blm is not ChannelLinkLabelModel)
+                : link.Target.Model == Node.PortModel
+                    ? link.Labels.FindLast(blm => blm is not ChannelLinkLabelModel)
+                    : null;
+            if (label == null) continue;
+            label.Content = Node.PortModel.Name;
+            label.Refresh();
         }
     }
     
