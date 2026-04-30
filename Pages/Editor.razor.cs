@@ -41,6 +41,19 @@ public partial class Editor
 
     private const int IipIdLength = 10;
     private const int ProcIdLength = 20;
+    private static readonly (string Background, string Foreground)[] ComponentServicePalette =
+    [
+        ("#64748B", "#FFFFFF"),
+        ("#0072B2", "#FFFFFF"),
+        ("#D55E00", "#FFFFFF"),
+        ("#009E73", "#FFFFFF"),
+        ("#CC79A7", "#FFFFFF"),
+        ("#E69F00", "#111827"),
+        ("#56B4E9", "#111827"),
+        ("#F0E442", "#111827"),
+        ("#785EF0", "#FFFFFF"),
+        ("#DC267F", "#FFFFFF"),
+    ];
     private static readonly Random Random = new();
 
     //private readonly List<string> events = new List<string>();
@@ -85,6 +98,36 @@ public partial class Editor
         ServiceId2ChannelStarterServices
             .FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null))
             .Value;
+
+    public string GetComponentServiceName(string serviceId) =>
+        RegistryServiceIdToPetNameAndSturdyRef
+            .GetValueOrDefault(serviceId, ("Unknown service!", null))
+            .Item1;
+
+    public string GetComponentServiceBadgeStyle(string serviceId)
+    {
+        var (background, foreground) = GetComponentServiceColors(serviceId);
+        return $"background-color: {background} !important; color: {foreground} !important;";
+    }
+
+    private string GetComponentServiceHandleStyle(string serviceId)
+    {
+        var (background, foreground) = GetComponentServiceColors(serviceId);
+        return $"background-color: {background}; color: {foreground};";
+    }
+
+    private (string Background, string Foreground) GetComponentServiceColors(string serviceId)
+    {
+        var index = 0;
+        foreach (var key in RegistryServiceIdToPetNameAndSturdyRef.Keys)
+        {
+            if (key == serviceId)
+                return ComponentServicePalette[index % ComponentServicePalette.Length];
+            index++;
+        }
+
+        return ComponentServicePalette[0];
+    }
 
     private async Task<IStartChannelsService> ConnectToStartChannelsService(
         ConnectionManager conMan,
@@ -1379,6 +1422,12 @@ public partial class Editor
         _draggedComponentServiceId = componentServiceId;
     }
 
+    private void OnNodeDragEnd()
+    {
+        _draggedComponent = null;
+        _draggedComponentServiceId = null;
+    }
+
     private void OnNodeDrop(DragEventArgs e)
     {
         if (_draggedComponent == null)
@@ -1389,7 +1438,7 @@ public partial class Editor
             _draggedComponent,
             new JObject { { "componentServiceId", _draggedComponentServiceId } }
         );
-        _draggedComponent = null;
+        OnNodeDragEnd();
     }
 
     private NodeModel AddFbpNode(

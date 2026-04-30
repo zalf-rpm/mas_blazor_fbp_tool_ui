@@ -18,6 +18,30 @@
     scrollbar-gutter: stable both-edges;
 }
 
+::deep .component-palette-item {
+    transition: background-color 120ms ease;
+}
+
+::deep .component-palette-item:hover,
+::deep .component-palette-item:focus-visible {
+    background-color: var(--mud-palette-background-gray) !important;
+}
+
+::deep .component-service-handle-label {
+    max-width: 0;
+    opacity: 0;
+    padding-right: 0;
+    transition: max-width 160ms ease, margin-left 160ms ease, opacity 120ms ease, padding-right 160ms ease;
+}
+
+::deep .component-service-handle:hover .component-service-handle-label,
+::deep .component-service-handle:focus-visible .component-service-handle-label {
+    margin-left: 0.25rem;
+    max-width: 10rem;
+    opacity: 1;
+    padding-right: 0.25rem;
+}
+
 ::deep .editor-minimap {
     background-color: var(--mud-palette-surface, #fff) !important;
 }

@@ -21,11 +21,11 @@
                         CheckMark
                         SelectionMode="SelectionMode.SingleSelection">
                 @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p))) {
-                    var style = $"left: 3px; top: {-15 - i * 25}px;";
+                    var style = $"left: 3px; top: {-15 - i * 25}px; {Node.Editor.GetComponentServiceBadgeStyle(p.Key)}";
                     <MudChip Class="absolute"
                              Style="@style"
-                             Color="Color.Info"
-                             SelectedColor="Color.Info"
+                             Color="Color.Default"
+                             SelectedColor="Color.Default"
                              Label="true"
                              Default="@(p.Key == Node.ComponentServiceId)"
                              OnClick="() => { _changeComponentServiceId = false; }"
@@ -38,13 +38,13 @@
             </MudChipSet>
         } else {
             <MudChip Class="absolute"
-                     Style="left: 3px; top: -15px;"
-                     Color="Color.Info"
+                     Style="@($"left: 3px; top: -15px; {Node.Editor.GetComponentServiceBadgeStyle(Node.ComponentServiceId)}")"
+                     Color="Color.Default"
                      Label="true"
                      Size="Size.Small"
                      OnClick="() => { _changeComponentServiceId = true; }"
                      T="string">
-                @(Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentServiceId, ("Unknown service!", null)).Item1)
+                @Node.Editor.GetComponentServiceName(Node.ComponentServiceId)
             </MudChip>
         }
         <MudGrid Justify="Justify.Center" Spacing="1">
