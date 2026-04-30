@@ -211,9 +211,10 @@
 
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="port" Port="capnpPort" BorderColor="@PortColor()">
-                @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
-            </CapnpFbpPortRenderer>
+            <CapnpFbpPortRenderer @key="port"
+                                  Port="capnpPort"
+                                  IconColor="@PortColor()"
+                                  SocketColor="@FrameBorderColorValue" />
         </div>
     }
 </div>
@@ -225,7 +226,8 @@
         $"height: {(Node.Size?.Height ?? Shared.CardHeight)}px; width: {(Node.Size?.Width ?? Shared.CardWidth)}px;{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.RemoteProcessAttached() ? 1 : 1)}px";
-    private string FrameColor => $"border-color: {(Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000")}";
+    private string FrameBorderColorValue => Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000";
+    private string FrameColor => $"border-color: {FrameBorderColorValue}";
 
     private MarkupString CardToolTipText { get; set; }
     private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? Shared.CardWidth)}px;";

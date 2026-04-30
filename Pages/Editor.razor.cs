@@ -526,7 +526,6 @@ public partial class Editor
                     var targetPort = l.Target.Model as CapnpFbpPortModel;
                     l.Labels.Add(new LinkLabelModel(l, sourceInPort.Name, 0.2));
                     l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "out", 0.8));
-                    l.SourceMarker = LinkMarker.Arrow;
                     l.TargetChanged += (link, oldTarget, newTarget) =>
                     {
                         if (newTarget.Model is not CapnpFbpOutPortModel outPort)
@@ -551,7 +550,6 @@ public partial class Editor
                             });
                         nl.Labels.Add(cllm);
                         nl.Labels.Add(new LinkLabelModel(nl, sourceInPort.Name, 0.8));
-                        nl.TargetMarker = LinkMarker.Arrow;
                         Diagram.Links.Add(nl);
                         Diagram.Links.Remove(l);
                         outPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
@@ -567,7 +565,6 @@ public partial class Editor
                     var targetPort = l.Target.Model as CapnpFbpPortModel;
                     l.Labels.Add(new LinkLabelModel(l, sourceOutPort.Name, 0.2));
                     l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
-                    l.TargetMarker = LinkMarker.Arrow;
                     l.TargetChanged += (link, oldTarget, newTarget) =>
                     {
                         if (newTarget.Model is not CapnpFbpInPortModel inPort)
@@ -590,7 +587,6 @@ public partial class Editor
                             });
                         nl.Labels.Add(cllm);
                         nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
-                        nl.TargetMarker = LinkMarker.Arrow;
                         Diagram.Links.Add(nl);
                         Diagram.Links.Remove(l);
                         sourceOutPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
@@ -852,14 +848,11 @@ public partial class Editor
             var noOfTargetPorts = targetNode.Ports.Count(p =>
                 p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
             );
-            // might be an IIP
-            sourcePort ??= sourceNode
-                .Ports.Where(p =>
-                    p is CapnpFbpOutPortModel iipPort
-                    && iipPort.Alignment.ToString() == sourcePortName
-                )
-                .DefaultIfEmpty(null)
-                .First();
+            if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
+            {
+                // Older flow files stored one of the former hard-coded IIP alignments.
+                sourcePort = sourceNode.Ports.OfType<CapnpFbpOutPortModel>().FirstOrDefault();
+            }
             if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
                 sourcePort = AddPortControl.CreateAndAddPort(
                     sn,
@@ -900,7 +893,6 @@ public partial class Editor
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
             l.Labels.Add(cllm);
             l.Labels.Add(new LinkLabelModel(l, targetPortName, 0.8));
-            l.TargetMarker = LinkMarker.Arrow;
             Diagram.Links.Add(l);
         }
 
@@ -1253,7 +1245,7 @@ public partial class Editor
                         var inNodeId = ShortProcId(inCapnpModel.Id, inCapnpModel.ProcessName);
 
                         // make sure the link is only stored once
-                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Name}";
                         var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
                         if (
                             linkSet.Contains($"{checkOut}->{checkIn}")
@@ -1278,7 +1270,7 @@ public partial class Editor
                                     new JObject
                                     {
                                         { "nodeId", outIipNodeId },
-                                        { "port", outCapnpPort.Alignment.ToString() },
+                                        { "port", outCapnpPort.Name },
                                     }
                                 },
                                 {
@@ -1354,7 +1346,7 @@ public partial class Editor
                         var inNodeId = inViewCapnpModel.Id;
 
                         // make sure the link is only stored once
-                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Name}";
                         var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
                         if (
                             linkSet.Contains($"{checkOut}->{checkIn}")
@@ -1379,7 +1371,7 @@ public partial class Editor
                                     new JObject
                                     {
                                         { "nodeId", outIipNodeId },
-                                        { "port", outCapnpPort.Alignment.ToString() },
+                                        { "port", outCapnpPort.Name },
                                     }
                                 },
                                 {
@@ -1736,14 +1728,10 @@ public partial class Editor
                     DisplayNoOfLines = initNode?["displayNoOfLines"]?.Value<int>() ?? 3,
                 };
                 SetDefaultComponentSize(node);
+                AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.Out, 0, "IIP");
                 RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Top) { Name = "IIP" });
-                node.AddPort(new CapnpFbpOutPortModel(node) { Name = "" });
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Left) { Name = "IIP" });
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Right) { Name = "IIP" });
-                node.RefreshAll();
                 return node;
             }
             case Component.ComponentType.subflow:

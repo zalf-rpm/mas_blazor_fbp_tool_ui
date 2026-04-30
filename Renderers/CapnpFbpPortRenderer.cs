@@ -35,7 +35,9 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     [Parameter] public string Class { get; set; }
 
-    [Parameter] public string BorderColor { get; set; }
+    [Parameter] public string IconColor { get; set; }
+
+    [Parameter] public string SocketColor { get; set; }
     
     [Parameter] public RenderFragment ChildContent { get; set; }
 
@@ -58,7 +60,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
-        var renderSignature = $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{BorderColor}";
+        var renderSignature =
+            $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{IconColor}|{SocketColor}";
         if (string.Equals(renderSignature, _lastStyle, StringComparison.Ordinal))
         {
             return;
@@ -80,28 +83,30 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         if (!Port.Visible)
             return;
-        
-        var visibility = Port.Visibility switch
-        {
-            CapnpFbpPortModel.VisibilityState.Hidden =>
-                "opacity: 0.55; cursor: not-allowed; background-color: #e5e7eb; color: #6b7280;",
-            CapnpFbpPortModel.VisibilityState.Dashed => "border-style: dashed;",
-            CapnpFbpPortModel.VisibilityState.Visible => "",
-            _ => throw new ArgumentOutOfRangeException()
-        };
+
+        var disabled = Port.Visibility == CapnpFbpPortModel.VisibilityState.Hidden;
+        var dashed = Port.Visibility == CapnpFbpPortModel.VisibilityState.Dashed;
+        var shellColor = SocketColor ?? "#d4d4d4";
+        var iconColor = IconColor ?? "#111827";
         var style = new CapnpFbpPortLayout.PortPlacement(
             EffectiveAlignment,
             Port.LayoutOffsetPx
-        ).ToStyle(BorderColor ?? "#d4d4d4");
-        
+        ).ToStyle();
+
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
-        builder.AddAttribute(1, "style", style + visibility);
+        builder.AddAttribute(
+            1,
+            "style",
+            style
+                + (disabled ? "cursor: not-allowed;" : "")
+                + $"--port-shell-color: {shellColor}; --port-icon-color: {iconColor};"
+        );
         builder.AddAttribute(2, "class",
-            "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " + 
+            "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " +
             Port.ThePortType.ToString().ToLower() + " " +
-            //offsetString + " " + 
             (Port.Links.Count > 0 ? "has-links" : "") + " " +
-            (Port.Visibility == CapnpFbpPortModel.VisibilityState.Hidden ? "disabled" : "") + " " +
+            (disabled ? "disabled" : "") + " " +
+            (dashed ? "dashed" : "") + " " +
             Class);
         builder.AddAttribute(3, "data-port-id", Port.Id);
         builder.AddAttribute(4, "onpointerdown",
@@ -111,7 +116,42 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerUp));
         builder.AddEventStopPropagationAttribute(7, "onpointerup", true);
         builder.AddElementReferenceCapture(8, (Action<ElementReference>)(value => _element = value));
-        builder.AddContent(9, ChildContent);
+
+        if (ChildContent != null)
+        {
+            builder.AddContent(9, ChildContent);
+        }
+        else
+        {
+            builder.OpenElement(9, "span");
+            builder.AddAttribute(10, "class", "diagram-port-stack");
+
+            builder.OpenElement(11, "span");
+            builder.AddAttribute(12, "class", "diagram-port-icon-shell");
+
+            builder.OpenElement(13, "span");
+            builder.AddAttribute(
+                14,
+                "class",
+                "diagram-port-icon " + Port.ThePortType.ToString().ToLowerInvariant()
+            );
+            builder.CloseElement();
+
+            builder.OpenElement(15, "span");
+            builder.AddAttribute(16, "class", "diagram-port-socket");
+            builder.CloseElement();
+            builder.CloseElement();
+
+            if (!string.IsNullOrWhiteSpace(Port.Name))
+            {
+                builder.OpenElement(17, "span");
+                builder.AddAttribute(18, "class", "diagram-port-label");
+                builder.AddContent(19, Port.Name);
+                builder.CloseElement();
+            }
+
+            builder.CloseElement();
+        }
         builder.CloseElement();
     }
 

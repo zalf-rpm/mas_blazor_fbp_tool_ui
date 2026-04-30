@@ -73,7 +73,10 @@
         if (port is not CapnpFbpOutPortModel iipPort) continue;
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(iipPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
+            <CapnpFbpPortRenderer @key="iipPort"
+                                  Port="iipPort"
+                                  IconColor="@PortColor(iipPort)"
+                                  SocketColor="@FrameBorderColorValue" />
         </div>
     }
 </div>
@@ -85,8 +88,10 @@
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: 1px";
     //private string FrameColor => $"border-color: #6e9fd4";
-    private string FrameColor => $@"border-color: {(IsConnectedToChannel ? "#1ac12e" : "#ff0000")}";
+    private string FrameBorderColorValue => IsConnectedToChannel ? "#1ac12e" : "#ff0000";
+    private string FrameColor => $@"border-color: {FrameBorderColorValue}";
     private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpOutPortModel iipPort && iipPort.Writer != null);
+    private static string PortColor(CapnpFbpOutPortModel port) => port.Writer == null ? "#ff0000" : "#1ac12e";
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";

@@ -70,9 +70,10 @@
 
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="capnpPort" Port="capnpPort" BorderColor="@PortColor()">
-                @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
-            </CapnpFbpPortRenderer>
+            <CapnpFbpPortRenderer @key="capnpPort"
+                                  Port="capnpPort"
+                                  IconColor="@PortColor()"
+                                  SocketColor="@FrameBorderColorValue" />
         </div>
     }
 </div>
@@ -83,7 +84,8 @@
     private string CardStyle =>
         $"height: {(Node.Size?.Height ?? 200)}px; width: {(Node.Size?.Width ?? 350)}px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: {(ProcessStarted ? 1 : 1)}px";
-    private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
+    private string FrameBorderColorValue => ProcessStarted ? "#1ac12e" : "#ff0000";
+    private string FrameColor => $@"border-color: {FrameBorderColorValue}";
 
     private async Task StartProcess(bool start) {
         if (start)

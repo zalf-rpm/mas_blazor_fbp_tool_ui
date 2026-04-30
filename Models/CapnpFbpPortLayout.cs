@@ -30,25 +30,20 @@ public static class CapnpFbpPortLayout
 
     public readonly record struct PortPlacement(PortAlignment Alignment, double OffsetPx)
     {
-        public string ToStyle(string borderColor)
+        public string ToStyle()
         {
             var offset = OffsetPx.ToString("0.###", CultureInfo.InvariantCulture);
-            var positionStyle = Alignment switch
+            return Alignment switch
             {
                 PortAlignment.Left or PortAlignment.Right => $"top: {offset}px;",
                 PortAlignment.Top or PortAlignment.Bottom => $"left: {offset}px;",
                 _ => string.Empty,
             };
-
-            return $"{positionStyle} border: 1px solid {borderColor};";
         }
     }
 
     public static IReadOnlyDictionary<string, PortPlacement> Calculate(NodeModel node)
     {
-        if (node is CapnpFbpIipComponentModel)
-            return new Dictionary<string, PortPlacement>();
-
         var ports = node.Ports.OfType<CapnpFbpPortModel>().ToList();
         if (ports.Count == 0)
             return new Dictionary<string, PortPlacement>();
