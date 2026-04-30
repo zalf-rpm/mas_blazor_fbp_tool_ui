@@ -56,8 +56,10 @@
         @CardToolTipText
     </MudText>
 
-    @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
+    @foreach (var port in Node.Ports)
     {
+        if (port is not CapnpFbpPortModel capnpPort) continue;
+
         string PortColor() {
             return capnpPort switch {
                 CapnpFbpInPortModel { Reader: null } => "#d4d4d4",
@@ -66,26 +68,20 @@
             };
         }
 
-        string Style()
-        {
-            return $"top: 50%; border: 1px solid {PortColor()};";
-        }
-
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
-                in
+            <CapnpFbpPortRenderer @key="capnpPort" Port="capnpPort" BorderColor="@PortColor()">
+                @($"{capnpPort.ThePortType.ToString().ToUpper()[0]} {capnpPort.Name}")
             </CapnpFbpPortRenderer>
         </div>
-
-
     }
 </div>
 
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"height: 200px; width: 350px;{FrameWidth};{FrameColor}";
+    private string CardStyle =>
+        $"height: {(Node.Size?.Height ?? 200)}px; width: {(Node.Size?.Width ?? 350)}px;{FrameWidth};{FrameColor}";
     private string FrameWidth => $"border-width: {(ProcessStarted ? 1 : 1)}px";
     private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
 
@@ -100,7 +96,7 @@
     private bool ProcessStarted => Node.ProcessStarted;
 
     private MarkupString CardToolTipText { get; set; }
-    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+    private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? 350)}px;";
 
     protected override void OnInitialized()
     {

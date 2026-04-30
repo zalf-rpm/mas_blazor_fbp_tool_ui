@@ -41,22 +41,11 @@ public class AddPortControl : ExecutableControl
             .Ports.Where(p => p is CapnpFbpPortModel cp && cp.ThePortType == PortType)
             .OrderBy(p => p is CapnpFbpPortModel cp ? cp.OrderNo : 0)
             .ToList();
-        if (ports.Any())
-        {
-            if (ports.Last() is CapnpFbpPortModel lastPort)
-            {
-                var newOrderNo = lastPort.OrderNo + 1;
-                CreateAndAddPort(NodeModel, PortType, newOrderNo);
-            }
-
-            NodeModel.RefreshAll();
-        }
+        var newOrderNo =
+            ports.LastOrDefault() is CapnpFbpPortModel lastPort ? lastPort.OrderNo + 1 : 0;
+        CreateAndAddPort(NodeModel, PortType, newOrderNo);
+        NodeModel.RefreshAll();
     }
-
-    public const int NoOfLeftRightPorts = 6;
-    public const int MaxLeftRightPortOrderNo = NoOfLeftRightPorts - 1;
-    public const int NoOfTopBottomPorts = 9;
-    public const int MaxTopBottomPortOrderNo = NoOfTopBottomPorts - 1;
 
     public static CapnpFbpPortModel CreateAndAddPort(
         NodeModel node,
@@ -67,9 +56,8 @@ public class AddPortControl : ExecutableControl
         string description = null
     )
     {
-        if (orderNo > NoOfLeftRightPorts + NoOfTopBottomPorts - 1)
-            return null;
-        var alignment = PortAlignmentForOrderNo(portType, orderNo);
+        var alignment =
+            portType == CapnpFbpPortModel.PortType.In ? PortAlignment.Left : PortAlignment.Right;
         CapnpFbpPortModel port = portType switch {
             CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment) {
                 Name = name ?? "IN",
@@ -88,89 +76,8 @@ public class AddPortControl : ExecutableControl
 
         if (port == null) return port;
         node.AddPort(port);
+        CapnpFbpPortLayout.Apply(node, refreshPorts: false);
         node.RefreshAll();
         return port;
     }
-
-    private static PortAlignment PortAlignmentForOrderNo(
-        CapnpFbpPortModel.PortType portType,
-        int orderNo
-    )
-    {
-        if (portType == CapnpFbpPortModel.PortType.In)
-            return orderNo switch
-            {
-                MaxLeftRightPortOrderNo => PortAlignment.TopLeft,
-                > MaxLeftRightPortOrderNo => PortAlignment.Top,
-                _ => PortAlignment.Left,
-            };
-        else
-            return orderNo switch
-            {
-                MaxLeftRightPortOrderNo => PortAlignment.BottomRight,
-                > MaxLeftRightPortOrderNo => PortAlignment.Bottom,
-                _ => PortAlignment.Right,
-            };
-    }
-
-    private static readonly Dictionary<int, List<int>> LeftRightOffsetsMap = new()
-    {
-        {
-            1,
-            new List<int> { 0 }
-        },
-        {
-            2,
-            new List<int> { 10, -10 }
-        },
-        {
-            3,
-            new List<int> { 20, 0, -20 }
-        },
-        {
-            4,
-            new List<int> { 30, 10, -10, -30 }
-        },
-        {
-            5,
-            new List<int> { 30, 15, 0, -15, -30 }
-        },
-        {
-            6,
-            new List<int> { 30, 15, 0, -15, -30, -45 }
-        },
-        {
-            7,
-            new List<int> { 30, 20, 10, 0, -10, -20, -30 }
-        },
-        {
-            8,
-            new List<int> { 35, 25, 15, 5, -5, -15, -25, -35 }
-        },
-        {
-            9,
-            new List<int> { 40, 30, 20, 10, 0, -10, -20, -30, -40 }
-        },
-        {
-            10,
-            new List<int> { -45, -35, -25, -15, -5, 5, 15, 25, 35, 45 }
-        },
-        {
-            11,
-            new List<int> { 50, 40, 30, 20, 10, 0, -10, -20, -30, -40, -50 }
-        },
-    };
-
-    private static readonly List<int> TopBottomOffsets = new()
-    {
-        -40,
-        -30,
-        -20,
-        -10,
-        0,
-        10,
-        20,
-        30,
-        40,
-    };
 }

@@ -7,11 +7,13 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Blazor.Diagrams;
+using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Behaviors;
 using Blazor.Diagrams.Core.Controls;
 using Blazor.Diagrams.Core.Extensions;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.PathGenerators;
 using Blazor.Diagrams.Core.Routers;
 using Blazor.Diagrams.Options;
@@ -306,6 +308,35 @@ public partial class Editor
             {
                 DefaultRouter = new NormalRouter(),
                 DefaultPathGenerator = new SmoothPathGenerator(),
+                Factory = (diagram, source, targetAnchor) =>
+                {
+                    if (source is not PortModel sourcePort)
+                        throw new InvalidOperationException(
+                            $"FBP links can only start from ports, got {source?.GetType().Name ?? "null"}."
+                        );
+
+                    return new LinkModel(
+                        new SinglePortAnchor(sourcePort)
+                        {
+                            MiddleIfNoMarker = true,
+                            UseShapeAndAlignment = false,
+                        },
+                        targetAnchor
+                    );
+                },
+                TargetAnchorFactory = (diagram, link, model) =>
+                {
+                    if (model is not PortModel targetPort)
+                        throw new InvalidOperationException(
+                            $"FBP links can only target ports, got {model?.GetType().Name ?? "null"}."
+                        );
+
+                    return new SinglePortAnchor(targetPort)
+                    {
+                        MiddleIfNoMarker = true,
+                        UseShapeAndAlignment = false,
+                    };
+                },
             },
             Groups = { Enabled = true },
         };
@@ -409,6 +440,59 @@ public partial class Editor
         Shared.Shared.CreateChannel(ConMan, CurrentChannelStarterService, outPort, inPort);
     }
 
+    private static void RefreshPortLayout(NodeModel node)
+    {
+        foreach (var relatedNode in GetNodesAffectingPortLayout(node))
+        {
+            CapnpFbpPortLayout.Apply(relatedNode, refreshPorts: false);
+            relatedNode.RefreshAll();
+        }
+    }
+
+    private static void RefreshPortLayout(BaseLinkModel link)
+    {
+        foreach (var node in GetNodesAffectingPortLayout(link))
+        {
+            CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+            node.RefreshAll();
+        }
+    }
+
+    private static IEnumerable<NodeModel> GetNodesAffectingPortLayout(NodeModel node)
+    {
+        var nodes = new List<NodeModel> { node };
+        foreach (var link in Shared.Shared.AttachedLinks(node))
+            nodes.AddRange(GetNodesAffectingPortLayout(link));
+        return nodes.Distinct();
+    }
+
+    private static IEnumerable<NodeModel> GetNodesAffectingPortLayout(BaseLinkModel link)
+    {
+        var nodes = new List<NodeModel>();
+        if (link.Source.Model is PortModel { Parent: { } sourceParent })
+            nodes.Add(sourceParent);
+        if (link.Target.Model is PortModel { Parent: { } targetParent })
+            nodes.Add(targetParent);
+        return nodes.Distinct();
+    }
+
+    private static void RegisterNodeLayoutEvents(NodeModel node)
+    {
+        node.Moved += OnNodeMoved;
+        node.SizeChanged += OnNodeSizeChanged;
+    }
+
+    private static void OnNodeMoved(MovableModel movedModel)
+    {
+        if (movedModel is NodeModel movedNode)
+            RefreshPortLayout(movedNode);
+    }
+
+    private static void OnNodeSizeChanged(NodeModel node)
+    {
+        RefreshPortLayout(node);
+    }
+
     private void RegisterEvents()
     {
         // Diagram.Changed += () =>
@@ -430,7 +514,10 @@ public partial class Editor
         {
             Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
             if (l is RememberCapnpPortsLinkModel)
+            {
+                RefreshPortLayout(l);
                 return;
+            }
 
             switch (l.Source.Model)
             {
@@ -471,7 +558,7 @@ public partial class Editor
                         sourceInPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
                         sourceInPort.Refresh();
                         outPort.Refresh();
-                        outPort.Parent.RefreshAll();
+                        RefreshPortLayout(nl);
                     };
                     break;
                 }
@@ -509,8 +596,8 @@ public partial class Editor
                         sourceOutPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
                         inPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
                         sourceOutPort.Refresh();
-                        sourceOutPort.Parent.RefreshAll();
                         inPort.Refresh();
+                        RefreshPortLayout(nl);
                     };
                     break;
                 }
@@ -1632,6 +1719,8 @@ public partial class Editor
                         output.ContentType,
                         output.Desc
                     );
+                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 return node;
             }
@@ -1647,6 +1736,7 @@ public partial class Editor
                     DisplayNoOfLines = initNode?["displayNoOfLines"]?.Value<int>() ?? 3,
                 };
                 SetDefaultComponentSize(node);
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
                 node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Top) { Name = "IIP" });
@@ -1705,6 +1795,8 @@ public partial class Editor
                         output.ContentType,
                         output.Desc
                     );
+                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 return node;
             }

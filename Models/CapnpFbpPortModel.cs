@@ -35,6 +35,7 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();
+        LayoutAlignment = alignment;
     }
 
     public CapnpFbpPortModel(
@@ -49,6 +50,7 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();
+        LayoutAlignment = alignment;
     }
 
     public PortType ThePortType { get; }
@@ -62,8 +64,12 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 
-    // order of the port in the list of ports with the same alignment
+    // order of the port in the list of ports with the same type
     public int OrderNo { get; set; } = 0;
+
+    public PortAlignment LayoutAlignment { get; set; } = PortAlignment.Bottom;
+
+    public double LayoutOffsetPx { get; set; }
 
     public override bool CanAttachTo(ILinkable other)
     {

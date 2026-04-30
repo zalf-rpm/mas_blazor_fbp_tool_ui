@@ -35,9 +35,11 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     [Parameter] public string Class { get; set; }
 
-    [Parameter] public string Style { get; set; }
+    [Parameter] public string BorderColor { get; set; }
     
     [Parameter] public RenderFragment ChildContent { get; set; }
+
+    private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
 
     public void Dispose()
     {
@@ -56,13 +58,13 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
-        var style = Style ?? "";
-        if (string.Equals(style, _lastStyle, StringComparison.Ordinal))
+        var renderSignature = $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{BorderColor}";
+        if (string.Equals(renderSignature, _lastStyle, StringComparison.Ordinal))
         {
             return;
         }
 
-        _lastStyle = style;
+        _lastStyle = renderSignature;
         _shouldUpdateDimensions = true;
     }
 
@@ -87,11 +89,15 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             CapnpFbpPortModel.VisibilityState.Visible => "",
             _ => throw new ArgumentOutOfRangeException()
         };
+        var style = new CapnpFbpPortLayout.PortPlacement(
+            EffectiveAlignment,
+            Port.LayoutOffsetPx
+        ).ToStyle(BorderColor ?? "#d4d4d4");
         
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
-        builder.AddAttribute(1, "style", Style + visibility);
+        builder.AddAttribute(1, "style", style + visibility);
         builder.AddAttribute(2, "class",
-            "diagram-port " + (Port.Alignment.ToString().ToLower() ?? "") + " " + 
+            "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " + 
             Port.ThePortType.ToString().ToLower() + " " +
             //offsetString + " " + 
             (Port.Links.Count > 0 ? "has-links" : "") + " " +
@@ -151,6 +157,21 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         if (BlazorDiagram.Container == null)
         {
             pan = null;
+        }
+        else if (Port is CapnpFbpPortModel)
+        {
+            _updatingDimensions = true;
+            Port.Initialized = true;
+            _updatingDimensions = false;
+            if (_shouldRefreshPort)
+            {
+                _shouldRefreshPort = false;
+                Port.RefreshAll();
+            }
+            else
+            {
+                Port.RefreshLinks();
+            }
         }
         else
         {

@@ -45,35 +45,9 @@
 
     bool _alreadyRemoved = false;
 
-    private string IncreasePortOrderNoArrowIcon => Node.PortModel.ThePortType switch
-    {
-        CapnpFbpPortModel.PortType.In => Node.PortModel.OrderNo switch
-        {
-            >= 10 => Icons.Material.Filled.ArrowCircleRight,
-            _ => Icons.Material.Filled.ArrowCircleUp
-        },
-        CapnpFbpPortModel.PortType.Out => Node.PortModel.OrderNo switch
-        {
-            >= 10 => Icons.Material.Filled.ArrowCircleLeft,
-            _ => Icons.Material.Filled.ArrowCircleDown,
-        },
-        _ => throw new ArgumentOutOfRangeException()
-    };
+    private string IncreasePortOrderNoArrowIcon => Icons.Material.Filled.ArrowCircleDown;
 
-    private string DecreasePortOrderNoArrowIcon => Node.PortModel.ThePortType switch
-    {
-        CapnpFbpPortModel.PortType.In => Node.PortModel.OrderNo switch
-        {
-            <= 10 => Icons.Material.Filled.ArrowCircleDown,
-            > 10 => Icons.Material.Filled.ArrowCircleLeft,
-        },
-        CapnpFbpPortModel.PortType.Out => Node.PortModel.OrderNo switch
-        {
-            <= 10 => Icons.Material.Filled.ArrowCircleUp,
-            > 10 => Icons.Material.Filled.ArrowCircleRight,
-        },
-        _ => throw new ArgumentOutOfRangeException()
-    };
+    private string DecreasePortOrderNoArrowIcon => Icons.Material.Filled.ArrowCircleUp;
 
     // public const string ArrowCircleDown = "<g><rect fill=\"none\" height=\"24\" width=\"24\"/><path d=\"M12,4c4.41,0,8,3.59,8,8s-3.59,8-8,8s-8-3.59-8-8S7.59,4,12,4 M12,2C6.48,2,2,6.48,2,12c0,5.52,4.48,10,10,10 c5.52,0,10-4.48,10-10C22,6.48,17.52,2,12,2L12,2z M13,12l0-4h-2l0,4H8l4,4l4-4H13z\"/></g>";
     // public const string ArrowCircleLeft = "<g><rect fill=\"none\" height=\"24\" width=\"24\"/></g><g><path d=\"M2,12c0,5.52,4.48,10,10,10s10-4.48,10-10c0-5.52-4.48-10-10-10C6.48,2,2,6.48,2,12z M12,11l4,0v2l-4,0l0,3l-4-4l4-4L12,11 z\"/></g>";
@@ -85,6 +59,11 @@
         if (Node.NodeModel is null) return;
 
         var currentOrderNo = Node.PortModel.OrderNo;
+
+        foreach (var link in Node.PortModel.Links.ToArray())
+        {
+            Shared.RestoreDefaultPortVisibility(Node.Container, link);
+        }
 
         Node.NodeModel.RemovePort(Node.PortModel);
         Node.Container.Links.Remove(Node.PortModel.Links.ToArray());
@@ -100,6 +79,7 @@
 
         foreach (var port in Node.NodeModel.Ports) port.Refresh();
 
+        CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
         Node.NodeModel.RefreshAll();
         Node.Container.Nodes.Remove(Node);
         StateHasChanged();
@@ -121,6 +101,7 @@
         Node.PortModel.OrderNo = currentOrderNo + 1;
         Node.PortModel.Refresh();
 
+        CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
         Node.NodeModel?.RefreshAll();
         StateHasChanged();
     }
@@ -142,6 +123,7 @@
         Node.PortModel.OrderNo = currentOrderNo - 1;
         Node.PortModel.Refresh();
 
+        CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
         Node.NodeModel?.RefreshAll();
         StateHasChanged();
     }
