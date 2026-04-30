@@ -68,7 +68,7 @@
 
 ::deep .diagram-port.bottom {
     border-radius: 50%;
-    /*bottom: 0px;*/
+    bottom: 0px;
     left: 50%;
 }
 
@@ -98,7 +98,7 @@
 
 ::deep .diagram-port.bottomright {
     border-radius: 50%;
-    /*bottom: 0px;*/
+    bottom: 0px;
     right: 0px;
 }
 
@@ -139,6 +139,5 @@
 ::deep .diagram-port.right.out {
     border-radius: 20% 50% 50% 20%;
 }
-
 
 

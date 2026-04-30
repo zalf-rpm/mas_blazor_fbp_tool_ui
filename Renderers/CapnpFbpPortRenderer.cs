@@ -23,6 +23,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     private bool _isParentSvg;
     private bool _shouldRefreshPort;
     private bool _shouldRender = true;
+    private bool _shouldUpdateDimensions;
+    private string _lastStyle;
     private bool _updatingDimensions;
 
     [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; }
@@ -54,6 +56,14 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
+        var style = Style ?? "";
+        if (string.Equals(style, _lastStyle, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastStyle = style;
+        _shouldUpdateDimensions = true;
     }
 
     protected override bool ShouldRender()
@@ -71,7 +81,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         
         var visibility = Port.Visibility switch
         {
-            CapnpFbpPortModel.VisibilityState.Hidden => "display: none;",
+            CapnpFbpPortModel.VisibilityState.Hidden =>
+                "opacity: 0.55; cursor: not-allowed; background-color: #e5e7eb; color: #6b7280;",
             CapnpFbpPortModel.VisibilityState.Dashed => "border-style: dashed;",
             CapnpFbpPortModel.VisibilityState.Visible => "",
             _ => throw new ArgumentOutOfRangeException()
@@ -83,7 +94,9 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             "diagram-port " + (Port.Alignment.ToString().ToLower() ?? "") + " " + 
             Port.ThePortType.ToString().ToLower() + " " +
             //offsetString + " " + 
-            (Port.Links.Count > 0 ? "has-links" : "") + " " + Class);
+            (Port.Links.Count > 0 ? "has-links" : "") + " " +
+            (Port.Visibility == CapnpFbpPortModel.VisibilityState.Hidden ? "disabled" : "") + " " +
+            Class);
         builder.AddAttribute(3, "data-port-id", Port.Id);
         builder.AddAttribute(4, "onpointerdown",
             EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerDown));
@@ -98,8 +111,9 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Port.Initialized)
+        if (Port.Initialized && !_shouldUpdateDimensions)
             return;
+        _shouldUpdateDimensions = false;
         await UpdateDimensions();
     }
 

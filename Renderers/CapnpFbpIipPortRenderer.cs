@@ -23,6 +23,8 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
     private bool _isParentSvg;
     private bool _shouldRefreshPort;
     private bool _shouldRender = true;
+    private bool _shouldUpdateDimensions;
+    private string _lastStyle;
     private bool _updatingDimensions;
 
     [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; }
@@ -54,6 +56,14 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
+        var style = Style ?? "";
+        if (string.Equals(style, _lastStyle, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastStyle = style;
+        _shouldUpdateDimensions = true;
     }
 
     protected override bool ShouldRender()
@@ -69,11 +79,15 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
         if (!Port.Visible)
             return;
         
-        var visibility = Port.Parent.Links.Count > 0 ? "display: none;" : "";
+        var disabled =
+            Port is CapnpFbpPortModel { Visibility: CapnpFbpPortModel.VisibilityState.Hidden };
+        var visibility = disabled
+            ? "opacity: 0.55; cursor: not-allowed; background-color: #e5e7eb; color: #6b7280;"
+            : "";
         
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
         builder.AddAttribute(1, "style", (Style ?? "") + visibility);
-        builder.AddAttribute(2, "class", "diagram-port " + this.Port.Alignment.ToString().ToLower() + " " + (this.Port.Links.Count > 0 ? "has-links" : "") + " " + this.Class);
+        builder.AddAttribute(2, "class", "diagram-port " + this.Port.Alignment.ToString().ToLower() + " " + (this.Port.Links.Count > 0 ? "has-links" : "") + " " + (disabled ? "disabled" : "") + " " + this.Class);
         builder.AddAttribute(3, "data-port-id", this.Port.Id);
         builder.AddAttribute<PointerEventArgs>(4, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>((object) this, new Action<PointerEventArgs>(this.OnPointerDown)));
         builder.AddEventStopPropagationAttribute(5, "onpointerdown", true);
@@ -86,8 +100,9 @@ public class CapnpFbpIipPortRenderer : ComponentBase, IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Port.Initialized)
+        if (Port.Initialized && !_shouldUpdateDimensions)
             return;
+        _shouldUpdateDimensions = false;
         await UpdateDimensions();
     }
 
