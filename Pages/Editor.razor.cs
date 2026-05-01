@@ -530,10 +530,8 @@ public partial class Editor
                     {
                         if (newTarget.Model is not CapnpFbpOutPortModel outPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(outPort, sourceInPort)
-                        {
-                            Color = outPort.Writer == null ? "#ff0000" : "#1ac12e",
-                        };
+                        var nl = new RememberCapnpPortsLinkModel(outPort, sourceInPort);
+                        CapnpFbpPortColors.ApplyLinkColor(nl);
                         nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                         // if the input port has already a channel attached, get a new writer for that channel
@@ -569,10 +567,8 @@ public partial class Editor
                     {
                         if (newTarget.Model is not CapnpFbpInPortModel inPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(sourceOutPort, inPort)
-                        {
-                            Color = inPort.Reader == null ? "#ff0000" : "#1ac12e",
-                        };
+                        var nl = new RememberCapnpPortsLinkModel(sourceOutPort, inPort);
+                        CapnpFbpPortColors.ApplyLinkColor(nl);
                         nl.Labels.Add(new LinkLabelModel(nl, sourceOutPort.Name, 0.2));
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                         // if the input port has already a channel attached, get a new writer for that channel
@@ -888,6 +884,7 @@ public partial class Editor
             }
 
             var l = new RememberCapnpPortsLinkModel(scp, tcp);
+            CapnpFbpPortColors.ApplyLinkColor(l);
             if (sourceNode is not CapnpFbpIipComponentModel)
                 l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);

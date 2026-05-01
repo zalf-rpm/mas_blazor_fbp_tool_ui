@@ -187,8 +187,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     configInPortConnected = true;
                 }
 
-                //color links with connected channel green
-                rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+                CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
                 if (outPort.WriterSturdyRef == null)

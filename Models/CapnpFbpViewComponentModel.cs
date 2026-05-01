@@ -118,7 +118,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     reader = Proxy.Share(inPort.Reader);
                 }
 
-                rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+                CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
                 if (outPort.RetrieveWriterFromChannelTask != null)

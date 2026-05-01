@@ -197,23 +197,10 @@
     @foreach (var port in Node.Ports) {
         if (port is not CapnpFbpPortModel capnpPort) continue;
 
-        string PortColor() {
-            return Node switch {
-                CapnpFbpRunnableComponentModel { Runnable: not null } => capnpPort switch {
-                    CapnpFbpInPortModel { Reader: null } => "#ff0000",
-                    CapnpFbpOutPortModel { Writer: null } => "#ff0000",
-                    _ => "#1ac12e"
-                },
-                CapnpFbpProcessComponentModel { Process: not null } => capnpPort.Connected ? "#1ac12e" : "#ff0000",
-                _ => "#d4d4d4"
-            };
-        }
-
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="port"
                                   Port="capnpPort"
-                                  IconColor="@PortColor()"
                                   SocketColor="@FrameBorderColorValue" />
         </div>
     }
@@ -226,7 +213,7 @@
         $"height: {(Node.Size?.Height ?? Shared.CardHeight)}px; width: {(Node.Size?.Width ?? Shared.CardWidth)}px;{FrameWidth};{FrameColor}";
 
     private string FrameWidth => $"border-width: {(Node.RemoteProcessAttached() ? 1 : 1)}px";
-    private string FrameBorderColorValue => Node.RemoteProcessAttached() ? "#6e9fd4" : Node.ProcessStarted ? "#1ac12e" : "#ff0000";
+    private string FrameBorderColorValue => CapnpFbpPortColors.ResolveComponentFrameColor(Node);
     private string FrameColor => $"border-color: {FrameBorderColorValue}";
 
     private MarkupString CardToolTipText { get; set; }
