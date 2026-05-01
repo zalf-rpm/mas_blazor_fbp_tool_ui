@@ -124,33 +124,24 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         else
         {
             builder.OpenElement(9, "span");
-            builder.AddAttribute(10, "class", "diagram-port-stack");
+            builder.AddAttribute(10, "class", "diagram-port-shell");
 
             builder.OpenElement(11, "span");
-            builder.AddAttribute(12, "class", "diagram-port-icon-shell");
-
-            builder.OpenElement(13, "span");
             builder.AddAttribute(
-                14,
+                12,
                 "class",
                 "diagram-port-icon " + Port.ThePortType.ToString().ToLowerInvariant()
             );
-            builder.CloseElement();
-
-            builder.OpenElement(15, "span");
-            builder.AddAttribute(16, "class", "diagram-port-socket");
             builder.CloseElement();
             builder.CloseElement();
 
             if (!string.IsNullOrWhiteSpace(Port.Name))
             {
-                builder.OpenElement(17, "span");
-                builder.AddAttribute(18, "class", "diagram-port-label");
-                builder.AddContent(19, Port.Name);
+                builder.OpenElement(13, "span");
+                builder.AddAttribute(14, "class", "diagram-port-label");
+                builder.AddContent(15, Port.Name);
                 builder.CloseElement();
             }
-
-            builder.CloseElement();
         }
         builder.CloseElement();
     }
