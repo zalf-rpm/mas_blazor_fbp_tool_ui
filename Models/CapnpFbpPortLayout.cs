@@ -14,6 +14,8 @@ public static class CapnpFbpPortLayout
     public const double PortSizePx = 20d;
     public const double PortSpacingPaddingPx = 12d;
     public const double MinPortSpacingPx = PortSizePx + PortSpacingPaddingPx;
+    public const double PortCornerClearancePx = 4d;
+    public const double PortCornerKeepOutPx = (PortSizePx / 2d) + PortCornerClearancePx;
 
     private const double IntersectionTolerance = 0.001d;
     private const double ServiceBadgeLeftPx = 3d;
@@ -630,6 +632,7 @@ public static class CapnpFbpPortLayout
     {
         var physicalLength = 2d * (nodeWidth + nodeHeight);
         var intervals = new List<PerimeterInterval>();
+        AddCornerIntervals(intervals, nodeWidth, nodeHeight);
         if (TryGetBadgeInterval(node, nodeWidth, out var badgeInterval))
             intervals.Add(badgeInterval);
 
@@ -662,6 +665,44 @@ public static class CapnpFbpPortLayout
         return true;
     }
 
+    private static void AddCornerIntervals(
+        ICollection<PerimeterInterval> intervals,
+        double nodeWidth,
+        double nodeHeight
+    )
+    {
+        var horizontalKeepOut = Math.Min(PortCornerKeepOutPx, nodeWidth / 2d);
+        var verticalKeepOut = Math.Min(PortCornerKeepOutPx, nodeHeight / 2d);
+
+        AddInterval(intervals, 0d, horizontalKeepOut);
+        AddInterval(intervals, nodeWidth - horizontalKeepOut, nodeWidth);
+
+        AddInterval(intervals, nodeWidth, nodeWidth + verticalKeepOut);
+        AddInterval(intervals, nodeWidth + nodeHeight - verticalKeepOut, nodeWidth + nodeHeight);
+
+        AddInterval(intervals, nodeWidth + nodeHeight, nodeWidth + nodeHeight + horizontalKeepOut);
+        AddInterval(intervals, (2d * nodeWidth) + nodeHeight - horizontalKeepOut, (2d * nodeWidth) + nodeHeight);
+
+        AddInterval(intervals, (2d * nodeWidth) + nodeHeight, (2d * nodeWidth) + nodeHeight + verticalKeepOut);
+        AddInterval(
+            intervals,
+            (2d * (nodeWidth + nodeHeight)) - verticalKeepOut,
+            2d * (nodeWidth + nodeHeight)
+        );
+    }
+
+    private static void AddInterval(
+        ICollection<PerimeterInterval> intervals,
+        double start,
+        double end
+    )
+    {
+        if (end - start <= IntersectionTolerance)
+            return;
+
+        intervals.Add(new PerimeterInterval(start, end));
+    }
+
     private static double Normalize(double offset, double length)
     {
         if (length <= 0d)
@@ -692,15 +733,12 @@ public static class CapnpFbpPortLayout
 
     private sealed class PerimeterSpace(double physicalLength, IReadOnlyList<PerimeterInterval> intervals)
     {
-        private readonly List<PerimeterInterval> _intervals = intervals
-            .Where(interval => interval.Length > IntersectionTolerance)
-            .OrderBy(interval => interval.Start)
-            .ToList();
+        private readonly List<PerimeterInterval> _intervals = MergeIntervals(intervals);
 
         public double PhysicalLength { get; } = physicalLength;
 
-        public double AvailableLength { get; } =
-            Math.Max(0d, physicalLength - intervals.Sum(interval => interval.Length));
+        public double AvailableLength =>
+            Math.Max(0d, PhysicalLength - _intervals.Sum(interval => interval.Length));
 
         public double ToAvailable(double physicalOffset, double referenceAvailableOffset)
         {
@@ -749,6 +787,37 @@ public static class CapnpFbpPortLayout
             }
 
             return physicalOffset - removedLength;
+        }
+
+        private static List<PerimeterInterval> MergeIntervals(
+            IReadOnlyList<PerimeterInterval> intervals
+        )
+        {
+            var orderedIntervals = intervals
+                .Where(interval => interval.Length > IntersectionTolerance)
+                .OrderBy(interval => interval.Start)
+                .ToList();
+            if (orderedIntervals.Count == 0)
+                return [];
+
+            var mergedIntervals = new List<PerimeterInterval> { orderedIntervals[0] };
+            for (var i = 1; i < orderedIntervals.Count; i++)
+            {
+                var currentInterval = orderedIntervals[i];
+                var lastInterval = mergedIntervals[^1];
+                if (currentInterval.Start <= lastInterval.End + IntersectionTolerance)
+                {
+                    mergedIntervals[^1] = new PerimeterInterval(
+                        lastInterval.Start,
+                        Math.Max(lastInterval.End, currentInterval.End)
+                    );
+                    continue;
+                }
+
+                mergedIntervals.Add(currentInterval);
+            }
+
+            return mergedIntervals;
         }
     }
 }
