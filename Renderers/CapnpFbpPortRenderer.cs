@@ -40,6 +40,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     [Parameter] public RenderFragment ChildContent { get; set; }
 
     private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
+    private string PortLabelText =>
+        Port.IsArrayPort ? $"{Port.Name} [{Port.ConnectedChannelCount}]" : Port.Name;
 
     public void Dispose()
     {
@@ -84,7 +86,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         if (!Port.Visible)
             return;
 
-        var disabled = Port.Visibility == CapnpFbpPortModel.VisibilityState.Hidden;
+        var disabled = !Port.CanAcceptMoreConnections;
         var dashed = Port.Visibility == CapnpFbpPortModel.VisibilityState.Dashed;
         var shellColor = SocketColor ?? "#d4d4d4";
         var iconColor = CapnpFbpPortColors.ResolvePortIconColor(Port);
@@ -104,7 +106,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         builder.AddAttribute(2, "class",
             "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " +
             Port.ThePortType.ToString().ToLower() + " " +
-            (Port.Links.Count > 0 ? "has-links" : "") + " " +
+            (Port.ConnectedChannelCount > 0 ? "has-links" : "") + " " +
             (disabled ? "disabled" : "") + " " +
             (dashed ? "dashed" : "") + " " +
             Class);
@@ -135,11 +137,11 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             builder.CloseElement();
             builder.CloseElement();
 
-            if (!string.IsNullOrWhiteSpace(Port.Name))
+            if (!string.IsNullOrWhiteSpace(PortLabelText))
             {
                 builder.OpenElement(13, "span");
                 builder.AddAttribute(14, "class", "diagram-port-label");
-                builder.AddContent(15, Port.Name);
+                builder.AddContent(15, PortLabelText);
                 builder.CloseElement();
             }
         }
