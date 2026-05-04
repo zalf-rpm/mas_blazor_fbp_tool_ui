@@ -53,7 +53,8 @@ public class AddPortControl : ExecutableControl
         int orderNo,
         string name = null,
         string contentType = null,
-        string description = null
+        string description = null,
+        bool isArrayPort = false
     )
     {
         var alignment =
@@ -64,12 +65,14 @@ public class AddPortControl : ExecutableControl
                 ContentType = contentType ?? "?",
                 Description = description ?? "",
                 OrderNo = orderNo,
+                IsArrayPort = isArrayPort,
             },
             CapnpFbpPortModel.PortType.Out => new CapnpFbpOutPortModel(node, alignment) {
                 Name = name ?? "OUT",
                 ContentType = contentType ?? "?",
                 Description = description ?? "",
                 OrderNo = orderNo,
+                IsArrayPort = isArrayPort,
             },
             _ => null
         };
