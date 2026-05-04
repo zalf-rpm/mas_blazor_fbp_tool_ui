@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
@@ -58,7 +59,9 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
 
         var shouldStopExistingRuntime =
-            Runnable != null && LifecycleState != ComponentLifecycleState.Stopped;
+            Runnable != null
+            && LifecycleState is not ComponentLifecycleState.Idle
+                and not ComponentLifecycleState.Closed;
         SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
         CancellationToken cancelToken = default;
         try
@@ -80,9 +83,13 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             }
 
             List<PortInfos.NameAndSR> inPortSRs = [];
-            List<PortInfos.NameAndSR> outPortSRs = [];
+            Dictionary<CapnpFbpOutPortModel, List<SturdyRef>> outPortSrMap = [];
+            HashSet<CapnpFbpInPortModel> collectedInPorts = [];
 
-            async Task CollectPortSrs(CapnpFbpPortModel port, IChannel<IP> channel = null)
+            async Task CollectPortSrs(
+                CapnpFbpPortModel port,
+                RememberCapnpPortsLinkModel link = null
+            )
             {
                 Console.WriteLine(
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: collecting port srs"
@@ -103,6 +110,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                                 await inPort.RetrieveReaderFromChannelTask;
                             }
                         }
+                        if (!collectedInPorts.Add(inPort))
+                            break;
                         inPortSRs.Add(
                             new PortInfos.NameAndSR
                             {
@@ -111,35 +120,21 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                             }
                         );
                         break;
-                    case CapnpFbpOutPortModel outPort:
-                        // if there is no SR
-                        if (outPort.WriterSturdyRef == null)
+                    case CapnpFbpOutPortModel outPort when link != null:
+                        if (link.WriterSturdyRef == null)
                         {
-                            // but we have a task to wait for that SR
-                            if (outPort.RetrieveWriterFromChannelTask != null)
-                            {
-                                Console.WriteLine(
-                                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting outPort.ChannelTask"
-                                );
-                                await outPort.RetrieveWriterFromChannelTask;
-                            }
-                            else
-                            {
-                                // no task, the outPort must have been updated and we get a new writer for that out port
-                                (outPort.Writer, outPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(
-                                        channel,
-                                        cancelToken
-                                    );
-                            }
+                            await link.EnsureWriterFromChannelAsync(cancelToken);
                         }
-                        outPortSRs.Add(
-                            new PortInfos.NameAndSR
-                            {
-                                Name = outPort.Name,
-                                Sr = outPort.WriterSturdyRef,
-                            }
-                        );
+                        if (link.WriterSturdyRef == null)
+                            throw new InvalidOperationException(
+                                $"Could not initialize writer for out port '{outPort.Name}'."
+                            );
+                        if (!outPortSrMap.TryGetValue(outPort, out var writerSrs))
+                        {
+                            writerSrs = [];
+                            outPortSrMap[outPort] = writerSrs;
+                        }
+                        writerSrs.Add(link.WriterSturdyRef);
                         break;
                 }
             }
@@ -176,12 +171,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(
-                        conMan,
-                        Editor.CurrentChannelStarterService,
-                        outPort,
-                        inPort
-                    );
+                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
                 }
 
                 if (inPort.Parent == this)
@@ -197,31 +187,37 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
-                if (outPort.WriterSturdyRef == null)
-                {
-                    if (outPort.RetrieveWriterFromChannelTask != null)
-                    {
-                        Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting outPort.ChannelTask"
-                        );
-                        await outPort.RetrieveWriterFromChannelTask;
-                    }
-                    else
-                    {
-                        (outPort.Writer, outPort.WriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(
-                                inPort.Channel,
-                                cancelToken
-                            );
-                    }
-                }
+                await rcplm.EnsureWriterFromChannelAsync(cancelToken);
 
                 if (outPort.Parent == this)
                 {
-                    await CollectPortSrs(outPort, inPort.Channel);
+                    await CollectPortSrs(outPort, rcplm);
                 }
                 outPort.Parent.Refresh();
             }
+
+            List<PortInfos.NameAndSR> outPortSRs = outPortSrMap
+                .OrderBy(entry => entry.Key.OrderNo)
+                .ThenBy(entry => entry.Key.Name)
+                .Select(entry =>
+                {
+                    var writerSrs = entry.Value;
+                    if (entry.Key.IsArrayPort)
+                    {
+                        return new PortInfos.NameAndSR
+                        {
+                            Name = entry.Key.Name,
+                            Srs = writerSrs,
+                        };
+                    }
+
+                    return new PortInfos.NameAndSR
+                    {
+                        Name = entry.Key.Name,
+                        Sr = writerSrs.LastOrDefault(),
+                    };
+                })
+                .ToList();
 
             //there is no config port connected, so we setup up a config channel and send the process config on the fly
             Console.WriteLine(
@@ -385,7 +381,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
         catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
         {
-            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+            SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         }
         catch (Exception e)
         {
@@ -413,9 +409,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     public override async Task ResetExecution()
     {
         var shouldStopExistingRuntime =
-            Runnable != null && LifecycleState != ComponentLifecycleState.Stopped;
+            Runnable != null
+            && LifecycleState is not ComponentLifecycleState.Idle
+                and not ComponentLifecycleState.Closed;
         await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
-        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -465,7 +463,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
             );
-            runnableModel.SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+            runnableModel.SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
             return Task.CompletedTask;
             //return runnableModel.StopProcess(null);
         }
@@ -525,7 +523,6 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         );
         try
         {
-            await Task.Delay(500);
             await Runnable.Stop();
         }
         catch (ObjectDisposedException ex)

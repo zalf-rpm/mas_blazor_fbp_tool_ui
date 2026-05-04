@@ -36,22 +36,16 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public string ProcessName { get; set; }
 
     public ComponentLifecycleState LifecycleState { get; private set; } =
-        ComponentLifecycleState.Stopped;
+        ComponentLifecycleState.Idle;
     public string LifecycleError { get; private set; }
     public bool CanStart =>
-        LifecycleState is ComponentLifecycleState.Stopped or ComponentLifecycleState.Faulted;
+        LifecycleState is ComponentLifecycleState.Idle
+            or ComponentLifecycleState.Failed
+            or ComponentLifecycleState.Closed;
     public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
-    public string LifecycleLabel => LifecycleState switch
-    {
-        ComponentLifecycleState.Stopped => "Stopped",
-        ComponentLifecycleState.Starting => "Starting",
-        ComponentLifecycleState.Running => "Running",
-        ComponentLifecycleState.Stopping => "Stopping",
-        ComponentLifecycleState.Faulted => "Error",
-        _ => "Unknown",
-    };
+    public string LifecycleLabel => LifecycleState.ToString();
 
     public bool ProcessStarted { get; protected set; }
     private Task ViewMsgReceiveTask { get; set; }
@@ -134,12 +128,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(
-                        conMan,
-                        Editor.CurrentChannelStarterService,
-                        outPort,
-                        inPort
-                    );
+                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
                 }
 
                 if (inPort.Parent == this)
@@ -150,35 +139,14 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
-                if (outPort.RetrieveWriterFromChannelTask != null)
-                {
-                    Console.WriteLine(
-                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting out port '{outPort.Name}' ChannelTask"
-                    );
-                    await outPort.RetrieveWriterFromChannelTask;
-                }
-                else
-                {
-                    if (outPort.WriterSturdyRef == null)
-                    {
-                        Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: getting new writer for out port '{outPort.Name}' from channel"
-                        );
-                        (outPort.Writer, outPort.WriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(
-                                inPort.Channel,
-                                cancelToken
-                            );
-                        outPort.Parent.Refresh();
-                    }
-                }
+                await rcplm.EnsureWriterFromChannelAsync(cancelToken);
                 outPort.Parent.Refresh();
                 outPort.Parent.RefreshLinks();
             }
 
             if (reader == null)
             {
-                SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+                SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
                 return;
             }
 
@@ -291,8 +259,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: left view's receive loop"
                     );
-                    if (LifecycleState != ComponentLifecycleState.Faulted)
-                        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+                    if (LifecycleState != ComponentLifecycleState.Failed)
+                        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
                 },
                 cancelToken
             );
@@ -301,7 +269,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
         {
-            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+            SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         }
         catch (Exception e)
         {
@@ -338,7 +306,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public async Task ResetExecution()
     {
         await CancelAndDisposeViewTasks();
-        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     public async ValueTask DisposeAsync()
@@ -349,7 +317,11 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
+            this,
+            Editor.Diagram,
+            this
+        );
         await FreeRemoteChannelsAttachedToPorts();
         await ResetExecution();
     }
@@ -394,7 +366,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     {
         LifecycleState = state;
         ProcessStarted = state == ComponentLifecycleState.Running;
-        LifecycleError = state == ComponentLifecycleState.Faulted ? error ?? LifecycleError : null;
+        LifecycleError = state == ComponentLifecycleState.Failed ? error ?? LifecycleError : null;
 
         if (refresh)
         {
@@ -406,6 +378,6 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     private void SetLifecycleFault(Exception exception, bool refresh = false)
     {
         Console.Error.WriteLine(exception);
-        SetLifecycleState(ComponentLifecycleState.Faulted, exception.Message, refresh);
+        SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 }

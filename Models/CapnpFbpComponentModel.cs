@@ -18,11 +18,12 @@ namespace BlazorDrawFBP.Models;
 
 public enum ComponentLifecycleState
 {
-    Stopped,
+    Idle,
     Starting,
     Running,
     Stopping,
-    Faulted,
+    Failed,
+    Closed,
 }
 
 public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
@@ -52,23 +53,18 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public int DisplayNoOfConfigLines { get; set; } = 3;
 
     public bool ProcessStarted { get; protected set; }
-    public ComponentLifecycleState LifecycleState { get; private set; } = ComponentLifecycleState.Stopped;
+    public ComponentLifecycleState LifecycleState { get; private set; } = ComponentLifecycleState.Idle;
     public string LifecycleError { get; private set; }
 
-    public bool CanStart => LifecycleState is ComponentLifecycleState.Stopped or ComponentLifecycleState.Faulted;
+    public bool CanStart =>
+        LifecycleState is ComponentLifecycleState.Idle
+            or ComponentLifecycleState.Failed
+            or ComponentLifecycleState.Closed;
     public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
 
-    public string LifecycleLabel => LifecycleState switch
-    {
-        ComponentLifecycleState.Stopped => "Stopped",
-        ComponentLifecycleState.Starting => "Starting",
-        ComponentLifecycleState.Running => "Running",
-        ComponentLifecycleState.Stopping => "Stopping",
-        ComponentLifecycleState.Faulted => "Error",
-        _ => "Unknown",
-    };
+    public string LifecycleLabel => LifecycleState.ToString();
 
     public virtual bool RemoteProcessAttached() => false;
     public virtual bool CanEditCommandLine() => false;
@@ -78,7 +74,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StartProcess!"
         );
-        SetLifecycleState(ComponentLifecycleState.Stopped);
+        SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
     public virtual async Task StopProcess(ConnectionManager conMan)
@@ -86,12 +82,12 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StopProcess"
         );
-        SetLifecycleState(ComponentLifecycleState.Stopped);
+        SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
     public virtual Task ResetExecution()
     {
-        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         return Task.CompletedTask;
     }
 
@@ -104,7 +100,11 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     protected virtual async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeAsyncCore");
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
+            this,
+            Editor.Diagram,
+            this
+        );
         await DisposeStandardPorts();
     }
 
@@ -126,7 +126,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     {
         LifecycleState = state;
         ProcessStarted = state == ComponentLifecycleState.Running;
-        LifecycleError = state == ComponentLifecycleState.Faulted ? error ?? LifecycleError : null;
+        LifecycleError = state == ComponentLifecycleState.Failed ? error ?? LifecycleError : null;
 
         if (refresh)
         {
@@ -138,6 +138,6 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     protected void SetLifecycleFault(Exception exception, bool refresh = false)
     {
         Console.Error.WriteLine(exception);
-        SetLifecycleState(ComponentLifecycleState.Faulted, exception.Message, refresh);
+        SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 }

@@ -9,19 +9,19 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
-    @if (HasLifecycleError) {
-        <MudTooltip Text="@Node.LifecycleError"
-                    Delay="200"
-                    Arrow="true">
-            <MudIcon Class="absolute"
-                     Style="right: 6px; top: -12px;"
-                     Icon="@Icons.Material.Filled.ErrorOutline"
-                     Color="Color.Error"
-                     Size="Size.Small" />
-        </MudTooltip>
-    }
-    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
+    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
               Elevation="0">
+        @if (HasLifecycleError) {
+            <MudTooltip Text="@Node.LifecycleError"
+                        Delay="200"
+                        Arrow="true">
+                <MudIcon Class="absolute"
+                         Style="right: -10px; top: -10px; z-index: 2;"
+                         Icon="@Icons.Material.Filled.ErrorOutline"
+                         Color="Color.Error"
+                         Size="Size.Small" />
+            </MudTooltip>
+        }
         @code {
             bool _changeComponentServiceId;
         }
@@ -227,15 +227,13 @@
     private const string FrameWidth = "border-width: 1px";
     private string FrameBorderColorValue => CapnpFbpPortColors.ResolveComponentFrameColor(Node);
     private string FrameColor => $"border-color: {FrameBorderColorValue}";
-    private bool IsProcessStopRequested =>
-        Node is CapnpFbpProcessComponentModel
-        && Node.LifecycleState == ComponentLifecycleState.Stopping;
-    private string LifecycleButtonText => Node.LifecycleState switch
+    private string LifecycleButtonText => Node.IsLifecycleBusy
+        ? $"{Node.LifecycleLabel}..."
+        : Node.LifecycleState switch
     {
-        ComponentLifecycleState.Starting => "Starting...",
-        ComponentLifecycleState.Stopping => IsProcessStopRequested ? "Stop requested..." : "Stopping...",
         ComponentLifecycleState.Running => "Stop",
-        ComponentLifecycleState.Faulted => "Retry",
+        ComponentLifecycleState.Failed => "Retry",
+        ComponentLifecycleState.Closed => "Reconnect",
         _ => "Start",
     };
     private string LifecycleButtonIcon => Node.LifecycleState switch
@@ -244,7 +242,7 @@
         _ => Icons.Material.Filled.PlayCircle,
     };
     private bool HasLifecycleError =>
-        Node.LifecycleState == ComponentLifecycleState.Faulted
+        Node.LifecycleState == ComponentLifecycleState.Failed
         && !string.IsNullOrWhiteSpace(Node.LifecycleError);
 
     private MarkupString CardToolTipText { get; set; }

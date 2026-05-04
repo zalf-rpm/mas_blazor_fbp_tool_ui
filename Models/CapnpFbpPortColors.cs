@@ -13,7 +13,7 @@ public static class CapnpFbpPortColors
 
     public static string ResolvePortIconColor(CapnpFbpPortModel port)
     {
-        if (port.Links.Count == 0)
+        if (port.ConnectedChannelCount == 0)
             return DefaultColor;
 
         var linkColors = port
@@ -27,9 +27,9 @@ public static class CapnpFbpPortColors
         return linkColors.Count > 0 ? PrioritizeColors(linkColors) : ResolveLinkedPortFallbackColor(port);
     }
 
-    public static string ResolveLinkColor(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort)
+    public static string ResolveLinkColor(RememberCapnpPortsLinkModel link)
     {
-        return HasReadyChannel(outPort, inPort) ? ReadyColor : PendingColor;
+        return HasReadyChannel(link) ? ReadyColor : PendingColor;
     }
 
     public static string ResolveLifecycleFrameColor(ComponentLifecycleState state)
@@ -38,7 +38,7 @@ public static class CapnpFbpPortColors
         {
             ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping => TransitionColor,
             ComponentLifecycleState.Running => ReadyColor,
-            ComponentLifecycleState.Faulted => PendingColor,
+            ComponentLifecycleState.Failed => PendingColor,
             _ => DefaultColor,
         };
     }
@@ -55,7 +55,7 @@ public static class CapnpFbpPortColors
 
     public static void ApplyLinkColor(RememberCapnpPortsLinkModel link)
     {
-        var color = ResolveLinkColor(link.OutPortModel, link.InPortModel);
+        var color = ResolveLinkColor(link);
         if (!string.Equals(link.Color, color, StringComparison.OrdinalIgnoreCase))
             link.Color = color;
 
@@ -64,11 +64,14 @@ public static class CapnpFbpPortColors
         link.InPortModel.Refresh();
     }
 
-    private static bool HasReadyChannel(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort)
+    private static bool HasReadyChannel(RememberCapnpPortsLinkModel link)
     {
+        var outPort = link.OutPortModel;
+        var inPort = link.InPortModel;
         return inPort.Channel != null
             || inPort.Reader != null
-            || outPort.Writer != null
+            || link.Writer != null
+            || link.WriterSturdyRef != null
             || inPort.Connected
             || outPort.Connected;
     }

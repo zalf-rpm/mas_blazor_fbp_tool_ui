@@ -100,6 +100,8 @@ public partial class Editor
 
     private Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
 
+    public ConnectionManager ConnectionManager => ConMan;
+
     public IStartChannelsService CurrentChannelStarterService =>
         ServiceId2ChannelStarterServices
             .FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null))

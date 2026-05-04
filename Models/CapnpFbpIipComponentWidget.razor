@@ -11,20 +11,20 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
-    @if (HasLifecycleError)
-    {
-        <MudTooltip Text="@Node.LifecycleError"
-                    Delay="200"
-                    Arrow="true">
-            <MudIcon Class="absolute"
-                     Style="right: 6px; top: -12px;"
-                     Icon="@Icons.Material.Filled.ErrorOutline"
-                     Color="Color.Error"
-                     Size="Size.Small" />
-        </MudTooltip>
-    }
-    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
+    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
               Elevation="0">
+        @if (HasLifecycleError)
+        {
+            <MudTooltip Text="@Node.LifecycleError"
+                        Delay="200"
+                        Arrow="true">
+                <MudIcon Class="absolute"
+                         Style="right: -10px; top: -10px; z-index: 2;"
+                         Icon="@Icons.Material.Filled.ErrorOutline"
+                         Color="Color.Error"
+                         Size="Size.Small" />
+            </MudTooltip>
+        }
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="5">
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
@@ -102,15 +102,15 @@
     private string FrameBorderColorValue =>
         CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.DisplayLifecycleState);
     private string FrameColor => $@"border-color: {FrameBorderColorValue}";
-    private string LifecycleButtonText => Node.LifecycleState switch
+    private string LifecycleButtonText => Node.DisplayLifecycleState switch
     {
-        ComponentLifecycleState.Starting => "Sending...",
-        ComponentLifecycleState.Faulted => "Retry send",
+        ComponentLifecycleState.Starting => $"{Node.LifecycleLabel}...",
+        ComponentLifecycleState.Failed => "Retry send",
         _ => "Send",
     };
     private string LifecycleButtonIcon => Icons.Material.Filled.Send;
     private bool HasLifecycleError =>
-        Node.LifecycleState == ComponentLifecycleState.Faulted
+        Node.LifecycleState == ComponentLifecycleState.Failed
         && !string.IsNullOrWhiteSpace(Node.LifecycleError);
 
     private MarkupString CardToolTipText { get; set; }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
+using Capnp.Rpc;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Service;
@@ -39,11 +40,87 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
 
     public IChannel<IP> Channel { get; set; }
     public IStoppable StopChannel { get; set; }
+    public Mas.Schema.Fbp.Process.IDisconnect ProcessDisconnect { get; private set; }
 
     private readonly StatsCallback _statsCallback;
     private Channel<IP>.StatsCallback.IUnregister _unregisterStatsCallback;
 
     public bool ReceivingStats => _statsCallback != null;
+
+    public void SetProcessDisconnect(Mas.Schema.Fbp.Process.IDisconnect disconnect, bool connected)
+    {
+        if (!ReferenceEquals(ProcessDisconnect, disconnect))
+            ProcessDisconnect?.Dispose();
+
+        ProcessDisconnect = disconnect;
+        Connected = connected;
+    }
+
+    public async Task<bool> DisconnectProcessAsync(CancellationToken cancelToken = default)
+    {
+        var disconnect = ProcessDisconnect;
+        ProcessDisconnect = null;
+        Connected = false;
+
+        if (disconnect == null)
+            return false;
+
+        try
+        {
+            return await disconnect.Disconnect(cancelToken);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine($"Port {Name}: process disconnect already disposed: {ex.Message}");
+            return false;
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine($"Port {Name}: process disconnect RPC failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            disconnect.Dispose();
+        }
+    }
+
+    public void ClearProcessDisconnect()
+    {
+        ProcessDisconnect?.Dispose();
+        ProcessDisconnect = null;
+        Connected = false;
+    }
+
+    public async Task DisconnectChannelAsync(bool stopChannel)
+    {
+        if (_unregisterStatsCallback != null)
+        {
+            await _unregisterStatsCallback.Unreg();
+            _unregisterStatsCallback = null;
+        }
+
+        if (stopChannel && StopChannel != null)
+        {
+            await StopChannel.Stop();
+            StopChannel.Dispose();
+            StopChannel = null;
+        }
+
+        if (RetrieveReaderFromChannelTask != null)
+        {
+            await RetrieveReaderFromChannelTask.ContinueWith(t => t.Dispose());
+            RetrieveReaderFromChannelTask = null;
+        }
+
+        Channel?.Dispose();
+        Channel = null;
+
+        Reader?.Dispose();
+        Reader = null;
+        ReaderSturdyRef = null;
+        Connected = false;
+    }
 
     public async Task ReceiveChannelStats(uint updateIntervalInMs = 2000)
     {
@@ -75,35 +152,15 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: unregistering StatsCallback"
             );
-            var success = await _unregisterStatsCallback.Unreg();
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: unregistered StatsCallback successfully? {success}."
-            );
-            _statsCallback.Dispose();
         }
-
-        // stop the channel
         if (StopChannel != null)
         {
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: Stop Channel"
             );
-            await StopChannel.Stop();
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: Stopped and disposing port now."
-            );
-            StopChannel.Dispose();
-            StopChannel = null;
         }
-
-        if (RetrieveReaderFromChannelTask != null)
-            await RetrieveReaderFromChannelTask.ContinueWith(t => t.Dispose());
-
-        Channel?.Dispose();
-        Channel = null;
-
-        Reader?.Dispose();
-        Reader = null;
+        await DisconnectChannelAsync(stopChannel: true);
+        _statsCallback.Dispose();
     }
 
     private class StatsCallback(CapnpFbpInPortModel inPortModel)

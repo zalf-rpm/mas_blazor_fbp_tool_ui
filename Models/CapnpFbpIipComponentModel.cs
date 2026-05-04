@@ -35,7 +35,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 
     public int DisplayNoOfLines { get; set; } = 3;
     public ComponentLifecycleState LifecycleState { get; private set; } =
-        ComponentLifecycleState.Stopped;
+        ComponentLifecycleState.Idle;
     public string LifecycleError { get; private set; }
     public bool CanStart => !IsLifecycleBusy;
     public bool CanStop => false;
@@ -43,24 +43,26 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
     public ComponentLifecycleState DisplayLifecycleState => LifecycleState switch
     {
-        ComponentLifecycleState.Faulted => ComponentLifecycleState.Faulted,
+        ComponentLifecycleState.Failed => ComponentLifecycleState.Failed,
         ComponentLifecycleState.Starting => ComponentLifecycleState.Starting,
-        _ => IsConnectedToChannel ? ComponentLifecycleState.Running : ComponentLifecycleState.Stopped,
+        _ => IsConnectedToChannel ? ComponentLifecycleState.Running : ComponentLifecycleState.Idle,
     };
-    public string LifecycleLabel => DisplayLifecycleState switch
-    {
-        ComponentLifecycleState.Starting => "Sending",
-        ComponentLifecycleState.Running => "Ready",
-        ComponentLifecycleState.Faulted => "Error",
-        _ => "Disconnected",
-    };
+    public string LifecycleLabel => DisplayLifecycleState.ToString();
 
     private CancellationTokenSource _cancellationTokenSource;
     private Task _iipTask;
 
     private bool IsConnectedToChannel =>
-        Ports.OfType<CapnpFbpOutPortModel>()
-            .Any(port => port.Writer != null || port.WriterSturdyRef != null || port.Connected);
+        Shared.Shared.AttachedLinks(this)
+            .OfType<RememberCapnpPortsLinkModel>()
+            .Any(link =>
+                link.OutPortModel.Parent == this
+                && (
+                    link.Writer != null
+                    || link.WriterSturdyRef != null
+                    || link.OutPortModel.Connected
+                )
+            );
 
     public async Task SendIip(ConnectionManager conMan)
     {
@@ -86,25 +88,23 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
             var cancelToken = _cancellationTokenSource.Token;
 
             Debug.Assert(Shared.Shared.AttachedLinkCount(this) < 2);
-            var iipPort = Shared.Shared
+            var iipLink = Shared.Shared
                 .AttachedLinks(this)
                 .OfType<RememberCapnpPortsLinkModel>()
-                .Select(link => link.OutPortModel)
-                .OfType<CapnpFbpOutPortModel>()
-                .FirstOrDefault(port => port.Parent == this);
+                .FirstOrDefault(link => link.OutPortModel.Parent == this);
 
-            if (iipPort == null)
+            if (iipLink == null)
             {
-                SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+                SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
                 return;
             }
 
-            _iipTask = SendIipToPortAsync(iipPort, cancelToken);
+            _iipTask = SendIipToPortAsync(iipLink, cancelToken);
             await _iipTask;
             SetLifecycleState(
                 IsConnectedToChannel
                     ? ComponentLifecycleState.Running
-                    : ComponentLifecycleState.Stopped,
+                    : ComponentLifecycleState.Idle,
                 refresh: true
             );
 
@@ -113,7 +113,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+            SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         }
         catch (Exception e)
         {
@@ -129,7 +129,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     public async Task ResetExecution()
     {
         await CancelAndDisposeIipTaskAsync();
-        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     public async ValueTask DisposeAsync()
@@ -143,7 +143,11 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         Console.WriteLine("CapnpFbpIipModel::Disposing");
 
         await ResetExecution();
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
+            this,
+            Editor.Diagram,
+            this
+        );
 
         foreach (var port in Ports)
         {
@@ -153,7 +157,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     }
 
     private async Task SendIipToPortAsync(
-        CapnpFbpOutPortModel iipPort,
+        RememberCapnpPortsLinkModel iipLink,
         CancellationToken cancelToken
     )
     {
@@ -161,8 +165,11 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
             $"T{Environment.CurrentManagedThreadId} IIP: writing IIP: '{Content}' to channel"
         );
 
+        if (iipLink.RetrieveWriterFromChannelTask != null)
+            await iipLink.RetrieveWriterFromChannelTask;
+
         var retryCount = 5;
-        while (retryCount > 0 && iipPort.Writer == null)
+        while (retryCount > 0 && iipLink.Writer == null)
         {
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} IIP: waiting for connected channel. Retrying {retryCount} more times."
@@ -171,14 +178,14 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
             retryCount--;
         }
 
-        if (iipPort.Writer == null)
+        if (iipLink.Writer == null)
         {
             throw new InvalidOperationException(
                 $"IIP '{ComponentId ?? "unknown"}' could not connect to an output channel."
             );
         }
 
-        await iipPort.Writer.Write(
+        await iipLink.Writer.Write(
             new Channel<IP>.Msg
             {
                 Value = new IP
@@ -220,7 +227,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     )
     {
         LifecycleState = state;
-        LifecycleError = state == ComponentLifecycleState.Faulted ? error ?? LifecycleError : null;
+        LifecycleError = state == ComponentLifecycleState.Failed ? error ?? LifecycleError : null;
 
         if (refresh)
         {
@@ -232,6 +239,6 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     private void SetLifecycleFault(Exception exception, bool refresh = false)
     {
         Console.Error.WriteLine(exception);
-        SetLifecycleState(ComponentLifecycleState.Faulted, exception.Message, refresh);
+        SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 }
