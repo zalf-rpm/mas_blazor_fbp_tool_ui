@@ -244,10 +244,21 @@
     private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
     private bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
     private bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
-    private bool CanExecuteFlow => HasConnectedComponentService && HasConnectedChannelService;
-    private string ExecuteFlowButtonTitle => CanExecuteFlow
-        ? "Execute flow"
-        : "Connect both a components service and a channel service to execute the flow.";
+    private bool HasBusyLifecycleNodes =>
+        Diagram?.Nodes.Any(node => node switch
+        {
+            CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
+            CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
+            CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
+            _ => false,
+        }) == true;
+    private bool CanExecuteFlow =>
+        HasConnectedComponentService && HasConnectedChannelService && !HasBusyLifecycleNodes;
+    private string ExecuteFlowButtonTitle => !HasConnectedComponentService || !HasConnectedChannelService
+        ? "Connect both a components service and a channel service to execute the flow."
+        : HasBusyLifecycleNodes
+            ? "Wait for current lifecycle actions to finish before executing the flow."
+            : "Execute flow";
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>

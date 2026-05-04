@@ -35,6 +35,24 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
 
+    public ComponentLifecycleState LifecycleState { get; private set; } =
+        ComponentLifecycleState.Stopped;
+    public string LifecycleError { get; private set; }
+    public bool CanStart =>
+        LifecycleState is ComponentLifecycleState.Stopped or ComponentLifecycleState.Faulted;
+    public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
+    public bool IsLifecycleBusy =>
+        LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
+    public string LifecycleLabel => LifecycleState switch
+    {
+        ComponentLifecycleState.Stopped => "Stopped",
+        ComponentLifecycleState.Starting => "Starting",
+        ComponentLifecycleState.Running => "Running",
+        ComponentLifecycleState.Stopping => "Stopping",
+        ComponentLifecycleState.Faulted => "Error",
+        _ => "Unknown",
+    };
+
     public bool ProcessStarted { get; protected set; }
     private Task ViewMsgReceiveTask { get; set; }
 
@@ -64,19 +82,30 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     public async Task StartProcess(ConnectionManager conMan)
     {
+        if (Editor.CurrentChannelStarterService == null)
+        {
+            SetLifecycleFault(
+                new InvalidOperationException("No channel service connected."),
+                refresh: true
+            );
+            return;
+        }
+
+        if (!CanStart)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
+        CancellationToken cancelToken = default;
         try
         {
             Console.WriteLine(
                 $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess"
             );
 
-            if (Editor.CurrentChannelStarterService == null || ProcessStarted)
-            {
-                return;
-            }
+            await CancelAndDisposeViewTasks();
 
             _cancellationTokenSource = new CancellationTokenSource();
-            var cancelToken = _cancellationTokenSource.Token;
+            cancelToken = _cancellationTokenSource.Token;
 
             Channel<IP>.IReader reader = null;
 
@@ -145,6 +174,12 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 }
                 outPort.Parent.Refresh();
                 outPort.Parent.RefreshLinks();
+            }
+
+            if (reader == null)
+            {
+                SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+                return;
             }
 
             //run loop to receive messages on in-port
@@ -242,37 +277,53 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                             await reader.Close();
                             leave = true;
                         }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(
+                                $"T{Environment.CurrentManagedThreadId} {ProcessName}: view receive loop faulted: {ex}"
+                            );
+                            SetLifecycleFault(ex, refresh: true);
+                            leave = true;
+                        }
                     }
 
                     reader?.Dispose();
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: left view's receive loop"
                     );
-                    ProcessStarted = false;
+                    if (LifecycleState != ComponentLifecycleState.Faulted)
+                        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
                 },
                 cancelToken
             );
 
-            ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
-            RefreshAll();
-            RefreshLinks();
+            SetLifecycleState(ComponentLifecycleState.Running, refresh: true);
+        }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
         }
         catch (Exception e)
         {
+            await CancelAndDisposeViewTasks();
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
+            SetLifecycleFault(e, refresh: true);
         }
     }
 
     public async Task StopProcess(ConnectionManager conMan)
     {
         Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: stop process");
+        if (IsLifecycleBusy || !CanStop)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
         try
         {
-            await CancelAndDisposeViewTasks();
-            ProcessStarted = false;
+            await ResetExecution();
         }
         catch (Exception e)
         {
@@ -280,7 +331,14 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
+            SetLifecycleFault(e, refresh: true);
         }
+    }
+
+    public async Task ResetExecution()
+    {
+        await CancelAndDisposeViewTasks();
+        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
     }
 
     public async ValueTask DisposeAsync()
@@ -293,7 +351,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     {
         Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Editor.Diagram);
         await FreeRemoteChannelsAttachedToPorts();
-        await CancelAndDisposeViewTasks();
+        await ResetExecution();
     }
 
     private async Task FreeRemoteChannelsAttachedToPorts()
@@ -326,5 +384,28 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 t.Dispose();
                 ViewMsgReceiveTask = null;
             });
+    }
+
+    private void SetLifecycleState(
+        ComponentLifecycleState state,
+        string error = null,
+        bool refresh = false
+    )
+    {
+        LifecycleState = state;
+        ProcessStarted = state == ComponentLifecycleState.Running;
+        LifecycleError = state == ComponentLifecycleState.Faulted ? error ?? LifecycleError : null;
+
+        if (refresh)
+        {
+            RefreshAll();
+            RefreshLinks();
+        }
+    }
+
+    private void SetLifecycleFault(Exception exception, bool refresh = false)
+    {
+        Console.Error.WriteLine(exception);
+        SetLifecycleState(ComponentLifecycleState.Faulted, exception.Message, refresh);
     }
 }

@@ -11,7 +11,8 @@ using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Newtonsoft.Json.Linq;
-using Process = Mas.Schema.Fbp.Process;
+using ProcessSchema = Mas.Schema.Fbp.Process;
+using RpcException = Capnp.Rpc.RpcException;
 
 namespace BlazorDrawFBP.Models;
 
@@ -25,32 +26,36 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     private CancellationTokenSource _cancellationTokenSource;
     private ProcessStateTransition _processStateTransitionCallback;
-    private Task _processStartTask;
-    private Task _processStopTask;
+    private Task _processRunTask;
     public IProcess Process { get; set; }
 
-    public Process.IFactory ProcessFactory { get; set; }
+    public ProcessSchema.IFactory ProcessFactory { get; set; }
 
     public override bool RemoteProcessAttached() => Process != null;
+    public override bool CanEditCommandLine() => ProcessFactory != null || Process != null;
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
+        if (
+            Editor.CurrentChannelStarterService == null
+            || ProcessFactory == null
+            || !CanStart
+        )
+        {
+            return;
+        }
+
+        var shouldStopExistingRuntime =
+            Process != null && LifecycleState != ComponentLifecycleState.Stopped;
+        SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
+        CancellationToken cancelToken = default;
         try
         {
-            if (
-                Editor.CurrentChannelStarterService == null
-                || ProcessFactory == null
-                || ProcessStarted
-                || _processStartTask != null
-            )
-            {
-                return;
-            }
-
             Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: StartProcess");
 
+            await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
             _cancellationTokenSource = new CancellationTokenSource();
-            var cancelToken = _cancellationTokenSource.Token;
+            cancelToken = _cancellationTokenSource.Token;
 
             //get a fresh Process
             if (Process == null)
@@ -68,19 +73,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     _processStateTransitionCallback = new ProcessStateTransition(
                         (old, @new) =>
                         {
-                            switch (@new)
-                            {
-                                case Mas.Schema.Fbp.Process.State.started:
-                                    ProcessStarted = true;
-                                    Refresh();
-                                    break;
-                                case Mas.Schema.Fbp.Process.State.canceled:
-                                    break;
-                                case Mas.Schema.Fbp.Process.State.stopped:
-                                    ProcessStarted = false;
-                                    Refresh();
-                                    break;
-                            }
+                            ApplyProcessState(@new, refresh: true);
                         }
                     );
                     await Process.State(_processStateTransitionCallback, cancelToken);
@@ -209,7 +202,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                         JTokenType.Boolean => new Value { B = kv.Value.Value<bool>() },
                     };
                     await Process.SetConfigEntry(
-                        new Process.ConfigEntry { Name = kv.Key, Val = val },
+                        new ProcessSchema.ConfigEntry { Name = kv.Key, Val = val },
                         cancelToken
                     );
                 }
@@ -219,45 +212,48 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 );
             }
 
-            //await Process.Start(cancelToken);
-            _processStartTask = Task.Run(async () => await Process.Start(cancelToken), cancelToken)
-                .ContinueWith((r) => _processStartTask = null);
-            ProcessStarted = true;
+            var processRunTask = Process.Start(cancelToken);
+            _processRunTask = processRunTask;
+            _ = ObserveProcessRunAsync(processRunTask, _cancellationTokenSource);
             Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process started: {ProcessStarted}"
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process start launched"
             );
             RefreshAll();
             RefreshLinks();
         }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::StartProcess: Caught exception: {e}"
-            );
+            await ResetRemoteRuntimeAsync(stopRemoteProcess: true);
+            SetLifecycleFault(e, refresh: true);
         }
     }
 
     public override async Task StopProcess(ConnectionManager conMan)
     {
+        if (IsLifecycleBusy || !CanStop)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
         try
         {
-            if (Process != null && _processStopTask == null)
-            {
-                //await Process.Stop();
-                _processStopTask = Task.Run(
-                        async () => await Process.Stop(),
-                        _cancellationTokenSource.Token
-                    )
-                    .ContinueWith((r) => _processStopTask = null);
-                ProcessStarted = false;
-            }
+            await TryStopRemoteProcessAsync(ProcessSchema.StopMode.soft);
         }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::StopProcess: Caught exception: {e}"
-            );
+            SetLifecycleFault(e, refresh: true);
         }
+    }
+
+    public override async Task ResetExecution()
+    {
+        var shouldStopExistingRuntime =
+            Process != null && LifecycleState != ComponentLifecycleState.Stopped;
+        await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
+        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -275,39 +271,117 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent"
         );
-
-        if (Process == null)
-            return;
-
-        //cancel task
-        if (_cancellationTokenSource != null)
-            await _cancellationTokenSource.CancelAsync();
-
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
-
-        //stop remote process
-        Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent stopping runnable/process"
-        );
-        await Process.Stop();
-        ProcessStarted = false;
-
+        await ResetExecution();
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
         );
+    }
+
+    private async Task ResetRemoteRuntimeAsync(bool stopRemoteProcess)
+    {
+        if (stopRemoteProcess)
+            await TryStopRemoteProcessAsync(ProcessSchema.StopMode.hard);
+        await CancelCurrentLifecycleAsync();
+
+        _processRunTask = null;
         Process?.Dispose();
         Process = null;
         _processStateTransitionCallback?.Dispose();
         _processStateTransitionCallback = null;
+        ProcessStarted = false;
     }
 
-    private class ProcessStateTransition(Action<Process.State, Process.State> action)
-        : Process.IStateTransition
+    private async Task TryStopRemoteProcessAsync(ProcessSchema.StopMode mode)
+    {
+        if (Process == null)
+            return;
+
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::ResetRemoteRuntimeAsync stopping process"
+        );
+        try
+        {
+            await Process.Stop(mode);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process already disposed during stop: {ex.Message}"
+            );
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process RPC failed during stop: {ex.Message}"
+            );
+        }
+    }
+
+    private async Task CancelCurrentLifecycleAsync()
+    {
+        if (_cancellationTokenSource == null)
+            return;
+
+        await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = null;
+    }
+
+    private async Task ObserveProcessRunAsync(
+        Task processRunTask,
+        CancellationTokenSource lifecycleTokenSource
+    )
+    {
+        try
+        {
+            await processRunTask;
+        }
+        catch (OperationCanceledException) when (lifecycleTokenSource.IsCancellationRequested)
+        {
+        }
+        catch (Exception e)
+        {
+            if (!ReferenceEquals(_cancellationTokenSource, lifecycleTokenSource))
+                return;
+
+            await ResetRemoteRuntimeAsync(stopRemoteProcess: true);
+            SetLifecycleFault(e, refresh: true);
+        }
+        finally
+        {
+            if (ReferenceEquals(_processRunTask, processRunTask))
+                _processRunTask = null;
+        }
+    }
+
+    private void ApplyProcessState(ProcessSchema.State state, bool refresh = false)
+    {
+        switch (state)
+        {
+            case ProcessSchema.State.starting:
+                SetLifecycleState(ComponentLifecycleState.Starting, refresh: refresh);
+                break;
+            case ProcessSchema.State.running:
+                SetLifecycleState(ComponentLifecycleState.Running, refresh: refresh);
+                break;
+            case ProcessSchema.State.stopping:
+                SetLifecycleState(ComponentLifecycleState.Stopping, refresh: refresh);
+                break;
+            case ProcessSchema.State.stopped:
+                SetLifecycleState(ComponentLifecycleState.Stopped, refresh: refresh);
+                break;
+            case ProcessSchema.State.failed:
+                SetLifecycleState(ComponentLifecycleState.Faulted, refresh: refresh);
+                break;
+        }
+    }
+
+    private class ProcessStateTransition(Action<ProcessSchema.State, ProcessSchema.State> action)
+        : ProcessSchema.IStateTransition
     {
         public Task StateChanged(
-            Process.State old,
-            Process.State @new,
+            ProcessSchema.State old,
+            ProcessSchema.State @new,
             CancellationToken cancellationToken = default
         )
         {

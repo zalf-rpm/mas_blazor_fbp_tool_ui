@@ -1454,42 +1454,61 @@ public partial class Editor
 
     public async Task ClearDiagram()
     {
-        foreach (var node in Diagram.Nodes)
+        foreach (var node in Diagram.Nodes.ToList())
+        {
+            await ResetNodeLifecycle(node);
             if (node is IAsyncDisposable disposable)
                 await disposable.DisposeAsync();
+        }
         Diagram.Nodes.Clear();
         Diagram.Refresh();
+    }
+
+    private async Task ResetNodeLifecycle(Model node)
+    {
+        switch (node)
+        {
+            case CapnpFbpComponentModel compNode:
+                await compNode.ResetExecution();
+                break;
+            case CapnpFbpViewComponentModel viewNode:
+                await viewNode.ResetExecution();
+                break;
+            case CapnpFbpIipComponentModel iipNode:
+                await iipNode.ResetExecution();
+                break;
+        }
+    }
+
+    private async Task ExecuteNode(Model node)
+    {
+        switch (node)
+        {
+            case CapnpFbpComponentModel compNode when compNode.CanStart:
+                await compNode.StartProcess(ConMan);
+                break;
+            case CapnpFbpViewComponentModel viewNode when viewNode.CanStart:
+                await viewNode.StartProcess(ConMan);
+                break;
+            case CapnpFbpIipComponentModel iipNode when iipNode.CanStart:
+                await iipNode.SendIip(ConMan);
+                break;
+        }
     }
 
     private async Task ExecuteFlow()
     {
         if (!CanExecuteFlow)
         {
-            Console.WriteLine(
-                "Editor.razor.cs::ExecuteFlow: Connect both a components service and a channel service before executing the flow."
-            );
+            Console.WriteLine($"Editor.razor.cs::ExecuteFlow: {ExecuteFlowButtonTitle}");
             return;
         }
 
         try
         {
-            foreach (var node in Diagram.Nodes)
+            foreach (var node in Diagram.Nodes.ToList())
             {
-                switch (node)
-                {
-                    case CapnpFbpComponentModel compNode:
-                        await compNode.StartProcess(ConMan);
-                        break;
-                    case CapnpFbpViewComponentModel viewNode:
-                        await viewNode.StartProcess(ConMan);
-                        break;
-                    case CapnpFbpIipComponentModel iipNode:
-                        await iipNode.SendIip(ConMan);
-                        break;
-                    default:
-                        continue;
-                }
-
+                await ExecuteNode(node);
                 node.Refresh();
             }
         }

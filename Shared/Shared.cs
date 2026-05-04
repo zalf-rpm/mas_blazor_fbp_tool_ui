@@ -122,6 +122,10 @@ public static class Shared
             inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(
                 false
             );
+            if (outPort.Parent != null && inPort.Parent != null && inPort.Channel != null)
+            {
+                await inPort.Channel.SetAutoCloseSemantics(Channel<IP>.CloseSemantics.no);
+            }
             // attach stop channel cap to IN port
             inPort.StopChannel = si.Item2;
             inPort.RetrieveReaderFromChannelTask = null;

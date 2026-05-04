@@ -9,6 +9,17 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
+    @if (HasLifecycleError) {
+        <MudTooltip Text="@Node.LifecycleError"
+                    Delay="200"
+                    Arrow="true">
+            <MudIcon Class="absolute"
+                     Style="right: 6px; top: -12px;"
+                     Icon="@Icons.Material.Filled.ErrorOutline"
+                     Color="Color.Error"
+                     Size="Size.Small" />
+        </MudTooltip>
+    }
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
               Elevation="0">
         @code {
@@ -52,9 +63,10 @@
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
-                               StartIcon="@(Node.ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
-                               OnClick="async (e) => { await StartProcess(!Node.ProcessStarted); }">
-                        @(Node.ProcessStarted ? "Stop" : "Start")
+                               Disabled="@Node.IsLifecycleBusy"
+                               StartIcon="@LifecycleButtonIcon"
+                               OnClick="@HandleLifecycleAction">
+                        @LifecycleButtonText
                     </MudButton>
                 </MudPaper>
             </MudItem>
@@ -212,9 +224,28 @@
     private string CardStyle =>
         $"height: {(Node.Size?.Height ?? Shared.CardHeight)}px; width: {(Node.Size?.Width ?? Shared.CardWidth)}px;{FrameWidth};{FrameColor}";
 
-    private string FrameWidth => $"border-width: {(Node.RemoteProcessAttached() ? 1 : 1)}px";
+    private const string FrameWidth = "border-width: 1px";
     private string FrameBorderColorValue => CapnpFbpPortColors.ResolveComponentFrameColor(Node);
     private string FrameColor => $"border-color: {FrameBorderColorValue}";
+    private bool IsProcessStopRequested =>
+        Node is CapnpFbpProcessComponentModel
+        && Node.LifecycleState == ComponentLifecycleState.Stopping;
+    private string LifecycleButtonText => Node.LifecycleState switch
+    {
+        ComponentLifecycleState.Starting => "Starting...",
+        ComponentLifecycleState.Stopping => IsProcessStopRequested ? "Stop requested..." : "Stopping...",
+        ComponentLifecycleState.Running => "Stop",
+        ComponentLifecycleState.Faulted => "Retry",
+        _ => "Start",
+    };
+    private string LifecycleButtonIcon => Node.LifecycleState switch
+    {
+        ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
+        _ => Icons.Material.Filled.PlayCircle,
+    };
+    private bool HasLifecycleError =>
+        Node.LifecycleState == ComponentLifecycleState.Faulted
+        && !string.IsNullOrWhiteSpace(Node.LifecycleError);
 
     private MarkupString CardToolTipText { get; set; }
     private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? Shared.CardWidth)}px;";
@@ -229,11 +260,13 @@
         // Node.Dispatcher = Dispatcher;
     }
 
-    private async Task StartProcess(bool start) {
-        if (start)
-            await Node.StartProcess(ConMan);
-        else
+    private async Task HandleLifecycleAction()
+    {
+        if (Node.CanStop)
             await Node.StopProcess(ConMan);
+        else if (Node.CanStart)
+            await Node.StartProcess(ConMan);
+
         StateHasChanged();
     }
 

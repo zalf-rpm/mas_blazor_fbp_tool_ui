@@ -13,6 +13,7 @@ using Mas.Schema.Persistence;
 using Mas.Schema.Service;
 using Newtonsoft.Json.Linq;
 using Process = Mas.Schema.Fbp.Process;
+using RpcException = Capnp.Rpc.RpcException;
 
 namespace BlazorDrawFBP.Models;
 
@@ -43,24 +44,30 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     public Runnable.IFactory RunnableFactory { get; set; }
 
     public override bool RemoteProcessAttached() => Runnable != null;
+    public override bool CanEditCommandLine() => RunnableFactory != null || Runnable != null;
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
+        if (
+            Editor.CurrentChannelStarterService == null
+            || RunnableFactory == null
+            || !CanStart
+        )
+        {
+            return;
+        }
+
+        var shouldStopExistingRuntime =
+            Runnable != null && LifecycleState != ComponentLifecycleState.Stopped;
+        SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
+        CancellationToken cancelToken = default;
         try
         {
-            if (
-                Editor.CurrentChannelStarterService == null
-                || RunnableFactory == null
-                || ProcessStarted
-            )
-            {
-                return;
-            }
-
             Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: StartProcess");
 
+            await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
             _cancellationTokenSource = new CancellationTokenSource();
-            var cancelToken = _cancellationTokenSource.Token;
+            cancelToken = _cancellationTokenSource.Token;
 
             //get a fresh runnable
             if (Runnable == null)
@@ -339,19 +346,19 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 _stopPortInfosChannel = si.Item2;
             }
 
-            if (_portInfosWriter == null)
-                return;
+            if (_portInfosWriter == null || _portInfosReaderSr == null)
+                throw new InvalidOperationException(
+                    $"Could not initialize the port info channel for '{ProcessName}'."
+                );
 
-            ProcessStarted = await Runnable.Start(
+            var runnableStarted = await Runnable.Start(
                 _portInfosReaderSr,
                 ProcessName,
                 _stoppedCallback,
                 cancelToken
             );
-            if (!ProcessStarted)
-            {
-                return;
-            }
+            if (!runnableStarted)
+                throw new InvalidOperationException($"Runnable '{ProcessName}' failed to start.");
 
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Runnable started: {ProcessStarted}"
@@ -369,33 +376,46 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 },
                 cancelToken
             );
+            SetLifecycleState(ComponentLifecycleState.Running);
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Wrote port infos to port info channel"
             );
             RefreshAll();
             RefreshLinks();
         }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
+        }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::StartProcess: Caught exception: {e}"
-            );
+            await ResetRemoteRuntimeAsync(stopRunnable: true);
+            SetLifecycleFault(e, refresh: true);
         }
     }
 
     public override async Task StopProcess(ConnectionManager conMan)
     {
+        if (IsLifecycleBusy || !CanStop)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
         try
         {
-            await CancelAndDisposeRemoteComponent();
-            ProcessStarted = false;
+            await TryStopRunnableAsync();
         }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::StopProcess: Caught exception: {e}"
-            );
+            SetLifecycleFault(e, refresh: true);
         }
+    }
+
+    public override async Task ResetExecution()
+    {
+        var shouldStopExistingRuntime =
+            Runnable != null && LifecycleState != ComponentLifecycleState.Stopped;
+        await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
+        SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -415,50 +435,10 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent"
         );
-
-        if (Runnable == null)
-            return;
-
-        //cancel task
-        if (_cancellationTokenSource != null)
-            await _cancellationTokenSource.CancelAsync();
-
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
-
-        //stop remote process
-        Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent stopping runnable/process"
-        );
-        // we have to write a DONE into the channel as Runnable channels might block on the port infos channel and
-        // wait for a done before exiting, even if they are actually done, just to keep the event loop running so
-        // they can transport messages from capabilities downstream to components upstream
-        await _portInfosWriter.Write(
-            new Channel<PortInfos>.Msg { which = Channel<PortInfos>.Msg.WHICH.Done }
-        );
-        await Task.Delay(500); // let the process stop
-        ProcessStarted = !(await Runnable.Stop());
-
-        // stop the port infos channel
-        if (_stopPortInfosChannel != null)
-        {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stop port infos channel"
-            );
-            await _stopPortInfosChannel.Stop();
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stopped port infos channel"
-            );
-            _stopPortInfosChannel.Dispose();
-            _stopPortInfosChannel = null;
-            _portInfosWriter?.Dispose();
-        }
-
+        await ResetExecution();
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
         );
-        Runnable?.Dispose();
-        Runnable = null;
     }
 
     private async Task DisposeAdditionalRunnablePorts()
@@ -485,8 +465,124 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
             );
+            runnableModel.SetLifecycleState(ComponentLifecycleState.Stopped, refresh: true);
             return Task.CompletedTask;
             //return runnableModel.StopProcess(null);
         }
+    }
+
+    private async Task ResetRemoteRuntimeAsync(bool stopRunnable)
+    {
+        await TryWritePortInfosDoneAsync();
+        if (stopRunnable)
+            await TryStopRunnableAsync();
+        await TryStopPortInfosChannelAsync();
+        await CancelCurrentLifecycleAsync();
+
+        _portInfosWriter?.Dispose();
+        _portInfosWriter = null;
+        _portInfosReaderSr = null;
+        Runnable?.Dispose();
+        Runnable = null;
+        ProcessStarted = false;
+    }
+
+    private async Task TryWritePortInfosDoneAsync()
+    {
+        if (_portInfosWriter == null)
+            return;
+
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: sending DONE to the port info channel"
+        );
+        try
+        {
+            await _portInfosWriter.Write(
+                new Channel<PortInfos>.Msg { which = Channel<PortInfos>.Msg.WHICH.Done }
+            );
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: port info writer already disposed: {ex.Message}"
+            );
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: port info writer RPC failed: {ex.Message}"
+            );
+        }
+    }
+
+    private async Task TryStopRunnableAsync()
+    {
+        if (Runnable == null)
+            return;
+
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpRunnableComponentModel::ResetRemoteRuntimeAsync stopping runnable/process"
+        );
+        try
+        {
+            await Task.Delay(500);
+            await Runnable.Stop();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: runnable already disposed during stop: {ex.Message}"
+            );
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: runnable RPC failed during stop: {ex.Message}"
+            );
+        }
+    }
+
+    private async Task TryStopPortInfosChannelAsync()
+    {
+        if (_stopPortInfosChannel == null)
+            return;
+
+        try
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stop port infos channel"
+            );
+            await _stopPortInfosChannel.Stop();
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} CapnpFbpRunnableComponentModel::DisposeAdditionalRunnablePorts: Stopped port infos channel"
+            );
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: port info channel already disposed: {ex.Message}"
+            );
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: port info channel RPC failed during stop: {ex.Message}"
+            );
+        }
+        finally
+        {
+            _stopPortInfosChannel.Dispose();
+            _stopPortInfosChannel = null;
+        }
+    }
+
+    private async Task CancelCurrentLifecycleAsync()
+    {
+        if (_cancellationTokenSource == null)
+            return;
+
+        await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = null;
     }
 }

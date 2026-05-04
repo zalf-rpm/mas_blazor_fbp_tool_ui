@@ -9,7 +9,7 @@ public static class CapnpFbpPortColors
     public const string DefaultColor = "black";
     public const string ReadyColor = "#1ac12e";
     public const string PendingColor = "#ff0000";
-    public const string AttachedColor = "#6e9fd4";
+    public const string TransitionColor = "#E69F00";
 
     public static string ResolvePortIconColor(CapnpFbpPortModel port)
     {
@@ -32,12 +32,20 @@ public static class CapnpFbpPortColors
         return HasReadyChannel(outPort, inPort) ? ReadyColor : PendingColor;
     }
 
+    public static string ResolveLifecycleFrameColor(ComponentLifecycleState state)
+    {
+        return state switch
+        {
+            ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping => TransitionColor,
+            ComponentLifecycleState.Running => ReadyColor,
+            ComponentLifecycleState.Faulted => PendingColor,
+            _ => DefaultColor,
+        };
+    }
+
     public static string ResolveComponentFrameColor(CapnpFbpComponentModel node)
     {
-        if (node.ProcessStarted)
-            return ReadyColor;
-
-        return node.RemoteProcessAttached() ? AttachedColor : PendingColor;
+        return ResolveLifecycleFrameColor(node.LifecycleState);
     }
 
     public static string ResolveActiveFrameColor(bool isReady)

@@ -152,7 +152,7 @@
                                           Label="Default TOML config (Key=Value)"
                                           Variant="Variant.Outlined"/>
                         }
-                        @if (Node.ComponentModel.RemoteProcessAttached() && (!string.IsNullOrEmpty(Node.ComponentModel.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentModel.ComponentId)))
+                        @if (Node.ComponentModel.CanEditCommandLine() && (!string.IsNullOrEmpty(Node.ComponentModel.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentModel.ComponentId)))
                         {
                             <MudTextField T="string"
                                           @bind-Value="Node.ComponentModel.Cmd"

@@ -11,6 +11,18 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
+    @if (HasLifecycleError)
+    {
+        <MudTooltip Text="@Node.LifecycleError"
+                    Delay="200"
+                    Arrow="true">
+            <MudIcon Class="absolute"
+                     Style="right: 6px; top: -12px;"
+                     Icon="@Icons.Material.Filled.ErrorOutline"
+                     Color="Color.Error"
+                     Size="Size.Small" />
+        </MudTooltip>
+    }
     <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
               Elevation="0">
         <MudGrid Justify="Justify.Center" Spacing="1">
@@ -18,9 +30,10 @@
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
-                               StartIcon="@Icons.Material.Filled.PlayCircle"
+                               Disabled="@Node.IsLifecycleBusy"
+                               StartIcon="@LifecycleButtonIcon"
                                OnClick="@SendIip">
-                        "Send"
+                        @LifecycleButtonText
                     </MudButton>
                 </MudPaper>
             </MudItem>
@@ -85,11 +98,20 @@
     [Parameter] public CapnpFbpIipComponentModel Node { get; set; }
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
-    private string FrameWidth => $"border-width: 1px";
-    //private string FrameColor => $"border-color: #6e9fd4";
-    private string FrameBorderColorValue => CapnpFbpPortColors.ResolveActiveFrameColor(IsConnectedToChannel);
+    private const string FrameWidth = "border-width: 1px";
+    private string FrameBorderColorValue =>
+        CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.DisplayLifecycleState);
     private string FrameColor => $@"border-color: {FrameBorderColorValue}";
-    private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpOutPortModel iipPort && iipPort.Writer != null);
+    private string LifecycleButtonText => Node.LifecycleState switch
+    {
+        ComponentLifecycleState.Starting => "Sending...",
+        ComponentLifecycleState.Faulted => "Retry send",
+        _ => "Send",
+    };
+    private string LifecycleButtonIcon => Icons.Material.Filled.Send;
+    private bool HasLifecycleError =>
+        Node.LifecycleState == ComponentLifecycleState.Faulted
+        && !string.IsNullOrWhiteSpace(Node.LifecycleError);
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
