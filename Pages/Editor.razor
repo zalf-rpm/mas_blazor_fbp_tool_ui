@@ -417,45 +417,13 @@
 
     private async Task ShowSturdyRefDialog()
     {
-        async Task HandleNewConnections((ulong, string, string) intIdAndSrAndPn)
-        {
-            var updatedConnections = false;
-            var sr = intIdAndSrAndPn.Item2;
-            if (!SturdyRef2Services.TryGetValue(sr, out var value)) return;
-            var intId = intIdAndSrAndPn.Item1;
-            var petName = intIdAndSrAndPn.Item3;
-            if (intId == Shared.ChannelStarterInterfaceId)
-            {
-                if (value is IStartChannelsService service)
-                {
-                    var info = await service.Info();
-                    var petName2 = Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName);
-                    ServiceId2ChannelStarterServices[info.Id] = service;
-                    ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
-                    updatedConnections = true;
-                }
-            }
-            else if (intId == Shared.RegistryInterfaceId && value is IRegistry reg)
-            {
-                var info = await reg.Info();
-                var petName2 = Shared.MakeUniqueKey(ServiceId2Registries, petName);
-                ServiceId2Registries[info.Id] = Proxy.Share(reg);
-                RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sr);
-                await LoadComponentsFromRegistry(Proxy.Share(reg), sr);
-                updatedConnections = true;
-            }
-
-            if (updatedConnections)
-            {
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-
-        EventCallback<(ulong, string, string)> ecb = new(this, HandleNewConnections);
+        EventCallback<(ulong, string, string)> connectedCallback = new(this, HandleSturdyRefConnectedAsync);
+        EventCallback<(ulong, string)> disconnectedCallback = new(this, HandleSturdyRefDisconnectedAsync);
         var parameters = new DialogParameters();
         parameters.Add("InterfaceIdToType", InterfaceIdToType);
         parameters.Add("SturdyRef2Services", SturdyRef2Services);
-        parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", ecb);
+        parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", connectedCallback);
+        parameters.Add("DisconnectedFromInterfaceIdAndSturdyRefChanged", disconnectedCallback);
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
         await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }

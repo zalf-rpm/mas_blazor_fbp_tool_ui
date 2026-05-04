@@ -202,6 +202,115 @@ public partial class Editor
         return reg;
     }
 
+    private async Task HandleSturdyRefConnectedAsync((ulong, string, string) connection)
+    {
+        var (interfaceId, sturdyRef, petName) = connection;
+        if (!SturdyRef2Services.TryGetValue(sturdyRef, out var value))
+            return;
+
+        var updatedConnections = false;
+        if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
+        {
+            if (value is IStartChannelsService service)
+            {
+                var info = await service.Info();
+                var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName);
+                ServiceId2ChannelStarterServices[info.Id] = service;
+                ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+                updatedConnections = true;
+            }
+        }
+        else if (interfaceId == Shared.Shared.RegistryInterfaceId && value is IRegistry reg)
+        {
+            var info = await reg.Info();
+            var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2Registries, petName);
+            ServiceId2Registries[info.Id] = Proxy.Share(reg);
+            RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+            await LoadComponentsFromRegistry(Proxy.Share(reg), sturdyRef);
+            updatedConnections = true;
+        }
+
+        if (updatedConnections)
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSturdyRefDisconnectedAsync((ulong, string) connection)
+    {
+        var (interfaceId, sturdyRef) = connection;
+        if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
+        {
+            DisconnectChannelStarterService(sturdyRef);
+        }
+        else if (interfaceId == Shared.Shared.RegistryInterfaceId)
+        {
+            DisconnectRegistryService(sturdyRef);
+        }
+
+        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
+            proxy.Dispose();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void DisconnectChannelStarterService(string sturdyRef)
+    {
+        var serviceIds = ChannelServiceIdToPetNameAndSturdyRef
+            .Where(entry => entry.Value.Item2 == sturdyRef)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var serviceId in serviceIds)
+        {
+            if (ServiceId2ChannelStarterServices.Remove(serviceId, out var service))
+                service.Dispose();
+            ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+        }
+    }
+
+    private void DisconnectRegistryService(string sturdyRef)
+    {
+        var serviceIds = RegistryServiceIdToPetNameAndSturdyRef
+            .Where(entry => entry.Key != NoRegistryServiceId && entry.Value.Item2 == sturdyRef)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var serviceId in serviceIds)
+        {
+            if (ServiceId2Registries.Remove(serviceId, out var registry))
+                registry.Dispose();
+            RegistryServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+            RemoveRegistryPaletteEntries(serviceId);
+        }
+    }
+
+    private void RemoveRegistryPaletteEntries(string serviceId)
+    {
+        foreach (
+            var componentKey in ServiceIdAndComponentId2Component.Keys
+                .Where(componentKey => componentKey.Item1 == serviceId)
+                .ToList()
+        )
+        {
+            ServiceIdAndComponentId2Component.Remove(componentKey);
+        }
+
+        foreach (var categoryId in CatId2CompServiceIdAndComponentIds.Keys.ToList())
+        {
+            CatId2CompServiceIdAndComponentIds[categoryId].RemoveWhere(
+                componentKey => componentKey.Item1 == serviceId
+            );
+
+            if (
+                categoryId != DefaultCatId
+                && CatId2CompServiceIdAndComponentIds[categoryId].Count == 0
+            )
+            {
+                CatId2CompServiceIdAndComponentIds.Remove(categoryId);
+                CatId2Info.Remove(categoryId);
+            }
+        }
+    }
+
     private async Task LoadComponentsFromRegistry(IRegistry reg, string sturdyRef)
     {
         if (reg == null)
