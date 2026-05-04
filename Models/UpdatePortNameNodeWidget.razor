@@ -4,7 +4,7 @@
 <div>
     <MudTextField Required 
                   T="@string" 
-                  @bind-Value="@Node.LabelModel.Content"
+                  @bind-Value="@Node.PortName"
                   AutoFocus="@true"
                   Label="@Node.Label" 
                   Variant="@Variant.Outlined"
@@ -21,8 +21,7 @@
     {
         // Console.WriteLine("OnBlur");
         if (_alreadyRemoved) return;
-        Node.LabelModel.Refresh();
-        Node.PortModel.Name = Node.LabelModel.Content;
+        Node.PortModel.Name = Node.PortName;
         Node.PortModel.Refresh();
         Node.Container.Nodes.Remove(Node);
     }
@@ -32,8 +31,7 @@
         // Console.WriteLine("OnKeyUp Enter pressed");
         if (e.Key != "Enter") return;
         Node.Container.Nodes.Remove(Node);
-        Node.LabelModel.Refresh();
-        Node.PortModel.Name = Node.LabelModel.Content;
+        Node.PortModel.Name = Node.PortName;
         Node.PortModel.Refresh();
         _alreadyRemoved = true;
     }

@@ -10,7 +10,7 @@ public class UpdatePortNameNode : NodeModel
     public UpdatePortNameNode(Point position = null) : base(position) { }
 
     public string Label { get; set; }
-    public LinkLabelModel LabelModel { get; set; }
+    public string PortName { get; set; } = "";
     
     public CapnpFbpPortModel PortModel { get; set; }
     

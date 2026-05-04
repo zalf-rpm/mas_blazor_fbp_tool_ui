@@ -253,10 +253,15 @@
             _ => false,
         }) == true;
     private bool CanExecuteFlow =>
-        HasConnectedComponentService && HasConnectedChannelService && !HasBusyLifecycleNodes;
+        HasConnectedComponentService
+        && HasConnectedChannelService
+        && !HasBusyLifecycleNodes
+        && !_executingFlow;
     private string ExecuteFlowButtonTitle => !HasConnectedComponentService || !HasConnectedChannelService
         ? "Connect both a components service and a channel service to execute the flow."
-        : HasBusyLifecycleNodes
+        : _executingFlow
+            ? "Flow execution is already starting the current graph."
+            : HasBusyLifecycleNodes
             ? "Wait for current lifecycle actions to finish before executing the flow."
             : "Execute flow";
 

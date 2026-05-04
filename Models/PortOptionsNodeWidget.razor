@@ -54,7 +54,7 @@
     // public const string ArrowCircleRight = "<g><rect fill=\"none\" height=\"24\" width=\"24\"/></g><g><path d=\"M22,12c0-5.52-4.48-10-10-10S2,6.48,2,12c0,5.52,4.48,10,10,10S22,17.52,22,12z M12,13l-4,0v-2l4,0V8l4,4l-4,4V13z\"/></g>";
     // public const string ArrowCircleUp = "<g><rect fill=\"none\" height=\"24\" width=\"24\"/><path d=\"M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8S16.41,20,12,20 M12,22c5.52,0,10-4.48,10-10c0-5.52-4.48-10-10-10 C6.48,2,2,6.48,2,12C2,17.52,6.48,22,12,22L12,22z M11,12l0,4h2l0-4h3l-4-4l-4,4H11z\"/></g>";
     
-    protected void RemovePort()
+    protected async Task RemovePort()
     {
         if (Node.NodeModel is null) return;
 
@@ -62,11 +62,12 @@
 
         foreach (var link in Node.PortModel.Links.ToArray())
         {
-            Shared.RestoreDefaultPortVisibility(Node.Container, link);
+            await Shared.RemoveLinkAndCleanupAsync(Node.Container, link);
         }
 
+        if (Node.PortModel is IAsyncDisposable asyncDisposable)
+            await asyncDisposable.DisposeAsync();
         Node.NodeModel.RemovePort(Node.PortModel);
-        Node.Container.Links.Remove(Node.PortModel.Links.ToArray());
 
         // update order numbers of all other ports
         var upperPorts = Node.NodeModel.Ports.Where(
@@ -133,27 +134,11 @@
         Node.Container.Nodes.Remove(Node);
     }
 
-    void UpdateLinkNames()
-    {
-        foreach (var link in Node.PortModel.Links)
-        {
-            var label = link.Source.Model == Node.PortModel
-                ? link.Labels.Find(blm => blm is not ChannelLinkLabelModel)
-                : link.Target.Model == Node.PortModel
-                    ? link.Labels.FindLast(blm => blm is not ChannelLinkLabelModel)
-                    : null;
-            if (label == null) continue;
-            label.Content = Node.PortModel.Name;
-            label.Refresh();
-        }
-    }
-    
     void OnBlur(FocusEventArgs e)
     {
         if (_alreadyRemoved) return;
         Node.PortModel.Refresh();
         Node.Container.Nodes.Remove(Node);
-        UpdateLinkNames();
     }
 
     void OnKeyUp(KeyboardEventArgs e)
@@ -161,7 +146,6 @@
         if (e.Key != "Enter") return;
         Node.Container.Nodes.Remove(Node);
         Node.PortModel.Refresh();
-        UpdateLinkNames();
         _alreadyRemoved = true;
     }
 
