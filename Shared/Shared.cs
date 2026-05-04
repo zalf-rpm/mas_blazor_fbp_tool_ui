@@ -282,67 +282,7 @@ public static class Shared
             diagram.Links.Remove(baseLinkModel);
             return;
         }
-
-        var affectedLinks = diagram.Links
-            .OfType<RememberCapnpPortsLinkModel>()
-            .Where(link => ReferenceEquals(link.InPortModel, removedLink.InPortModel))
-            .ToList();
-        var affectedOutPorts = affectedLinks
-            .Select(link => link.OutPortModel)
-            .Append(removedLink.OutPortModel)
-            .Distinct()
-            .ToList();
-        var affectedNodes = affectedOutPorts
-            .Select(port => port.Parent)
-            .Append(removedLink.InPortModel.Parent)
-            .OfType<Model>()
-            .Distinct()
-            .ToList();
-        var remainingLinks = affectedLinks
-            .Where(link => !ReferenceEquals(link, removedLink))
-            .ToList();
-
-        foreach (var node in affectedNodes.Where(RequiresLifecycleResetOnChannelRemoval))
-        {
-            await ResetNodeLifecycleAsync(node);
-        }
-
-        await removedLink.InPortModel.DisconnectProcessAsync();
-        foreach (var link in affectedLinks)
-        {
-            await link.DisconnectProcessOutPortAsync();
-        }
-
-        await removedLink.InPortModel.DisconnectChannelAsync(stopChannel: true);
-        foreach (var link in affectedLinks)
-        {
-            await link.DisconnectWriterAsync();
-        }
-
-        diagram.Links.Remove(baseLinkModel);
-
-        removedLink.InPortModel.SyncVisibility();
-        removedLink.InPortModel.Refresh();
-        foreach (var outPort in affectedOutPorts)
-        {
-            outPort.SyncVisibility();
-            outPort.SyncProcessConnectionState();
-            outPort.Refresh();
-        }
-
-        foreach (var link in remainingLinks)
-        {
-            link.Stats = new Channel<IP>.StatsCallback.Stats();
-            CapnpFbpPortColors.ApplyLinkColor(link);
-        }
-
-        foreach (var link in remainingLinks)
-        {
-            await ConnectLinkToRunningProcessesAsync(link);
-        }
-
-        removedLink.OutPortModel.Parent?.RefreshAll();
-        removedLink.InPortModel.Parent?.RefreshAll();
+        await RemoveRememberedLinkAndCleanupAsync(diagram, removedLink);
     }
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
@@ -380,59 +320,83 @@ public static class Shared
                 await RemoveLinkAndCleanupAsync(diagram, blm);
                 continue;
             }
+            await RemoveRememberedLinkAndCleanupAsync(diagram, removedLink, excludedNodeSet);
+        }
+    }
 
-            var affectedLinks = diagram.Links
-                .OfType<RememberCapnpPortsLinkModel>()
-                .Where(link => ReferenceEquals(link.InPortModel, removedLink.InPortModel))
-                .ToList();
-            var affectedOutPorts = affectedLinks
-                .Select(link => link.OutPortModel)
-                .Append(removedLink.OutPortModel)
-                .Distinct()
-                .ToList();
-            var affectedNodes = affectedOutPorts
-                .Select(port => port.Parent)
-                .Append(removedLink.InPortModel.Parent)
-                .OfType<Model>()
-                .Where(node => !excludedNodeSet.Contains(node))
-                .Distinct()
-                .ToList();
-            var remainingLinks = affectedLinks
-                .Where(link =>
-                    !ReferenceEquals(link, removedLink)
-                    && !excludedNodeSet.Contains(link.OutPortModel.Parent as Model)
-                    && !excludedNodeSet.Contains(link.InPortModel.Parent as Model)
-                )
-                .ToList();
+    private static async Task RemoveRememberedLinkAndCleanupAsync(
+        Diagram diagram,
+        RememberCapnpPortsLinkModel removedLink,
+        IReadOnlyCollection<Model> excludedNodes = null
+    )
+    {
+        var excludedNodeSet = excludedNodes?.Where(node => node != null).ToHashSet() ?? [];
+        var affectedLinks = diagram.Links
+            .OfType<RememberCapnpPortsLinkModel>()
+            .Where(link => ReferenceEquals(link.InPortModel, removedLink.InPortModel))
+            .ToList();
+        var affectedOutPorts = affectedLinks
+            .Select(link => link.OutPortModel)
+            .Append(removedLink.OutPortModel)
+            .Distinct()
+            .ToList();
+        var remainingLinks = affectedLinks
+            .Where(link =>
+                !ReferenceEquals(link, removedLink)
+                && !excludedNodeSet.Contains(link.OutPortModel.Parent as Model)
+                && !excludedNodeSet.Contains(link.InPortModel.Parent as Model)
+            )
+            .ToList();
+        var lastWriterRemoved = remainingLinks.Count == 0;
+        IEnumerable<Model> candidateNodesToReset = lastWriterRemoved
+            ? affectedOutPorts.Select(port => port.Parent).Append(removedLink.InPortModel.Parent).OfType<Model>()
+            : new Model[] { removedLink.OutPortModel.Parent as Model };
+        var nodesToReset = candidateNodesToReset
+            .Where(node => node != null && !excludedNodeSet.Contains(node))
+            .Distinct()
+            .Where(RequiresLifecycleResetOnChannelRemoval)
+            .ToList();
+        IReadOnlyCollection<RememberCapnpPortsLinkModel> linksToDisconnect =
+            lastWriterRemoved ? affectedLinks : new[] { removedLink };
 
-            foreach (var node in affectedNodes.Where(RequiresLifecycleResetOnChannelRemoval))
-            {
-                await ResetNodeLifecycleAsync(node);
-            }
+        foreach (var node in nodesToReset)
+        {
+            await ResetNodeLifecycleAsync(node);
+        }
 
+        if (lastWriterRemoved)
+        {
             await removedLink.InPortModel.DisconnectProcessAsync();
-            foreach (var link in affectedLinks)
-            {
-                await link.DisconnectProcessOutPortAsync();
-            }
+        }
 
+        foreach (var link in linksToDisconnect)
+        {
+            await link.DisconnectProcessOutPortAsync();
+        }
+
+        if (lastWriterRemoved)
+        {
             await removedLink.InPortModel.DisconnectChannelAsync(stopChannel: true);
-            foreach (var link in affectedLinks)
-            {
-                await link.DisconnectWriterAsync();
-            }
+        }
 
-            diagram.Links.Remove(blm);
+        foreach (var link in linksToDisconnect)
+        {
+            await link.DisconnectWriterAsync();
+        }
 
-            removedLink.InPortModel.SyncVisibility();
-            removedLink.InPortModel.Refresh();
-            foreach (var outPort in affectedOutPorts)
-            {
-                outPort.SyncVisibility();
-                outPort.SyncProcessConnectionState();
-                outPort.Refresh();
-            }
+        diagram.Links.Remove(removedLink);
 
+        removedLink.InPortModel.SyncVisibility();
+        removedLink.InPortModel.Refresh();
+        foreach (var outPort in affectedOutPorts)
+        {
+            outPort.SyncVisibility();
+            outPort.SyncProcessConnectionState();
+            outPort.Refresh();
+        }
+
+        if (lastWriterRemoved)
+        {
             foreach (var link in remainingLinks)
             {
                 link.Stats = new Channel<IP>.StatsCallback.Stats();
@@ -443,10 +407,10 @@ public static class Shared
             {
                 await ConnectLinkToRunningProcessesAsync(link);
             }
-
-            removedLink.OutPortModel.Parent?.RefreshAll();
-            removedLink.InPortModel.Parent?.RefreshAll();
         }
+
+        removedLink.OutPortModel.Parent?.RefreshAll();
+        removedLink.InPortModel.Parent?.RefreshAll();
     }
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
