@@ -154,12 +154,23 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 var model = JObject.Parse(ConfigString);
                 foreach (var kv in model)
                 {
+                    if (kv.Value == null || kv.Value.Type == JTokenType.Null)
+                    {
+                        Console.WriteLine(
+                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: skipping null config entry '{kv.Key}'"
+                        );
+                        continue;
+                    }
+
                     var val = kv.Value.Type switch
                     {
-                        JTokenType.String => new Value { T = kv.Value.Value<string>() },
+                        JTokenType.String => new Value { T = kv.Value.Value<string>() ?? string.Empty },
                         JTokenType.Integer => new Value { I64 = kv.Value.Value<long>() },
                         JTokenType.Float => new Value { F64 = kv.Value.Value<double>() },
                         JTokenType.Boolean => new Value { B = kv.Value.Value<bool>() },
+                        _ => throw new InvalidOperationException(
+                            $"Config entry '{kv.Key}' uses unsupported JSON type '{kv.Value.Type}'. Supported types are string, integer, float, boolean, or null."
+                        ),
                     };
                     await Process.SetConfigEntry(
                         new ProcessSchema.ConfigEntry { Name = kv.Key, Val = val },
