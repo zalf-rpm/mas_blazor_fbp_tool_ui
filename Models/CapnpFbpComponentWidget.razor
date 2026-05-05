@@ -11,17 +11,9 @@
 <div>
     <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
               Elevation="0">
-        @if (HasLifecycleError) {
-            <MudTooltip Text="@Node.LifecycleError"
-                        Delay="200"
-                        Arrow="true">
-                <MudIcon Class="absolute"
-                         Style="right: -10px; top: -10px; z-index: 2;"
-                         Icon="@Icons.Material.Filled.ErrorOutline"
-                         Color="Color.Error"
-                         Size="Size.Small" />
-            </MudTooltip>
-        }
+        <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
+                                    Label="@LifecycleIndicatorLabel"
+                                    Error="@Node.LifecycleError" />
         @code {
             bool _changeComponentServiceId;
         }
@@ -234,6 +226,7 @@
         ComponentLifecycleState.Running => "Stop",
         ComponentLifecycleState.Failed => "Retry",
         ComponentLifecycleState.Closed => "Reconnect",
+        ComponentLifecycleState.Idle when Node.RemoteProcessAttached() => "Run",
         _ => "Start",
     };
     private string LifecycleButtonIcon => Node.LifecycleState switch
@@ -241,9 +234,10 @@
         ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
         _ => Icons.Material.Filled.PlayCircle,
     };
-    private bool HasLifecycleError =>
-        Node.LifecycleState == ComponentLifecycleState.Failed
-        && !string.IsNullOrWhiteSpace(Node.LifecycleError);
+    private string LifecycleIndicatorLabel =>
+        Node.LifecycleState == ComponentLifecycleState.Idle && !Node.RemoteProcessAttached()
+            ? "Not started"
+            : Node.LifecycleLabel;
 
     private MarkupString CardToolTipText { get; set; }
     private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? Shared.CardWidth)}px;";

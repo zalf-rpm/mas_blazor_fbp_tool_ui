@@ -1,0 +1,32 @@
+@using MudBlazor
+
+<span style="@AnchorStyle">
+    <MudTooltip Text="@TooltipText"
+                Delay="200"
+                Arrow="true"
+                Placement="Placement.Bottom"
+                Inline="true">
+        <span style="@IndicatorStyle"></span>
+    </MudTooltip>
+</span>
+
+@code {
+    [Parameter] public ComponentLifecycleState State { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Error { get; set; } = "";
+    [Parameter] public string Top { get; set; } = "0";
+    [Parameter] public string Right { get; set; } = "0";
+
+    private string TooltipText =>
+        State == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(Error)
+            ? $"{Label}: {Error}"
+            : Label;
+
+    private string AnchorStyle =>
+        $"position: absolute; right: {Right}; top: {Top}; transform: translate(50%, -50%); z-index: 2; display: inline-flex;";
+
+    private string IndicatorStyle =>
+        "display: inline-block; width: 12px; height: 12px; border-radius: 9999px; "
+        + $"background-color: {CapnpFbpPortColors.ResolveLifecycleFrameColor(State)}; "
+        + "border: 1px solid rgba(17, 24, 39, 0.45); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);";
+}

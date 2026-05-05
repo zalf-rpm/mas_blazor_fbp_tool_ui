@@ -14,7 +14,7 @@ public static class CapnpFbpPortLayout
     public const double PortSizePx = 20d;
     public const double PortSpacingPaddingPx = 12d;
     public const double MinPortSpacingPx = PortSizePx + PortSpacingPaddingPx;
-    public const double PortCornerClearancePx = 4d;
+    public const double PortCornerClearancePx = 8d;
     public const double PortCornerKeepOutPx = (PortSizePx / 2d) + PortCornerClearancePx;
 
     private const double IntersectionTolerance = 0.001d;

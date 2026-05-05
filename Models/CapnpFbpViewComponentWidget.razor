@@ -9,18 +9,9 @@
 <div>
     <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
               Elevation="0">
-        @if (HasLifecycleError)
-        {
-            <MudTooltip Text="@Node.LifecycleError"
-                        Delay="200"
-                        Arrow="true">
-                <MudIcon Class="absolute"
-                         Style="right: -10px; top: -10px; z-index: 2;"
-                         Icon="@Icons.Material.Filled.ErrorOutline"
-                         Color="Color.Error"
-                         Size="Size.Small" />
-            </MudTooltip>
-        }
+        <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
+                                    Label="@Node.LifecycleLabel"
+                                    Error="@Node.LifecycleError" />
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="4">
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
@@ -105,9 +96,6 @@
         ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
         _ => Icons.Material.Filled.PlayCircle,
     };
-    private bool HasLifecycleError =>
-        Node.LifecycleState == ComponentLifecycleState.Failed
-        && !string.IsNullOrWhiteSpace(Node.LifecycleError);
 
     private MarkupString CardToolTipText { get; set; }
     private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? 350)}px;";
