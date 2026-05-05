@@ -13,6 +13,8 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpInPortModel : CapnpFbpPortModel
 {
+    public const uint DefaultChannelStatsUpdateIntervalInMs = 1000;
+
     public CapnpFbpInPortModel(
         NodeModel parent,
         PortAlignment alignment = PortAlignment.Bottom,
@@ -45,7 +47,29 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
     private readonly StatsCallback _statsCallback;
     private Channel<IP>.StatsCallback.IUnregister _unregisterStatsCallback;
 
+    public ulong ChannelBufferSize { get; private set; } = 1;
     public bool ReceivingStats => _statsCallback != null;
+
+    public void SetKnownChannelBufferSize(ulong size, bool refreshLinks = true)
+    {
+        ChannelBufferSize = NormalizeChannelBufferSize(size);
+
+        if (refreshLinks)
+            RefreshAttachedChannelLinks();
+    }
+
+    public async Task SetChannelBufferSizeAsync(
+        ulong size,
+        CancellationToken cancelToken = default
+    )
+    {
+        if (Channel == null)
+            throw new InvalidOperationException($"No channel connected to in port '{Name}'.");
+
+        var normalizedSize = NormalizeChannelBufferSize(size);
+        await Channel.SetBufferSize(normalizedSize, cancelToken);
+        SetKnownChannelBufferSize(normalizedSize);
+    }
 
     public void SetProcessDisconnect(Mas.Schema.Fbp.Process.IDisconnect disconnect, bool connected)
     {
@@ -120,9 +144,12 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         Reader = null;
         ReaderSturdyRef = null;
         Connected = false;
+        SetKnownChannelBufferSize(1);
     }
 
-    public async Task ReceiveChannelStats(uint updateIntervalInMs = 2000)
+    public async Task ReceiveChannelStats(
+        uint updateIntervalInMs = DefaultChannelStatsUpdateIntervalInMs
+    )
     {
         var info = await Channel.Info();
         _statsCallback.ChannelName = info.Name ?? info.Id;
@@ -140,6 +167,31 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         //     $"T{Environment.CurrentManagedThreadId} Port {Name}: Unregister callback not null: {_unregisterCallback != null}"
         // );
     }
+
+    private void RefreshAttachedChannelLinks()
+    {
+        if (Parent == null)
+            return;
+
+        foreach (var link in Shared.Shared.AttachedLinks(Parent))
+        {
+            if (link is RememberCapnpPortsLinkModel rcplm && ReferenceEquals(rcplm.InPortModel, this))
+            {
+                if (Channel == null)
+                {
+                    foreach (var label in rcplm.Labels)
+                    {
+                        if (label is ChannelLinkLabelModel channelLabel)
+                            channelLabel.ResetExpandedState();
+                    }
+                }
+
+                link.Refresh();
+            }
+        }
+    }
+
+    private static ulong NormalizeChannelBufferSize(ulong size) => size == 0 ? 1 : size;
 
     protected override async ValueTask DisposeAsyncCore()
     {

@@ -972,6 +972,12 @@ public partial class Editor
             if (targetPort is CapnpFbpInPortModel tcp)
             {
                 tcp.SyncVisibility();
+                tcp.SetKnownChannelBufferSize(
+                    link["bufferSize"]?.Value<ulong>()
+                        ?? link["buffer_size"]?.Value<ulong>()
+                        ?? tcp.ChannelBufferSize,
+                    refreshLinks: false
+                );
             }
             else
             {
@@ -1375,6 +1381,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1426,6 +1433,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1476,6 +1484,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1528,6 +1537,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);

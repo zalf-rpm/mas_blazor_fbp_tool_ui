@@ -1,0 +1,7 @@
+.channel-link-label__shell--compact {
+    transform: translate(-50%, -50%);
+}
+
+.channel-link-label__shell--expanded {
+    transform: translate(-50%, -50%);
+}

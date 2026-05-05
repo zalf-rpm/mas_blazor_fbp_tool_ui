@@ -110,12 +110,14 @@ public static class Shared
         {
             try
             {
+                var requestedBufferSize = inPort.ChannelBufferSize;
                 var si = await css.Start(
                     new StartChannelsService.Params
                     {
                         Name =
                             $"{NodeNameFromPort(outPort)}.{outPort.Name}->"
                             + $"{NodeNameFromPort(inPort)}.{inPort.Name}",
+                        BufferSize = ClampStartupChannelBufferSize(requestedBufferSize),
                     }
                 );
                 if (
@@ -149,9 +151,12 @@ public static class Shared
                 inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(
                     false
                 );
+                inPort.SetKnownChannelBufferSize(si.Item1[0].BufferSize);
                 if (outPort.Parent != null && inPort.Parent != null && inPort.Channel != null)
                 {
                     await inPort.Channel.SetAutoCloseSemantics(Channel<IP>.CloseSemantics.no);
+                    if (requestedBufferSize != inPort.ChannelBufferSize)
+                        await inPort.SetChannelBufferSizeAsync(requestedBufferSize);
                 }
                 // attach stop channel cap to IN port
                 inPort.StopChannel = si.Item2;
@@ -159,7 +164,9 @@ public static class Shared
 
                 // var ms = Random.Shared.Next(2) * 1000;
                 // and receive status information from channel
-                await inPort.ReceiveChannelStats(2000); //(uint)ms);
+                await inPort.ReceiveChannelStats(
+                    CapnpFbpInPortModel.DefaultChannelStatsUpdateIntervalInMs
+                ); //(uint)ms);
             }
             finally
             {
@@ -179,6 +186,14 @@ public static class Shared
 
         inPort.RetrieveReaderFromChannelTask = t;
         return t;
+    }
+
+    private static ushort ClampStartupChannelBufferSize(ulong size)
+    {
+        if (size == 0)
+            return 1;
+
+        return size > ushort.MaxValue ? ushort.MaxValue : (ushort)size;
     }
 
     public static void RestoreDefaultPortVisibility(Diagram diagram, BaseLinkModel baseLinkModel)

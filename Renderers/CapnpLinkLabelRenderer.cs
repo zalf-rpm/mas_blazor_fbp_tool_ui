@@ -1,6 +1,7 @@
 using Blazor.Diagrams.Core.Extensions;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
+using BlazorDrawFBP.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using SvgPathProperties;
@@ -38,24 +39,42 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     if (!Label.Visible)
       return;
     var position = FindPosition();
+    var x = position.X + (Label.Offset?.X ?? 0.0);
+    var y = position.Y + (Label.Offset?.Y ?? 0.0);
     var type = BlazorDiagram.GetComponent(Label);
     if ((object) type == null)
       type = typeof (DefaultLinkLabelWidget);
     var componentType = type;
-    builder.OpenElement(0, "foreignObject");
-    builder.AddAttribute(1, "class", "diagram-link-label");
-    var x = position.X;
-    var offset1 = Label.Offset;
-    var num1 = (object) offset1 != null ? offset1.X : 0.0;
-    var invariantString1 = (x + num1).ToInvariantString();
-    builder.AddAttribute(2, "x", invariantString1);
-    var y = position.Y;
-    var offset2 = Label.Offset;
-    var num2 = (object) offset2 != null ? offset2.Y : 0.0;
-    var invariantString2 = (y + num2).ToInvariantString();
-    builder.AddAttribute(3, "y", invariantString2);
-    builder.OpenComponent(4, componentType);
-    builder.AddAttribute(5, "Label", (object) Label);
+    if (Label is ChannelLinkLabelModel channelLabel)
+    {
+      if (!channelLabel.ShowWidget)
+        return;
+
+      builder.OpenElement(0, "foreignObject");
+      builder.AddAttribute(1, "class", "diagram-link-label");
+      var width = channelLabel.IsExpanded
+        ? ChannelLinkLabelModel.ExpandedInteractionCanvasWidth
+        : ChannelLinkLabelModel.CompactInteractionCanvasWidth;
+      var height = channelLabel.IsExpanded
+        ? ChannelLinkLabelModel.ExpandedInteractionCanvasHeight
+        : ChannelLinkLabelModel.CompactInteractionCanvasHeight;
+      builder.AddAttribute(2, "x", (x - width / 2.0).ToInvariantString());
+      builder.AddAttribute(3, "y", (y - height / 2.0).ToInvariantString());
+      builder.AddAttribute(4, "width", width.ToString());
+      builder.AddAttribute(5, "height", height.ToString());
+      builder.AddAttribute(6, "style", "overflow: visible;");
+      builder.OpenComponent(7, componentType);
+      builder.AddAttribute(8, "Label", (object) Label);
+    }
+    else
+    {
+      builder.OpenElement(0, "foreignObject");
+      builder.AddAttribute(1, "class", "diagram-link-label");
+      builder.AddAttribute(2, "x", x.ToInvariantString());
+      builder.AddAttribute(3, "y", y.ToInvariantString());
+      builder.OpenComponent(4, componentType);
+      builder.AddAttribute(5, "Label", (object) Label);
+    }
     builder.CloseComponent();
     builder.CloseElement();
   }

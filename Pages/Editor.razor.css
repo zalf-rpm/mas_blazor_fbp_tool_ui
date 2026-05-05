@@ -78,15 +78,3 @@
     border: 0 solid #6e9fd4;
     border-radius: var(--mud-default-borderradius);
 }
-
-::deep .channel-link-label {
-    display: inline-block;
-    color: #d4d4d4;
-    border-radius: 0.25rem;
-    padding: 0.25rem;
-    text-align: center;
-    font-size: 0.875rem;
-    user-select: none;
-    min-width: 3rem;
-    transform: translate(-75%, -45%);
-}

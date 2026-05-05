@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Components.Web;
 using SvgPathProperties;
 using System;
 using System.Runtime.CompilerServices;
+using System.Linq;
 using BlazorDrawFBP.Behaviors;
 using BlazorDrawFBP.Renderers;
 
@@ -28,7 +29,7 @@ public class FbpLinkWidget : ComponentBase
   [Parameter]
   public LinkModel Link { get; set; }
 
-  private RenderFragment GetSelectionHelperPath(string color, string d, int index)
+  private RenderFragment GetSelectionHelperPath(string color, string d, int index, bool enableHoverFeedback)
   {
     return (RenderFragment) (builder =>
     {
@@ -38,10 +39,13 @@ public class FbpLinkWidget : ComponentBase
       builder.AddAttribute(3, "stroke-width", (object) 12);
       builder.AddAttribute(4, nameof (d), d);
       builder.AddAttribute(5, "stroke-linecap", "butt");
-      builder.AddAttribute(6, "stroke-opacity", _hovered ? "0.05" : "0");
+      builder.AddAttribute(6, "stroke-opacity", enableHoverFeedback && _hovered ? "0.05" : "0");
       builder.AddAttribute(7, "fill", "none");
-      builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>((object) this, new Action<MouseEventArgs>(OnMouseEnter)));
-      builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>((object) this, new Action<MouseEventArgs>(OnMouseLeave)));
+      if (enableHoverFeedback)
+      {
+        builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>((object) this, new Action<MouseEventArgs>(OnMouseEnter)));
+        builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>((object) this, new Action<MouseEventArgs>(OnMouseLeave)));
+      }
       builder.AddAttribute(10, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>((object) this, (Action<PointerEventArgs>) (e => OnPointerDown(e, index))));
       builder.AddEventStopPropagationAttribute(11, "onpointerdown", Link.Segmentable);
       builder.CloseElement();
@@ -76,6 +80,7 @@ public class FbpLinkWidget : ComponentBase
     if (pathGeneratorResult == null) return;
     var behavior = BlazorDiagram.GetBehavior<FbpDragNewLinkBehavior>();
     if (behavior == null) return;
+    var enableSelectionHoverFeedback = !Link.Labels.OfType<ChannelLinkLabelModel>().Any();
     var d1 = pathGeneratorResult.FullPath.ToString();
     builder.OpenElement(0, "path");
     builder.AddAttribute(1, "d", d1);
@@ -87,7 +92,7 @@ public class FbpLinkWidget : ComponentBase
     {
       if (Link.Vertices.Count == 0)
       {
-        builder.AddContent(5, GetSelectionHelperPath(color, d1, 0));
+        builder.AddContent(5, GetSelectionHelperPath(color, d1, 0, enableSelectionHoverFeedback));
       }
       else
       {
@@ -95,7 +100,7 @@ public class FbpLinkWidget : ComponentBase
         {
           var d2 = pathGeneratorResult.Paths[index1].ToString();
           var index2 = index1;
-          builder.AddContent(6, GetSelectionHelperPath(color, d2, index2));
+          builder.AddContent(6, GetSelectionHelperPath(color, d2, index2, enableSelectionHoverFeedback));
         }
       }
     }
@@ -144,7 +149,10 @@ public class FbpLinkWidget : ComponentBase
     }
     foreach (var label in Link.Labels)
     {
-      builder.OpenComponent<LinkLabelRenderer>(21);
+      var labelRendererType = label is ChannelLinkLabelModel
+        ? typeof(CapnpLinkLabelRenderer)
+        : typeof(LinkLabelRenderer);
+      builder.OpenComponent(21, labelRendererType);
       builder.AddAttribute(22, "Label", Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(label));
       builder.AddAttribute(23, "Path", Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(pathGeneratorResult.FullPath));
       builder.SetKey((object) label.Id);
