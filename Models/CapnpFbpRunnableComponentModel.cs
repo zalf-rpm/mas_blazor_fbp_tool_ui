@@ -416,6 +416,22 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
+    protected override async Task ShutdownForComponentServiceSwitchAsync()
+    {
+        await ResetRemoteRuntimeAsync(stopRunnable: Runnable != null);
+    }
+
+    protected override void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    {
+        base.ApplyComponentServiceBinding(component, componentServiceId);
+
+        RunnableFactory?.Dispose();
+        RunnableFactory =
+            component.Factory?.which == Component.factory.WHICH.Runnable
+                ? Capnp.Rpc.Proxy.Share(component.Factory.Runnable)
+                : null;
+    }
+
     protected override async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine(

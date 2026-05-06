@@ -91,6 +91,31 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    public async Task RebindToComponentServiceAsync(Component component, string componentServiceId)
+    {
+        if (component == null)
+            throw new ArgumentNullException(nameof(component));
+
+        await ShutdownForComponentServiceSwitchAsync();
+        ApplyComponentServiceBinding(component, componentServiceId);
+        CapnpFbpPortLayout.Apply(this, refreshPorts: false);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
+    }
+
+    protected virtual Task ShutdownForComponentServiceSwitchAsync() => ResetExecution();
+
+    protected virtual void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    {
+        var componentId = component.Info?.Id;
+        if (!string.IsNullOrWhiteSpace(componentId))
+            ComponentId = componentId;
+
+        ComponentServiceId = componentServiceId;
+        ComponentName = component.Info?.Name ?? ComponentId;
+        ShortDescription = component.Info?.Description ?? "";
+        DefaultConfigString = component.DefaultConfig?.Value ?? "";
+    }
+
     public async ValueTask DisposeAsync()
     {
         await DisposeAsyncCore();
