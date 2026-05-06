@@ -7,10 +7,13 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Blazor.Diagrams;
+using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Behaviors;
 using Blazor.Diagrams.Core.Controls;
+using Blazor.Diagrams.Core.Extensions;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.PathGenerators;
 using Blazor.Diagrams.Core.Routers;
 using Blazor.Diagrams.Options;
@@ -37,9 +40,28 @@ namespace BlazorDrawFBP.Pages;
 public partial class Editor
 {
     private const string NoRegistryServiceId = "no_service";
+    private const string LoadFlowInputId = "load-flow-input";
+    private const double ZoomToFitMargin = 80;
+    private const int ViewNodeWidth = 350;
+    private const int ViewNodeHeight = 200;
+    private static readonly TimeSpan ExecuteFlowSettleTimeout = TimeSpan.FromSeconds(15);
+    private const int ExecuteFlowSettlePollIntervalMs = 100;
 
     private const int IipIdLength = 10;
     private const int ProcIdLength = 20;
+    private static readonly (string Background, string Foreground)[] ComponentServicePalette =
+    [
+        ("#64748B", "#FFFFFF"),
+        ("#0072B2", "#FFFFFF"),
+        ("#D55E00", "#FFFFFF"),
+        ("#009E73", "#FFFFFF"),
+        ("#CC79A7", "#FFFFFF"),
+        ("#E69F00", "#111827"),
+        ("#56B4E9", "#111827"),
+        ("#F0E442", "#111827"),
+        ("#785EF0", "#FFFFFF"),
+        ("#DC267F", "#FFFFFF"),
+    ];
     private static readonly Random Random = new();
 
     //private readonly List<string> events = new List<string>();
@@ -58,6 +80,7 @@ public partial class Editor
 
     private Component _draggedComponent;
     private string _draggedComponentServiceId;
+    private bool _executingFlow;
     public BlazorDiagram Diagram { get; set; } = null!;
 
     private Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
@@ -80,10 +103,42 @@ public partial class Editor
 
     private Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
 
+    public ConnectionManager ConnectionManager => ConMan;
+
     public IStartChannelsService CurrentChannelStarterService =>
         ServiceId2ChannelStarterServices
             .FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null))
             .Value;
+
+    public string GetComponentServiceName(string serviceId) =>
+        RegistryServiceIdToPetNameAndSturdyRef
+            .GetValueOrDefault(serviceId, ("Unknown service!", null))
+            .Item1;
+
+    public string GetComponentServiceBadgeStyle(string serviceId)
+    {
+        var (background, foreground) = GetComponentServiceColors(serviceId);
+        return $"background-color: {background} !important; color: {foreground} !important;";
+    }
+
+    private string GetComponentServiceHandleStyle(string serviceId)
+    {
+        var (background, foreground) = GetComponentServiceColors(serviceId);
+        return $"background-color: {background}; color: {foreground};";
+    }
+
+    private (string Background, string Foreground) GetComponentServiceColors(string serviceId)
+    {
+        var index = 0;
+        foreach (var key in RegistryServiceIdToPetNameAndSturdyRef.Keys)
+        {
+            if (key == serviceId)
+                return ComponentServicePalette[index % ComponentServicePalette.Length];
+            index++;
+        }
+
+        return ComponentServicePalette[0];
+    }
 
     private async Task<IStartChannelsService> ConnectToStartChannelsService(
         ConnectionManager conMan,
@@ -145,6 +200,115 @@ public partial class Editor
 
         await LoadComponentsFromRegistry(reg, sturdyRef);
         return reg;
+    }
+
+    private async Task HandleSturdyRefConnectedAsync((ulong, string, string) connection)
+    {
+        var (interfaceId, sturdyRef, petName) = connection;
+        if (!SturdyRef2Services.TryGetValue(sturdyRef, out var value))
+            return;
+
+        var updatedConnections = false;
+        if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
+        {
+            if (value is IStartChannelsService service)
+            {
+                var info = await service.Info();
+                var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName);
+                ServiceId2ChannelStarterServices[info.Id] = service;
+                ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+                updatedConnections = true;
+            }
+        }
+        else if (interfaceId == Shared.Shared.RegistryInterfaceId && value is IRegistry reg)
+        {
+            var info = await reg.Info();
+            var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2Registries, petName);
+            ServiceId2Registries[info.Id] = Proxy.Share(reg);
+            RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
+            await LoadComponentsFromRegistry(Proxy.Share(reg), sturdyRef);
+            updatedConnections = true;
+        }
+
+        if (updatedConnections)
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSturdyRefDisconnectedAsync((ulong, string) connection)
+    {
+        var (interfaceId, sturdyRef) = connection;
+        if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
+        {
+            DisconnectChannelStarterService(sturdyRef);
+        }
+        else if (interfaceId == Shared.Shared.RegistryInterfaceId)
+        {
+            DisconnectRegistryService(sturdyRef);
+        }
+
+        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
+            proxy.Dispose();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void DisconnectChannelStarterService(string sturdyRef)
+    {
+        var serviceIds = ChannelServiceIdToPetNameAndSturdyRef
+            .Where(entry => entry.Value.Item2 == sturdyRef)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var serviceId in serviceIds)
+        {
+            if (ServiceId2ChannelStarterServices.Remove(serviceId, out var service))
+                service.Dispose();
+            ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+        }
+    }
+
+    private void DisconnectRegistryService(string sturdyRef)
+    {
+        var serviceIds = RegistryServiceIdToPetNameAndSturdyRef
+            .Where(entry => entry.Key != NoRegistryServiceId && entry.Value.Item2 == sturdyRef)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var serviceId in serviceIds)
+        {
+            if (ServiceId2Registries.Remove(serviceId, out var registry))
+                registry.Dispose();
+            RegistryServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+            RemoveRegistryPaletteEntries(serviceId);
+        }
+    }
+
+    private void RemoveRegistryPaletteEntries(string serviceId)
+    {
+        foreach (
+            var componentKey in ServiceIdAndComponentId2Component.Keys
+                .Where(componentKey => componentKey.Item1 == serviceId)
+                .ToList()
+        )
+        {
+            ServiceIdAndComponentId2Component.Remove(componentKey);
+        }
+
+        foreach (var categoryId in CatId2CompServiceIdAndComponentIds.Keys.ToList())
+        {
+            CatId2CompServiceIdAndComponentIds[categoryId].RemoveWhere(
+                componentKey => componentKey.Item1 == serviceId
+            );
+
+            if (
+                categoryId != DefaultCatId
+                && CatId2CompServiceIdAndComponentIds[categoryId].Count == 0
+            )
+            {
+                CatId2CompServiceIdAndComponentIds.Remove(categoryId);
+                CatId2Info.Remove(categoryId);
+            }
+        }
     }
 
     private async Task LoadComponentsFromRegistry(IRegistry reg, string sturdyRef)
@@ -228,20 +392,24 @@ public partial class Editor
                     ?.Select(p => new Component.Port
                     {
                         Name = p["name"]?.ToString() ?? "no_name",
-                        Type = Component.Port.PortType.standard,
+                        Type = p["type"]?.ToString() == "array"
+                            ? Component.Port.PortType.array
+                            : Component.Port.PortType.standard,
                         ContentType = p["contentType"]?.ToString() ?? "?",
                     })
-                    .ToList()
+                .ToList()
                 ?? [],
             OutPorts =
                 comp["outPorts"]
                     ?.Select(p => new Component.Port
                     {
                         Name = p["name"]?.ToString() ?? "no_name",
-                        Type = Component.Port.PortType.standard,
+                        Type = p["type"]?.ToString() == "array"
+                            ? Component.Port.PortType.array
+                            : Component.Port.PortType.standard,
                         ContentType = p["contentType"]?.ToString() ?? "?",
                     })
-                    .ToList()
+                .ToList()
                 ?? [],
         };
     }
@@ -258,6 +426,35 @@ public partial class Editor
             {
                 DefaultRouter = new NormalRouter(),
                 DefaultPathGenerator = new SmoothPathGenerator(),
+                Factory = (diagram, source, targetAnchor) =>
+                {
+                    if (source is not PortModel sourcePort)
+                        throw new InvalidOperationException(
+                            $"FBP links can only start from ports, got {source?.GetType().Name ?? "null"}."
+                        );
+
+                    return new LinkModel(
+                        new SinglePortAnchor(sourcePort)
+                        {
+                            MiddleIfNoMarker = true,
+                            UseShapeAndAlignment = false,
+                        },
+                        targetAnchor
+                    );
+                },
+                TargetAnchorFactory = (diagram, link, model) =>
+                {
+                    if (model is not PortModel targetPort)
+                        throw new InvalidOperationException(
+                            $"FBP links can only target ports, got {model?.GetType().Name ?? "null"}."
+                        );
+
+                    return new SinglePortAnchor(targetPort)
+                    {
+                        MiddleIfNoMarker = true,
+                        UseShapeAndAlignment = false,
+                    };
+                },
             },
             Groups = { Enabled = true },
         };
@@ -361,6 +558,59 @@ public partial class Editor
         Shared.Shared.CreateChannel(ConMan, CurrentChannelStarterService, outPort, inPort);
     }
 
+    private static void RefreshPortLayout(NodeModel node)
+    {
+        foreach (var relatedNode in GetNodesAffectingPortLayout(node))
+        {
+            CapnpFbpPortLayout.Apply(relatedNode, refreshPorts: false);
+            relatedNode.RefreshAll();
+        }
+    }
+
+    private static void RefreshPortLayout(BaseLinkModel link)
+    {
+        foreach (var node in GetNodesAffectingPortLayout(link))
+        {
+            CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+            node.RefreshAll();
+        }
+    }
+
+    private static IEnumerable<NodeModel> GetNodesAffectingPortLayout(NodeModel node)
+    {
+        var nodes = new List<NodeModel> { node };
+        foreach (var link in Shared.Shared.AttachedLinks(node))
+            nodes.AddRange(GetNodesAffectingPortLayout(link));
+        return nodes.Distinct();
+    }
+
+    private static IEnumerable<NodeModel> GetNodesAffectingPortLayout(BaseLinkModel link)
+    {
+        var nodes = new List<NodeModel>();
+        if (link.Source.Model is PortModel { Parent: { } sourceParent })
+            nodes.Add(sourceParent);
+        if (link.Target.Model is PortModel { Parent: { } targetParent })
+            nodes.Add(targetParent);
+        return nodes.Distinct();
+    }
+
+    private static void RegisterNodeLayoutEvents(NodeModel node)
+    {
+        node.Moved += OnNodeMoved;
+        node.SizeChanged += OnNodeSizeChanged;
+    }
+
+    private static void OnNodeMoved(MovableModel movedModel)
+    {
+        if (movedModel is NodeModel movedNode)
+            RefreshPortLayout(movedNode);
+    }
+
+    private static void OnNodeSizeChanged(NodeModel node)
+    {
+        RefreshPortLayout(node);
+    }
+
     private void RegisterEvents()
     {
         // Diagram.Changed += () =>
@@ -381,95 +631,64 @@ public partial class Editor
         Diagram.Links.Added += async l =>
         {
             Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
+            if (l is RememberCapnpPortsLinkModel rememberedLink)
+            {
+                await Shared.Shared.ConnectLinkToRunningProcessesAsync(
+                    ConMan,
+                    CurrentChannelStarterService,
+                    rememberedLink
+                );
+                RefreshPortLayout(l);
+                return;
+            }
+
             switch (l.Source.Model)
             {
                 case CapnpFbpInPortModel sourceInPort:
                 {
-                    var targetPort = l.Target.Model as CapnpFbpPortModel;
-                    l.Labels.Add(new LinkLabelModel(l, sourceInPort.Name, 0.2));
-                    l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "out", 0.8));
-                    l.SourceMarker = LinkMarker.Arrow;
                     l.TargetChanged += (link, oldTarget, newTarget) =>
                     {
                         if (newTarget.Model is not CapnpFbpOutPortModel outPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(
-                            outPort.Parent,
-                            sourceInPort.Parent
-                        )
-                        {
-                            OutPortModel = outPort,
-                            InPortModel = sourceInPort,
-                            Color = outPort.Writer == null ? "#ff0000" : "#1ac12e",
-                        };
-                        nl.Labels.Add(new LinkLabelModel(nl, outPort.Name, 0.2));
+                        var nl = new RememberCapnpPortsLinkModel(outPort, sourceInPort);
+                        CapnpFbpPortColors.ApplyLinkColor(nl);
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                         // if the input port has already a channel attached, get a new writer for that channel
                         // to attach to the IIP's out port
                         if (sourceInPort.Channel != null)
-                            outPort.RetrieveWriterFromChannelTask = Task.Run(async () =>
-                            {
-                                (outPort.Writer, outPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(
-                                        sourceInPort.Channel
-                                    );
-                                outPort.RetrieveWriterFromChannelTask = null;
-                                outPort.Parent.Refresh();
-                            });
+                            _ = nl.EnsureWriterFromChannelAsync();
                         nl.Labels.Add(cllm);
-                        nl.Labels.Add(new LinkLabelModel(nl, sourceInPort.Name, 0.8));
-                        nl.TargetMarker = LinkMarker.Arrow;
                         Diagram.Links.Add(nl);
                         Diagram.Links.Remove(l);
-                        outPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
-                        sourceInPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
+                        outPort.SyncVisibility();
+                        sourceInPort.SyncVisibility();
                         sourceInPort.Refresh();
                         outPort.Refresh();
-                        outPort.Parent.RefreshAll();
+                        RefreshPortLayout(nl);
                     };
                     break;
                 }
                 case CapnpFbpOutPortModel sourceOutPort:
                 {
-                    var targetPort = l.Target.Model as CapnpFbpPortModel;
-                    l.Labels.Add(new LinkLabelModel(l, sourceOutPort.Name, 0.2));
-                    l.Labels.Add(new LinkLabelModel(l, targetPort?.Name ?? "in", 0.8));
-                    l.TargetMarker = LinkMarker.Arrow;
                     l.TargetChanged += (link, oldTarget, newTarget) =>
                     {
                         if (newTarget.Model is not CapnpFbpInPortModel inPort)
                             return;
-                        var nl = new RememberCapnpPortsLinkModel(
-                            sourceOutPort.Parent,
-                            inPort.Parent
-                        )
-                        {
-                            OutPortModel = sourceOutPort,
-                            InPortModel = inPort,
-                            Color = inPort.Reader == null ? "#ff0000" : "#1ac12e",
-                        };
-                        nl.Labels.Add(new LinkLabelModel(nl, sourceOutPort.Name, 0.2));
+                        var nl = new RememberCapnpPortsLinkModel(sourceOutPort, inPort);
+                        CapnpFbpPortColors.ApplyLinkColor(nl);
                         var cllm = new ChannelLinkLabelModel(nl, "Channel", 0.5);
                         // if the input port has already a channel attached, get a new writer for that channel
                         // to attach to the IIP's out port
                         if (inPort.Channel != null)
-                            sourceOutPort.RetrieveWriterFromChannelTask = Task.Run(async () =>
-                            {
-                                (sourceOutPort.Writer, sourceOutPort.WriterSturdyRef) =
-                                    await Shared.Shared.GetNewWriterFromChannel(inPort.Channel);
-                                sourceOutPort.RetrieveWriterFromChannelTask = null;
-                                sourceOutPort.Parent.Refresh();
-                            });
+                            _ = nl.EnsureWriterFromChannelAsync();
                         nl.Labels.Add(cllm);
-                        nl.Labels.Add(new LinkLabelModel(nl, inPort.Name, 0.8));
-                        nl.TargetMarker = LinkMarker.Arrow;
                         Diagram.Links.Add(nl);
                         Diagram.Links.Remove(l);
-                        sourceOutPort.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
-                        inPort.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
+                        sourceOutPort.SyncVisibility();
+                        inPort.SyncVisibility();
                         sourceOutPort.Refresh();
-                        sourceOutPort.Parent.RefreshAll();
                         inPort.Refresh();
+                        RefreshPortLayout(nl);
                     };
                     break;
                 }
@@ -550,6 +769,7 @@ public partial class Editor
         Diagram.PointerDoubleClick += (m, e) =>
         {
             if (m is LinkModel link)
+            {
                 if (
                     link.Source.Model is CapnpFbpPortModel source
                     && link.Target.Model is CapnpFbpPortModel target
@@ -557,19 +777,25 @@ public partial class Editor
                 {
                     var relativePt = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
 
-                    // find closest port, assuming the user will click on the label he actually wants to change
+                    // find the closest port to the click location
                     var sourceToPoint = relativePt.DistanceTo(source.MiddlePosition);
                     var targetToPoint = relativePt.DistanceTo(target.MiddlePosition);
-                    var labelIndex = sourceToPoint < targetToPoint ? 0 : 1;
+                    var portModel = sourceToPoint < targetToPoint ? source : target;
+
                     var node = new UpdatePortNameNode(relativePt)
                     {
-                        Label = $"Change {link.Labels[labelIndex].Content}",
-                        LabelModel = link.Labels[labelIndex],
-                        PortModel = sourceToPoint < targetToPoint ? source : target,
+                        Label = $"Change {portModel.Name}",
+                        PortName = portModel.Name,
+                        PortModel = portModel,
                         Container = Diagram,
                     };
                     Diagram.Nodes.Add(node);
                 }
+            }
+            else if (m == null)
+            {
+                _ = InvokeAsync(ZoomToFitFlow);
+            }
 
             // Console.WriteLine(
             //     $"MouseDoubleClick, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
@@ -713,14 +939,11 @@ public partial class Editor
             var noOfTargetPorts = targetNode.Ports.Count(p =>
                 p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
             );
-            // might be an IIP
-            sourcePort ??= sourceNode
-                .Ports.Where(p =>
-                    p is CapnpFbpOutPortModel iipPort
-                    && iipPort.Alignment.ToString() == sourcePortName
-                )
-                .DefaultIfEmpty(null)
-                .First();
+            if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
+            {
+                // Older flow files stored one of the former hard-coded IIP alignments.
+                sourcePort = sourceNode.Ports.OfType<CapnpFbpOutPortModel>().FirstOrDefault();
+            }
             if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
                 sourcePort = AddPortControl.CreateAndAddPort(
                     sn,
@@ -740,7 +963,7 @@ public partial class Editor
 
             if (sourcePort is CapnpFbpOutPortModel scp)
             {
-                scp.Visibility = CapnpFbpPortModel.VisibilityState.Hidden;
+                scp.SyncVisibility();
             }
             else
             {
@@ -748,42 +971,61 @@ public partial class Editor
             }
             if (targetPort is CapnpFbpInPortModel tcp)
             {
-                tcp.Visibility = CapnpFbpPortModel.VisibilityState.Dashed;
+                tcp.SyncVisibility();
+                tcp.SetKnownChannelBufferSize(
+                    link["bufferSize"]?.Value<ulong>()
+                        ?? link["buffer_size"]?.Value<ulong>()
+                        ?? tcp.ChannelBufferSize,
+                    refreshLinks: false
+                );
             }
             else
             {
                 continue;
             }
 
-            var l = new RememberCapnpPortsLinkModel(sourceNode, targetNode)
-            {
-                OutPortModel = scp,
-                InPortModel = tcp,
-            };
-            if (sourceNode is not CapnpFbpIipComponentModel)
-                l.Labels.Add(new LinkLabelModel(l, sourcePortName, 0.2));
+            var l = new RememberCapnpPortsLinkModel(scp, tcp);
+            CapnpFbpPortColors.ApplyLinkColor(l);
             var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
             l.Labels.Add(cllm);
-            l.Labels.Add(new LinkLabelModel(l, targetPortName, 0.8));
-            l.TargetMarker = LinkMarker.Arrow;
             Diagram.Links.Add(l);
         }
 
-        Diagram.SuspendRefresh = true;
+        Diagram.SuspendRefresh = false;
         Diagram.Refresh();
 
-        InvokeAsync(async () =>
+        await InvokeAsync(ZoomToFitFlow);
+    }
+
+    private void ZoomToFitFlow()
+    {
+        if (Diagram.Nodes.Count == 0 || Diagram.Container == null)
+            return;
+
+        Diagram.UnselectAll();
+        var bounds = DiagramExtensions.GetBounds(Diagram.Nodes);
+        Diagram.ZoomToFit(ZoomToFitMargin);
+        var extraHeight =
+            Diagram.Container.Height - ((bounds.Height + 2 * ZoomToFitMargin) * Diagram.Zoom);
+        if (extraHeight > 0)
+            Diagram.UpdatePan(0, extraHeight / 2);
+
+        Diagram.Refresh();
+    }
+
+    protected async Task LoadFlowSelected(InputFileChangeEventArgs args)
+    {
+        try
         {
-            await Task.Delay(500);
-            Diagram.SuspendRefresh = true;
-            Diagram.SetPan(
-                dia["pan"]?["x"]?.Value<double>() ?? 0.0,
-                dia["pan"]?["y"]?.Value<double>() ?? 0.0
-            );
-            Diagram.SetZoom(dia["zoom"]?.Value<double>() ?? 1.0);
-            Diagram.SuspendRefresh = false;
-            Diagram.Refresh();
-        });
+            if (args.FileCount > 0)
+            {
+                await LoadFlow(args.File);
+            }
+        }
+        finally
+        {
+            _loadFlowInputVersion++;
+        }
     }
 
     protected async Task SaveFlow(bool asMermaid)
@@ -960,6 +1202,7 @@ public partial class Editor
                                 .Select(p => new JObject
                                 {
                                     { "name", p!.Name },
+                                    { "type", p.IsArrayPort ? "array" : "standard" },
                                     { "contentType", p.ContentType },
                                     { "desc", p.Description },
                                 });
@@ -971,7 +1214,11 @@ public partial class Editor
                                     && cp.ThePortType == CapnpFbpPortModel.PortType.Out
                                 )
                                 .Select(p => p as CapnpFbpPortModel)
-                                .Select(p => new JObject { { "name", p!.Name } });
+                                .Select(p => new JObject
+                                {
+                                    { "name", p!.Name },
+                                    { "type", p.IsArrayPort ? "array" : "standard" },
+                                });
 
                             var defaultConfig = new JObject();
                             try
@@ -1098,7 +1345,7 @@ public partial class Editor
                         var inNodeId = ShortProcId(inCapnpModel.Id, inCapnpModel.ProcessName);
 
                         // make sure the link is only stored once
-                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Name}";
                         var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
                         if (
                             linkSet.Contains($"{checkOut}->{checkIn}")
@@ -1123,7 +1370,7 @@ public partial class Editor
                                     new JObject
                                     {
                                         { "nodeId", outIipNodeId },
-                                        { "port", outCapnpPort.Alignment.ToString() },
+                                        { "port", outCapnpPort.Name },
                                     }
                                 },
                                 {
@@ -1134,6 +1381,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1185,6 +1433,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1199,7 +1448,7 @@ public partial class Editor
                         var inNodeId = inViewCapnpModel.Id;
 
                         // make sure the link is only stored once
-                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Alignment.ToString()}";
+                        var checkOut = $"{outIipNodeId}.{outCapnpPort.Name}";
                         var checkIn = $"{inNodeId}.{inCapnpPort.Name}";
                         if (
                             linkSet.Contains($"{checkOut}->{checkIn}")
@@ -1224,7 +1473,7 @@ public partial class Editor
                                     new JObject
                                     {
                                         { "nodeId", outIipNodeId },
-                                        { "port", outCapnpPort.Alignment.ToString() },
+                                        { "port", outCapnpPort.Name },
                                     }
                                 },
                                 {
@@ -1235,6 +1484,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1287,6 +1537,7 @@ public partial class Editor
                                         { "port", inCapnpPort.Name },
                                     }
                                 },
+                                { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
                             if (dia["links"] is JArray links)
                                 links.Add(jl);
@@ -1310,57 +1561,205 @@ public partial class Editor
 
     public async Task ClearDiagram()
     {
-        foreach (var node in Diagram.Nodes)
+        var nodes = Diagram.Nodes.ToList();
+        if (Diagram.Links.Count > 0)
+        {
+            await Shared.Shared.RemoveAttachedLinksAndCleanupAsync(
+                Diagram.Links.ToList(),
+                Diagram,
+                nodes.Cast<Model>().ToList()
+            );
+        }
+
+        foreach (var node in nodes)
+        {
             if (node is IAsyncDisposable disposable)
                 await disposable.DisposeAsync();
+        }
+
         Diagram.Nodes.Clear();
         Diagram.Refresh();
+    }
+
+    private async Task ExecuteNode(Model node)
+    {
+        switch (node)
+        {
+            case CapnpFbpComponentModel compNode when compNode.CanStart:
+                await compNode.StartProcess(ConMan);
+                break;
+            case CapnpFbpViewComponentModel viewNode when viewNode.CanStart:
+                await viewNode.StartProcess(ConMan);
+                break;
+            case CapnpFbpIipComponentModel iipNode when iipNode.CanStart:
+                await iipNode.SendIip(ConMan);
+                break;
+        }
+    }
+
+    private static bool IsExecutableFlowNode(Model node) =>
+        node is CapnpFbpComponentModel or CapnpFbpViewComponentModel or CapnpFbpIipComponentModel;
+
+    private static bool IsLifecycleBusy(Model node) =>
+        node switch
+        {
+            CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
+            CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
+            CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
+            _ => false,
+        };
+
+    private static string GetFlowNodeName(Model node) =>
+        node switch
+        {
+            CapnpFbpComponentModel { ProcessName: { Length: > 0 } processName } => processName,
+            CapnpFbpViewComponentModel { ProcessName: { Length: > 0 } processName } => processName,
+            CapnpFbpIipComponentModel { ComponentId: { Length: > 0 } componentId } => componentId,
+            _ => node.Id,
+        };
+
+    private IReadOnlyList<Model> GetFlowStartupOrder()
+    {
+        var nodes = Diagram.Nodes.Where(IsExecutableFlowNode).Cast<Model>().ToList();
+        var originalOrder = nodes.Select((node, index) => (node, index)).ToDictionary(x => x.node, x => x.index);
+        var outgoing = nodes.ToDictionary(node => node, _ => new HashSet<Model>());
+        var indegree = nodes.ToDictionary(node => node, _ => 0);
+
+        foreach (var link in Diagram.Links.OfType<RememberCapnpPortsLinkModel>())
+        {
+            var source = link.OutPortModel.Parent as Model;
+            var target = link.InPortModel.Parent as Model;
+            if (
+                source == null
+                || target == null
+                || ReferenceEquals(source, target)
+                || !outgoing.ContainsKey(source)
+                || !outgoing.ContainsKey(target)
+            )
+            {
+                continue;
+            }
+
+            // Start downstream nodes first so readers/process inputs are ready before sources emit data.
+            if (outgoing[target].Add(source))
+                indegree[source]++;
+        }
+
+        var ready = nodes.Where(node => indegree[node] == 0).OrderBy(node => originalOrder[node]).ToList();
+        var ordered = new List<Model>(nodes.Count);
+
+        while (ready.Count > 0)
+        {
+            var node = ready[0];
+            ready.RemoveAt(0);
+            ordered.Add(node);
+
+            foreach (var next in outgoing[node].OrderBy(next => originalOrder[next]))
+            {
+                indegree[next]--;
+                if (indegree[next] == 0)
+                    ready.Add(next);
+            }
+
+            ready.Sort((left, right) => originalOrder[left].CompareTo(originalOrder[right]));
+        }
+
+        if (ordered.Count == nodes.Count)
+            return ordered;
+
+        foreach (var node in nodes.Where(node => !ordered.Contains(node)).OrderBy(node => originalOrder[node]))
+            ordered.Add(node);
+
+        return ordered;
+    }
+
+    private async Task<bool> WaitForNodesToSettleAsync(IEnumerable<Model> nodes)
+    {
+        var trackedNodes = nodes.Distinct().Where(IsExecutableFlowNode).ToList();
+        if (trackedNodes.Count == 0)
+            return true;
+
+        var deadline = DateTime.UtcNow + ExecuteFlowSettleTimeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (trackedNodes.All(node => !IsLifecycleBusy(node)))
+                return true;
+
+            await Task.Delay(ExecuteFlowSettlePollIntervalMs);
+            await InvokeAsync(StateHasChanged);
+        }
+
+        return trackedNodes.All(node => !IsLifecycleBusy(node));
     }
 
     private async Task ExecuteFlow()
     {
         if (!CanExecuteFlow)
         {
-            Console.WriteLine(
-                "Editor.razor.cs::ExecuteFlow: Connect both a components service and a channel service before executing the flow."
-            );
+            Console.WriteLine($"Editor.razor.cs::ExecuteFlow: {ExecuteFlowButtonTitle}");
             return;
         }
 
+        _executingFlow = true;
+        await InvokeAsync(StateHasChanged);
+
         try
         {
-            foreach (var node in Diagram.Nodes)
-            {
-                switch (node)
-                {
-                    case CapnpFbpComponentModel compNode:
-                        await compNode.StartProcess(ConMan);
-                        break;
-                    case CapnpFbpViewComponentModel viewNode:
-                        await viewNode.StartProcess(ConMan);
-                        break;
-                    case CapnpFbpIipComponentModel iipNode:
-                        await iipNode.SendIip(ConMan);
-                        break;
-                    default:
-                        continue;
-                }
+            var startupOrder = GetFlowStartupOrder();
+            var startupNodes = startupOrder
+                .Where(node => node is not CapnpFbpIipComponentModel)
+                .ToList();
+            var iipNodes = startupOrder.OfType<CapnpFbpIipComponentModel>().Cast<Model>().ToList();
 
+            foreach (var node in startupNodes)
+            {
+                await ExecuteNode(node);
+                await WaitForNodesToSettleAsync([node]);
                 node.Refresh();
+                await InvokeAsync(StateHasChanged);
+            }
+
+            if (!await WaitForNodesToSettleAsync(startupNodes))
+            {
+                var busyNodes = string.Join(
+                    ", ",
+                    startupNodes.Where(IsLifecycleBusy).Select(GetFlowNodeName)
+                );
+                Console.WriteLine(
+                    $"Editor.razor.cs::ExecuteFlow: timed out waiting for startup to settle before dispatching IIPs. Busy nodes: {busyNodes}"
+                );
+                return;
+            }
+
+            foreach (var node in iipNodes)
+            {
+                await ExecuteNode(node);
+                node.Refresh();
+                await InvokeAsync(StateHasChanged);
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Editor.razor.cs::ExecuteFlow: Caught exception: {ex}");
         }
+        finally
+        {
+            _executingFlow = false;
+        }
 
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnNodeDragStart(Component component, string componentServiceId) //(JObject component)//string nodeType, string nodeName)
     {
         _draggedComponent = component;
         _draggedComponentServiceId = componentServiceId;
+    }
+
+    private void OnNodeDragEnd()
+    {
+        _draggedComponent = null;
+        _draggedComponentServiceId = null;
     }
 
     private void OnNodeDrop(DragEventArgs e)
@@ -1373,7 +1772,7 @@ public partial class Editor
             _draggedComponent,
             new JObject { { "componentServiceId", _draggedComponentServiceId } }
         );
-        _draggedComponent = null;
+        OnNodeDragEnd();
     }
 
     private NodeModel AddFbpNode(
@@ -1460,6 +1859,7 @@ public partial class Editor
                                 ?? 1,
                         };
 
+                        SetDefaultComponentSize(rnode);
                         if (component.Factory?.which == Component.factory.WHICH.Runnable)
                         {
                             rnode.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
@@ -1505,6 +1905,7 @@ public partial class Editor
                                 ?? initNode?.GetValue("parallel_processes")?.Value<int>()
                                 ?? 1,
                         };
+                        SetDefaultComponentSize(pnode);
                         if (component.Factory?.which == Component.factory.WHICH.Process)
                         {
                             pnode.ProcessFactory = Proxy.Share(component.Factory!.Process);
@@ -1544,7 +1945,8 @@ public partial class Editor
                         i,
                         input.Name,
                         input.ContentType,
-                        input.Desc
+                        input.Desc,
+                        input.Type == Component.Port.PortType.array
                     );
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
@@ -1554,8 +1956,11 @@ public partial class Editor
                         i,
                         output.Name,
                         output.ContentType,
-                        output.Desc
+                        output.Desc,
+                        output.Type == Component.Port.PortType.array
                     );
+                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 return node;
             }
@@ -1570,13 +1975,11 @@ public partial class Editor
                     Content = initNode?["content"]?.ToString() ?? "",
                     DisplayNoOfLines = initNode?["displayNoOfLines"]?.Value<int>() ?? 3,
                 };
+                SetDefaultComponentSize(node);
+                AddPortControl.CreateAndAddPort(node, CapnpFbpPortModel.PortType.Out, 0, "IIP");
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Top) { Name = "IIP" });
-                node.AddPort(new CapnpFbpOutPortModel(node) { Name = "" });
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Left) { Name = "IIP" });
-                node.AddPort(new CapnpFbpOutPortModel(node, PortAlignment.Right) { Name = "IIP" });
-                node.RefreshAll();
                 return node;
             }
             case Component.ComponentType.subflow:
@@ -1605,6 +2008,7 @@ public partial class Editor
                         procName
                         ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                 };
+                node.Size = new Size(ViewNodeWidth, ViewNodeHeight);
 
                 Diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
 
@@ -1615,7 +2019,8 @@ public partial class Editor
                         i,
                         input.Name,
                         input.ContentType,
-                        input.Desc
+                        input.Desc,
+                        input.Type == Component.Port.PortType.array
                     );
 
                 foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
@@ -1625,8 +2030,11 @@ public partial class Editor
                         i,
                         output.Name,
                         output.ContentType,
-                        output.Desc
+                        output.Desc,
+                        output.Type == Component.Port.PortType.array
                     );
+                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                RegisterNodeLayoutEvents(node);
                 Diagram.Nodes.Add(node);
                 return node;
             }
@@ -1636,4 +2044,7 @@ public partial class Editor
 
         return null;
     }
+
+    private static void SetDefaultComponentSize(NodeModel node) =>
+        node.Size = new Size(Shared.Shared.CardWidth, Shared.Shared.CardHeight);
 }

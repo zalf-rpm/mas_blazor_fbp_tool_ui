@@ -52,7 +52,7 @@ public class RemoveProcessControl : ExecutableControl
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
-                diagram.Links.Remove(baseLinkModel);
+                await Shared.Shared.RemoveLinkAndCleanupAsync(diagram, baseLinkModel);
                 break;
         }
     }

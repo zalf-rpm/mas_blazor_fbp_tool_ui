@@ -12,8 +12,8 @@ using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Newtonsoft.Json.Linq;
-using Tomlyn;
-using Process = Mas.Schema.Fbp.Process;
+using ProcessSchema = Mas.Schema.Fbp.Process;
+using RpcException = Capnp.Rpc.RpcException;
 
 namespace BlazorDrawFBP.Models;
 
@@ -27,71 +27,55 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     private CancellationTokenSource _cancellationTokenSource;
     private ProcessStateTransition _processStateTransitionCallback;
-    private Task _processStartTask;
-    private Task _processStopTask;
     public IProcess Process { get; set; }
+    public ProcessSchema.IProcessHandle ProcessHandle { get; set; }
 
-    public Process.IFactory ProcessFactory { get; set; }
+    public ProcessSchema.IFactory ProcessFactory { get; set; }
 
-    public override bool RemoteProcessAttached() => Process != null;
+    public override bool RemoteProcessAttached() => ProcessHandle != null || Process != null;
+    public override bool CanEditCommandLine() =>
+        ProcessFactory != null || ProcessHandle != null || Process != null;
+    public bool SupportsLivePortChanges =>
+        Process != null
+        && LifecycleState == ComponentLifecycleState.Running
+        && !IsLifecycleBusy;
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
+        if (
+            Editor.CurrentChannelStarterService == null
+            || ProcessFactory == null
+            || !CanStart
+        )
+        {
+            return;
+        }
+
+        var shouldStopExistingRuntime =
+            ProcessHandle != null
+            && (
+                LifecycleState is not ComponentLifecycleState.Idle
+                    || !await TryIsProcessHandleAliveAsync()
+            );
+        SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
+        CancellationToken cancelToken = default;
         try
         {
-            if (
-                Editor.CurrentChannelStarterService == null
-                || ProcessFactory == null
-                || ProcessStarted
-                || _processStartTask != null
-            )
-            {
-                return;
-            }
-
             Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: StartProcess");
 
+            await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
             _cancellationTokenSource = new CancellationTokenSource();
-            var cancelToken = _cancellationTokenSource.Token;
+            cancelToken = _cancellationTokenSource.Token;
 
-            //get a fresh Process
-            if (Process == null)
-            {
-                Process = await ProcessFactory.Create(cancelToken);
-                if (Process == null)
-                {
-                    return;
-                }
+            if (!await EnsureProcessAsync(cancelToken))
+                throw new InvalidOperationException(
+                    $"Process '{ProcessName}' did not provide a usable process handle."
+                );
 
-                if (_processStateTransitionCallback == null)
-                {
-                    // register a state transition callback
-                    // to switch the state display
-                    _processStateTransitionCallback = new ProcessStateTransition(
-                        (old, @new) =>
-                        {
-                            switch (@new)
-                            {
-                                case Mas.Schema.Fbp.Process.State.started:
-                                    ProcessStarted = true;
-                                    Refresh();
-                                    break;
-                                case Mas.Schema.Fbp.Process.State.canceled:
-                                    break;
-                                case Mas.Schema.Fbp.Process.State.stopped:
-                                    ProcessStarted = false;
-                                    Refresh();
-                                    break;
-                            }
-                        }
-                    );
-                    await Process.State(_processStateTransitionCallback, cancelToken);
-                }
-            }
-
+            HashSet<CapnpFbpInPortModel> connectedInPorts = [];
             var configInPortConnected = false;
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            foreach (var pl in Links)
+            foreach (var pl in Shared.Shared.AttachedLinks(this))
             {
                 if (
                     pl
@@ -117,25 +101,16 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(
-                        conMan,
-                        Editor.CurrentChannelStarterService,
-                        outPort,
-                        inPort
-                    );
+                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
                 }
 
                 // if this is our IN port, set it at the remote process
-                if (inPort.Parent == this)
+                if (inPort.Parent == this && connectedInPorts.Add(inPort))
                 {
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: setting in port '{inPort.Name}' at remote process"
                     );
-                    inPort.Connected = await Process.ConnectInPort(
-                        inPort.Name,
-                        inPort.ReaderSturdyRef,
-                        cancelToken
-                    );
+                    await ConnectInputPortAsync(inPort, cancelToken);
                 }
 
                 if (inPort.Name == "config")
@@ -143,52 +118,27 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     configInPortConnected = true;
                 }
 
-                //color links with connected channel green
-                rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+                CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
                 Console.WriteLine(
-                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: dealing with out port '{outPort.Name}'\noutPort.RetrieveReaderOrWriterFromChannelTask: {outPort.RetrieveWriterFromChannelTask}\noutPort.ReaderWriterSturdyRef: {outPort.WriterSturdyRef} inPort.Channel: {inPort.Channel}"
+                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: dealing with out port '{outPort.Name}'\nlink.RetrieveWriterFromChannelTask: {rcplm.RetrieveWriterFromChannelTask}\nlink.WriterSturdyRef: {rcplm.WriterSturdyRef} inPort.Channel: {inPort.Channel}"
                 );
-                // the task for setting the writer was not yet finished
-                // wait for the task so the writer will be set
-                if (outPort.RetrieveWriterFromChannelTask != null)
-                {
-                    Console.WriteLine(
-                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting out port '{outPort.Name}' ChannelTask"
-                    );
-                    await outPort.RetrieveWriterFromChannelTask;
-                }
-                else
-                {
-                    // there is no task anymore, but also no sturdy ref available,
-                    // so get a new writer from the channel
-                    if (outPort.WriterSturdyRef == null)
-                    {
-                        Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: getting new writer for out port '{outPort.Name}' from channel"
-                        );
-                        (outPort.Writer, outPort.WriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(
-                                inPort.Channel,
-                                cancelToken
-                            );
-                    }
-                }
+                await rcplm.EnsureWriterFromChannelAsync(cancelToken);
 
                 outPort.Parent.Refresh();
                 outPort.Parent.RefreshLinks();
 
                 if (outPort.Parent != this)
                     continue;
+                if (rcplm.WriterSturdyRef == null)
+                    throw new InvalidOperationException(
+                        $"Could not initialize writer for out port '{outPort.Name}'."
+                    );
                 Console.WriteLine(
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: setting out port '{outPort.Name}' at remote process"
                 );
-                outPort.Connected = await Process.ConnectOutPort(
-                    outPort.Name,
-                    outPort.WriterSturdyRef,
-                    cancelToken
-                );
+                await ConnectOutputPortAsync(rcplm, cancelToken);
             }
 
             //there is no config port connected, so we setup up a config channel and send the process config on the fly
@@ -325,9 +275,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 foreach (var kv in model)
                 {
                     var val = MakeCommonValue(kv.Value);
-                    //if (val != null)
+                    if (val == null)
+                    {
+                        Console.WriteLine(
+                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: skipping null config entry '{kv.Key}'"
+                        );
+                        continue;
+                    }
                     await Process.SetConfigEntry(
-                        new Process.ConfigEntry { Name = kv.Key, Val = val },
+                        new ProcessSchema.ConfigEntry { Name = kv.Key, Val = val },
                         cancelToken
                     );
                 }
@@ -337,45 +293,56 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 );
             }
 
-            //await Process.Start(cancelToken);
-            _processStartTask = Task.Run(async () => await Process.Start(cancelToken), cancelToken)
-                .ContinueWith((r) => _processStartTask = null);
-            ProcessStarted = true;
+            var started = await Process.Start(cancelToken);
+            if (!started)
+                throw new InvalidOperationException($"Process '{ProcessName}' failed to start.");
             Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process started: {ProcessStarted}"
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process start launched"
             );
             RefreshAll();
             RefreshLinks();
         }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
+        }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::StartProcess: Caught exception: {e}"
-            );
+            await ResetRemoteRuntimeAsync(closeRemoteProcess: true);
+            SetLifecycleFault(e, refresh: true);
         }
     }
 
     public override async Task StopProcess(ConnectionManager conMan)
     {
+        if (IsLifecycleBusy || !CanStop)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
         try
         {
-            if (Process != null && _processStopTask == null)
-            {
-                //await Process.Stop();
-                _processStopTask = Task.Run(
-                        async () => await Process.Stop(),
-                        _cancellationTokenSource.Token
-                    )
-                    .ContinueWith((r) => _processStopTask = null);
-                ProcessStarted = false;
-            }
+            var stopped = await TryStopRemoteProcessAsync();
+            if (!stopped)
+                throw new InvalidOperationException(
+                    $"Process '{ProcessName}' failed to accept the stop request."
+                );
         }
         catch (Exception e)
         {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::StopProcess: Caught exception: {e}"
-            );
+            SetLifecycleFault(e, refresh: true);
         }
+    }
+
+    public override async Task ResetExecution()
+    {
+        var shouldStopExistingRuntime =
+            ProcessHandle != null
+            && (
+                LifecycleState is not ComponentLifecycleState.Idle
+                    || !await TryIsProcessHandleAliveAsync()
+            );
+        await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -393,39 +360,236 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent"
         );
-
-        if (Process == null)
-            return;
-
-        //cancel task
-        if (_cancellationTokenSource != null)
-            await _cancellationTokenSource.CancelAsync();
-
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
-
-        //stop remote process
-        Console.WriteLine(
-            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent stopping runnable/process"
-        );
-        await Process.Stop();
-        ProcessStarted = false;
-
+        await ResetRemoteRuntimeAsync(closeRemoteProcess: ProcessHandle != null);
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
         );
+    }
+
+    private async Task ResetRemoteRuntimeAsync(bool closeRemoteProcess)
+    {
+        if (closeRemoteProcess)
+            await TryCloseRemoteProcessHandleAsync();
+        await CancelCurrentLifecycleAsync();
+        ClearOwnedDisconnects();
+
+        ProcessStarted = false;
+        if (!closeRemoteProcess)
+            return;
+
         Process?.Dispose();
         Process = null;
+        ProcessHandle?.Dispose();
+        ProcessHandle = null;
         _processStateTransitionCallback?.Dispose();
         _processStateTransitionCallback = null;
     }
 
-    private class ProcessStateTransition(Action<Process.State, Process.State> action)
-        : Process.IStateTransition
+    private async Task<bool> TryStopRemoteProcessAsync()
+    {
+        if (Process == null)
+            return false;
+
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::ResetRemoteRuntimeAsync stopping process"
+        );
+        try
+        {
+            return await Process.Stop();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process already disposed during stop: {ex.Message}"
+            );
+            return false;
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process RPC failed during stop: {ex.Message}"
+            );
+            return false;
+        }
+    }
+
+    private async Task<bool> TryCloseRemoteProcessHandleAsync()
+    {
+        if (ProcessHandle == null)
+            return false;
+
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::ResetRemoteRuntimeAsync closing process handle"
+        );
+        try
+        {
+            return await ProcessHandle.Close();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process handle already disposed during close: {ex.Message}"
+            );
+            return false;
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process handle RPC failed during close: {ex.Message}"
+            );
+            return false;
+        }
+    }
+
+    private async Task<bool> TryIsProcessHandleAliveAsync(CancellationToken cancelToken = default)
+    {
+        if (ProcessHandle == null)
+            return false;
+
+        try
+        {
+            return await ProcessHandle.Alive(cancelToken);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process handle already disposed during alive check: {ex.Message}"
+            );
+            return false;
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process handle RPC failed during alive check: {ex.Message}"
+            );
+            return false;
+        }
+    }
+
+    private async Task<bool> EnsureProcessAsync(CancellationToken cancelToken)
+    {
+        if (ProcessHandle == null)
+        {
+            ProcessHandle = await ProcessFactory.Create(cancelToken);
+            if (ProcessHandle == null)
+                return false;
+        }
+
+        if (Process == null)
+        {
+            Process = await ProcessHandle.Process(cancelToken);
+            if (Process == null)
+                return false;
+        }
+
+        if (_processStateTransitionCallback == null)
+        {
+            _processStateTransitionCallback = new ProcessStateTransition(
+                (old, @new) =>
+                {
+                    ApplyProcessState(@new, refresh: true);
+                }
+            );
+        }
+
+        await Process.State(_processStateTransitionCallback, cancelToken);
+
+        return true;
+    }
+
+    private async Task CancelCurrentLifecycleAsync()
+    {
+        if (_cancellationTokenSource == null)
+            return;
+
+        await _cancellationTokenSource.CancelAsync();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = null;
+    }
+
+    private void ApplyProcessState(ProcessSchema.State state, bool refresh = false)
+    {
+        switch (state)
+        {
+            case ProcessSchema.State.idle:
+                SetLifecycleState(ComponentLifecycleState.Idle, refresh: refresh);
+                break;
+            case ProcessSchema.State.starting:
+                SetLifecycleState(ComponentLifecycleState.Starting, refresh: refresh);
+                break;
+            case ProcessSchema.State.running:
+                SetLifecycleState(ComponentLifecycleState.Running, refresh: refresh);
+                break;
+            case ProcessSchema.State.stopping:
+                SetLifecycleState(ComponentLifecycleState.Stopping, refresh: refresh);
+                break;
+            case ProcessSchema.State.failed:
+                SetLifecycleState(ComponentLifecycleState.Failed, refresh: refresh);
+                break;
+            case ProcessSchema.State.closed:
+                SetLifecycleState(ComponentLifecycleState.Closed, refresh: refresh);
+                break;
+        }
+    }
+
+    public async Task ConnectInputPortAsync(
+        CapnpFbpInPortModel inPort,
+        CancellationToken cancelToken = default
+    )
+    {
+        if (Process == null || inPort.ReaderSturdyRef == null)
+            return;
+
+        var (connected, disconnect) = await Process.ConnectInPort(
+            inPort.Name,
+            inPort.ReaderSturdyRef,
+            cancelToken
+        );
+        inPort.SetProcessDisconnect(disconnect, connected);
+        RefreshAll();
+        RefreshLinks();
+    }
+
+    public async Task ConnectOutputPortAsync(
+        RememberCapnpPortsLinkModel link,
+        CancellationToken cancelToken = default
+    )
+    {
+        if (Process == null || link.WriterSturdyRef == null)
+            return;
+
+        var (connected, disconnect) = await Process.ConnectOutPort(
+            link.OutPortModel.Name,
+            link.WriterSturdyRef,
+            cancelToken
+        );
+        link.SetProcessOutDisconnect(disconnect, connected);
+        RefreshAll();
+        RefreshLinks();
+    }
+
+    private void ClearOwnedDisconnects()
+    {
+        foreach (var inPort in Ports.OfType<CapnpFbpInPortModel>())
+            inPort.ClearProcessDisconnect();
+
+        foreach (
+            var link in Shared.Shared
+                .AttachedLinks(this)
+                .OfType<RememberCapnpPortsLinkModel>()
+                .Where(link => ReferenceEquals(link.OutPortModel.Parent, this))
+        )
+        {
+            link.ClearProcessOutDisconnect();
+        }
+    }
+
+    private class ProcessStateTransition(Action<ProcessSchema.State, ProcessSchema.State> action)
+        : ProcessSchema.IStateTransition
     {
         public Task StateChanged(
-            Process.State old,
-            Process.State @new,
+            ProcessSchema.State old,
+            ProcessSchema.State @new,
             CancellationToken cancellationToken = default
         )
         {

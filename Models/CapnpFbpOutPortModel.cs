@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -33,12 +34,67 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel
 
     public Channel<IP>.IWriter Writer { get; set; }
 
+    public void SyncLinkedWriterState()
+    {
+        var linkedWriters = Links
+            .OfType<RememberCapnpPortsLinkModel>()
+            .Where(link => ReferenceEquals(link.OutPortModel, this))
+            .ToList();
+
+        if (linkedWriters.Count == 0)
+        {
+            if (Parent != null)
+            {
+                Writer = null;
+                WriterSturdyRef = null;
+                Connected = false;
+            }
+
+            return;
+        }
+
+        Writer = linkedWriters.Select(link => link.Writer).FirstOrDefault(writer => writer != null);
+        WriterSturdyRef = linkedWriters
+            .Select(link => link.WriterSturdyRef)
+            .FirstOrDefault(sturdyRef => sturdyRef != null);
+        SyncProcessConnectionState();
+    }
+
+    public void SyncProcessConnectionState()
+    {
+        Connected = Links
+            .OfType<RememberCapnpPortsLinkModel>()
+            .Where(link => ReferenceEquals(link.OutPortModel, this))
+            .Any(link => link.ProcessOutConnected);
+    }
+
+    public async Task DisconnectWriterAsync()
+    {
+        foreach (
+            var link in Links
+                .OfType<RememberCapnpPortsLinkModel>()
+                .Where(link => ReferenceEquals(link.OutPortModel, this))
+                .ToList()
+        )
+        {
+            await link.DisconnectWriterAsync();
+        }
+
+        if (RetrieveWriterFromChannelTask != null)
+        {
+            await RetrieveWriterFromChannelTask.ContinueWith(t => t.Dispose());
+            RetrieveWriterFromChannelTask = null;
+        }
+
+        Writer?.Dispose();
+        Writer = null;
+        WriterSturdyRef = null;
+        SyncProcessConnectionState();
+    }
+
     protected override async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine($"Port {Name}: CapnpFbpOutPortModel::DisposeAsyncCore");
-        if (RetrieveWriterFromChannelTask != null)
-            await RetrieveWriterFromChannelTask.ContinueWith(t => t.Dispose());
-        Writer?.Dispose();
-        Writer = null;
+        await DisconnectWriterAsync();
     }
 }

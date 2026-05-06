@@ -7,16 +7,20 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
-    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
-              Elevation="3">
+    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
+              Elevation="0">
+        <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
+                                    Label="@Node.LifecycleLabel"
+                                    Error="@Node.LifecycleError" />
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="4">
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
-                               StartIcon="@(ProcessStarted ? Icons.Material.Filled.StopCircle : Icons.Material.Filled.PlayCircle)"
-                               OnClick="@(async (e) => await StartProcess(!ProcessStarted))">
-                        @(ProcessStarted ? "Stop" : "Start")
+                               Disabled="@Node.IsLifecycleBusy"
+                               StartIcon="@LifecycleButtonIcon"
+                               OnClick="@HandleLifecycleAction">
+                        @LifecycleButtonText
                     </MudButton>
                 </MudPaper>
             </MudItem>
@@ -56,55 +60,59 @@
         @CardToolTipText
     </MudText>
 
-    @if (Node.Ports.Count > 0 && Node.Ports[0] is CapnpFbpPortModel capnpPort)
+    @foreach (var port in Node.Ports)
     {
-        string PortColor() {
-            return capnpPort switch {
-                CapnpFbpInPortModel { Reader: null } => "#d4d4d4",
-                CapnpFbpOutPortModel { Writer: null } => "#d4d4d4",
-                _ => "#1ac12e"
-            };
-        }
-
-        string Style()
-        {
-            return $"top: 50%; border: 1px solid {PortColor()};";
-        }
+        if (port is not CapnpFbpPortModel capnpPort) continue;
 
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="Node.Ports[0]" Port="capnpPort" Style="@(Style())">
-                in
-            </CapnpFbpPortRenderer>
+            <CapnpFbpPortRenderer @key="capnpPort"
+                                  Port="capnpPort"
+                                  SocketColor="@FrameBorderColorValue" />
         </div>
-
-
     }
 </div>
 
 @code {
     [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
-    private string CardStyle => $"height: 200px; width: 350px;{FrameWidth};{FrameColor}";
-    private string FrameWidth => $"border-width: {(ProcessStarted ? 1 : 1)}px";
-    private string FrameColor => $@"border-color: {(ProcessStarted ? "#1ac12e" : "#ff0000")}";
-
-    private async Task StartProcess(bool start) {
-        if (start)
-            await Node.StartProcess(ConMan);
-        else
-            await Node.StopProcess(ConMan);
-        StateHasChanged();
-    }
-
-    private bool ProcessStarted => Node.ProcessStarted;
+    private string CardStyle =>
+        $"height: {(Node.Size?.Height ?? 200)}px; width: {(Node.Size?.Width ?? 350)}px;{FrameWidth};{FrameColor}";
+    private const string FrameWidth = "border-width: 1px";
+    private string FrameBorderColorValue =>
+        CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.LifecycleState);
+    private string FrameColor => $@"border-color: {FrameBorderColorValue}";
+    private string LifecycleButtonText => Node.IsLifecycleBusy
+        ? $"{Node.LifecycleLabel}..."
+        : Node.LifecycleState switch
+    {
+        ComponentLifecycleState.Running => "Stop",
+        ComponentLifecycleState.Failed => "Retry",
+        ComponentLifecycleState.Closed => "Reconnect",
+        _ => "Start",
+    };
+    private string LifecycleButtonIcon => Node.LifecycleState switch
+    {
+        ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
+        _ => Icons.Material.Filled.PlayCircle,
+    };
 
     private MarkupString CardToolTipText { get; set; }
-    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
+    private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? 350)}px;";
 
     protected override void OnInitialized()
     {
         // Node.Dispatcher = Dispatcher;
+    }
+
+    private async Task HandleLifecycleAction()
+    {
+        if (Node.CanStop)
+            await Node.StopProcess(ConMan);
+        else if (Node.CanStart)
+            await Node.StartProcess(ConMan);
+
+        StateHasChanged();
     }
 
     private async Task ShowDetails(MouseEventArgs e)

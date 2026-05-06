@@ -14,6 +14,30 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Regular.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Italic.woff2') format('woff2');
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: '0xProto';
+    src: url('../fonts/0xproto/0xProto-Bold.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
 html, body {
     font-family: 'Adwaita Sans', 'Helvetica Neue', Arial, sans-serif;
     font-optical-sizing: auto;
@@ -83,6 +107,322 @@ a, .btn-link {
     color: white;
 }
 
-    .blazor-error-boundary::after {
+.blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+.diagram-port {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin: -10px;
+    cursor: pointer;
+    overflow: visible;
+    z-index: 1;
+}
+
+.diagram-port-shell {
+    display: block;
+    position: relative;
+    width: 20px;
+    height: 20px;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+.diagram-port-shell::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--port-shell-color, #d4d4d4);
+    background-color: #fff;
+    pointer-events: none;
+}
+
+.diagram-port-icon {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-color: var(--port-icon-color, #111827);
+    mask-image: url('/images/ports/arrow-up-vaadin.svg');
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 100%;
+    -webkit-mask-image: url('/images/ports/arrow-up-vaadin.svg');
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 100%;
+    transform-origin: center;
+}
+
+.diagram-port-label {
+    position: absolute;
+    white-space: nowrap;
+    pointer-events: none;
+    color: #374151;
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+.diagram-port.left .diagram-port-label {
+    top: 50%;
+    right: calc(100% + 6px);
+    transform: translateY(-50%);
+    text-align: right;
+}
+
+.diagram-port.right .diagram-port-label {
+    top: 50%;
+    left: calc(100% + 6px);
+    transform: translateY(-50%);
+    text-align: left;
+}
+
+.diagram-port.top .diagram-port-label {
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.diagram-port.bottom .diagram-port-label {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.diagram-port.has-links .diagram-port-label {
+    padding: 1px 6px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.diagram-port:hover .diagram-port-shell,
+.diagram-port.has-links .diagram-port-shell {
+    background-color: #fff;
+}
+
+.diagram-port.disabled:hover .diagram-port-shell,
+.diagram-port.disabled.has-links .diagram-port-shell {
+    background-color: #fff;
+}
+
+.diagram-port.dashed .diagram-port-shell::before {
+    border-style: dashed;
+}
+
+.diagram-port.top .diagram-port-shell::before {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 50%;
+    border-top: none;
+}
+
+.diagram-port.top .diagram-port-shell,
+.diagram-port.top .diagram-port-shell::before {
+    border-radius: 0 0 3px 3px;
+}
+
+.diagram-port.topleft .diagram-port-shell::before {
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    height: 50%;
+    border-top: none;
+    border-left: none;
+}
+
+.diagram-port.topleft .diagram-port-shell,
+.diagram-port.topleft .diagram-port-shell::before {
+    border-radius: 0 0 3px 0;
+}
+
+.diagram-port.topright .diagram-port-shell::before {
+    left: 0;
+    bottom: 0;
+    width: 50%;
+    height: 50%;
+    border-top: none;
+    border-right: none;
+}
+
+.diagram-port.topright .diagram-port-shell,
+.diagram-port.topright .diagram-port-shell::before {
+    border-radius: 0 0 0 3px;
+}
+
+.diagram-port.right .diagram-port-shell::before {
+    left: 0;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    border-right: none;
+}
+
+.diagram-port.right .diagram-port-shell,
+.diagram-port.right .diagram-port-shell::before {
+    border-radius: 3px 0 0 3px;
+}
+
+.diagram-port.bottomright .diagram-port-shell::before {
+    left: 0;
+    top: 0;
+    width: 50%;
+    height: 50%;
+    border-right: none;
+    border-bottom: none;
+}
+
+.diagram-port.bottomright .diagram-port-shell,
+.diagram-port.bottomright .diagram-port-shell::before {
+    border-radius: 3px 0 0 0;
+}
+
+.diagram-port.bottom .diagram-port-shell::before {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 50%;
+    border-bottom: none;
+}
+
+.diagram-port.bottom .diagram-port-shell,
+.diagram-port.bottom .diagram-port-shell::before {
+    border-radius: 3px 3px 0 0;
+}
+
+.diagram-port.bottomleft .diagram-port-shell::before {
+    right: 0;
+    top: 0;
+    width: 50%;
+    height: 50%;
+    border-left: none;
+    border-bottom: none;
+}
+
+.diagram-port.bottomleft .diagram-port-shell,
+.diagram-port.bottomleft .diagram-port-shell::before {
+    border-radius: 0 3px 0 0;
+}
+
+.diagram-port.left .diagram-port-shell::before {
+    right: 0;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    border-left: none;
+}
+
+.diagram-port.left .diagram-port-shell,
+.diagram-port.left .diagram-port-shell::before {
+    border-radius: 0 3px 3px 0;
+}
+
+.diagram-port.out.top .diagram-port-icon {
+    transform: rotate(0deg);
+}
+
+.diagram-port.out.topleft .diagram-port-icon {
+    transform: rotate(-45deg);
+}
+
+.diagram-port.out.topright .diagram-port-icon {
+    transform: rotate(45deg);
+}
+
+.diagram-port.out.right .diagram-port-icon {
+    transform: rotate(90deg);
+}
+
+.diagram-port.out.bottomright .diagram-port-icon {
+    transform: rotate(135deg);
+}
+
+.diagram-port.out.bottom .diagram-port-icon {
+    transform: rotate(180deg);
+}
+
+.diagram-port.out.bottomleft .diagram-port-icon {
+    transform: rotate(-135deg);
+}
+
+.diagram-port.out.left .diagram-port-icon {
+    transform: rotate(-90deg);
+}
+
+.diagram-port.in.top .diagram-port-icon {
+    transform: rotate(180deg);
+}
+
+.diagram-port.in.topleft .diagram-port-icon {
+    transform: rotate(135deg);
+}
+
+.diagram-port.in.topright .diagram-port-icon {
+    transform: rotate(-135deg);
+}
+
+.diagram-port.in.right .diagram-port-icon {
+    transform: rotate(-90deg);
+}
+
+.diagram-port.in.bottomright .diagram-port-icon {
+    transform: rotate(-45deg);
+}
+
+.diagram-port.in.bottom .diagram-port-icon {
+    transform: rotate(0deg);
+}
+
+.diagram-port.in.bottomleft .diagram-port-icon {
+    transform: rotate(45deg);
+}
+
+.diagram-port.in.left .diagram-port-icon {
+    transform: rotate(90deg);
+}
+
+.diagram-port.top {
+    top: 0;
+    left: 50%;
+}
+
+.diagram-port.topleft {
+    top: 0;
+    left: 0;
+}
+
+.diagram-port.topright {
+    top: 0;
+    right: 0;
+}
+
+.diagram-port.bottom {
+    bottom: 0;
+    left: 50%;
+}
+
+.diagram-port.bottomleft {
+    bottom: 0;
+    left: 0;
+}
+
+.diagram-port.bottomright {
+    bottom: 0;
+    right: 0;
+}
+
+.diagram-port.left {
+    top: 50%;
+    left: 0;
+}
+
+.diagram-port.right {
+    top: 50%;
+    right: 0;
+}

@@ -3,7 +3,6 @@
 @using BlazorDrawFBP.Renderers
 @using System.Text
 @using System.Threading
-@using Brism
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Infrastructure.Common
 @using Mas.Schema.Common
@@ -12,16 +11,20 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
-    <MudPaper Style="@CardStyle" Class="d-flex flex-column align-content-space-between"
-              Elevation="3">
+    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
+              Elevation="0">
+        <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
+                                    Label="@Node.LifecycleLabel"
+                                    Error="@Node.LifecycleError" />
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="5">
                 <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
                           Elevation="0">
                     <MudButton Color="@Color.Primary"
-                               StartIcon="@Icons.Material.Filled.PlayCircle"
+                               Disabled="@Node.IsLifecycleBusy"
+                               StartIcon="@LifecycleButtonIcon"
                                OnClick="@SendIip">
-                        "Send"
+                        @LifecycleButtonText
                     </MudButton>
                 </MudPaper>
             </MudItem>
@@ -74,7 +77,9 @@
         if (port is not CapnpFbpOutPortModel iipPort) continue;
         <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(iipPort))"
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpIipPortRenderer Port="iipPort" Class="default"/>
+            <CapnpFbpPortRenderer @key="iipPort"
+                                  Port="iipPort"
+                                  SocketColor="@FrameBorderColorValue" />
         </div>
     }
 </div>
@@ -84,10 +89,17 @@
     [Parameter] public CapnpFbpIipComponentModel Node { get; set; }
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
-    private string FrameWidth => $"border-width: 1px";
-    //private string FrameColor => $"border-color: #6e9fd4";
-    private string FrameColor => $@"border-color: {(IsConnectedToChannel ? "#1ac12e" : "#ff0000")}";
-    private bool IsConnectedToChannel => Node.Ports.Any(p => p is CapnpFbpOutPortModel iipPort && iipPort.Writer != null);
+    private const string FrameWidth = "border-width: 1px";
+    private string FrameBorderColorValue =>
+        CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.DisplayLifecycleState);
+    private string FrameColor => $@"border-color: {FrameBorderColorValue}";
+    private string LifecycleButtonText => Node.DisplayLifecycleState switch
+    {
+        ComponentLifecycleState.Starting => $"{Node.LifecycleLabel}...",
+        ComponentLifecycleState.Failed => "Send",
+        _ => "Send",
+    };
+    private string LifecycleButtonIcon => Icons.Material.Filled.Send;
 
     private MarkupString CardToolTipText { get; set; }
     private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";

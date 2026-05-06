@@ -52,10 +52,7 @@ public class FbpDragNewLinkBehavior : Behavior
     OngoingLink = null;
     _targetPositionAnchor = null;
     if (model is not PortModel source || source.Locked) return;
-    // FBP semantics: allow only one link from an output port
-    // at the moment also don't allow multiple links from IIPs even if we could actually support it 
-    // due to copy semantics of strings in the future
-    if (model is CapnpFbpOutPortModel { Links.Count: > 0 }) return;
+    if (model is CapnpFbpPortModel { CanAcceptMoreConnections: false }) return;
     _targetPositionAnchor = new PositionAnchor(CalculateTargetPosition(e.ClientX, e.ClientY));
     OngoingLink = Diagram.Options.Links.Factory(Diagram, source, _targetPositionAnchor);
     if (OngoingLink == null) return;
@@ -131,7 +128,7 @@ public class FbpDragNewLinkBehavior : Behavior
     if (position == null) return null;
     foreach (var other in Diagram.Nodes.SelectMany((Func<NodeModel, IEnumerable<PortModel>>) (n => n.Ports)))
     {
-      var num2 = position.DistanceTo(other.Position);
+      var num2 = position.DistanceTo(other.MiddlePosition);
       if (num2 <= Diagram.Options.Links.SnappingRadius)
       {
         var model = OngoingLink.Source.Model;
@@ -152,4 +149,3 @@ public class FbpDragNewLinkBehavior : Behavior
     Diagram.PointerUp -= OnPointerUp;
   }
 }
-

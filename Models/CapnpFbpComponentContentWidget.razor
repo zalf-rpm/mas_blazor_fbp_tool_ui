@@ -72,11 +72,11 @@
                                 SelectionMode="SelectionMode.SingleSelection">
                         @foreach (var (i, p) in Node.ComponentModel.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
                         {
-                            var style = $"left: 3px; top: {-15 - i * 25}px;";
+                            var style = $"left: 3px; top: {-15 - i * 25}px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(p.Key)}";
                             <MudChip Class="absolute"
                                      Style="@style"
-                                     Color="Color.Info"
-                                     SelectedColor="Color.Info"
+                                     Color="Color.Default"
+                                     SelectedColor="Color.Default"
                                      Label="true"
                                      Default="@(p.Key == Node.ComponentModel.ComponentServiceId)"
                                      OnClick="() => { _changeComponentServiceId = false; }"
@@ -91,13 +91,13 @@
                 else
                 {
                     <MudChip Class="absolute"
-                             Style="left: 3px; top: -15px;"
-                             Color="Color.Info"
+                             Style="@($"left: 3px; top: -15px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(Node.ComponentModel.ComponentServiceId)}")"
+                             Color="Color.Default"
                              Label="true"
                              Size="Size.Small"
                              OnClick="() => { _changeComponentServiceId = true; }"
                              T="string">
-                        @(Node.ComponentModel.Editor.RegistryServiceIdToPetNameAndSturdyRef.GetValueOrDefault(Node.ComponentModel.ComponentServiceId, ("Unknown service!", null)).Item1)
+                        @Node.ComponentModel.Editor.GetComponentServiceName(Node.ComponentModel.ComponentServiceId)
                     </MudChip>
                 }
             </CardHeaderContent>
@@ -152,7 +152,7 @@
                                           Label="Default TOML config (Key=Value)"
                                           Variant="Variant.Outlined"/>
                         }
-                        @if (Node.ComponentModel.RemoteProcessAttached() && (!string.IsNullOrEmpty(Node.ComponentModel.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentModel.ComponentId)))
+                        @if (Node.ComponentModel.CanEditCommandLine() && (!string.IsNullOrEmpty(Node.ComponentModel.Cmd) || string.IsNullOrWhiteSpace(Node.ComponentModel.ComponentId)))
                         {
                             <MudTextField T="string"
                                           @bind-Value="Node.ComponentModel.Cmd"

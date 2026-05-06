@@ -35,6 +35,18 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public string ComponentName { get; set; }
     public string ProcessName { get; set; }
 
+    public ComponentLifecycleState LifecycleState { get; private set; } =
+        ComponentLifecycleState.Idle;
+    public string LifecycleError { get; private set; }
+    public bool CanStart =>
+        LifecycleState is ComponentLifecycleState.Idle
+            or ComponentLifecycleState.Failed
+            or ComponentLifecycleState.Closed;
+    public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
+    public bool IsLifecycleBusy =>
+        LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
+    public string LifecycleLabel => LifecycleState.ToString();
+
     public bool ProcessStarted { get; protected set; }
     private Task ViewMsgReceiveTask { get; set; }
 
@@ -64,24 +76,35 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     public async Task StartProcess(ConnectionManager conMan)
     {
+        if (Editor.CurrentChannelStarterService == null)
+        {
+            SetLifecycleFault(
+                new InvalidOperationException("No channel service connected."),
+                refresh: true
+            );
+            return;
+        }
+
+        if (!CanStart)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
+        CancellationToken cancelToken = default;
         try
         {
             Console.WriteLine(
                 $"T{Thread.CurrentThread.ManagedThreadId} {ProcessName}: StartProcess"
             );
 
-            if (Editor.CurrentChannelStarterService == null || ProcessStarted)
-            {
-                return;
-            }
+            await CancelAndDisposeViewTasks();
 
             _cancellationTokenSource = new CancellationTokenSource();
-            var cancelToken = _cancellationTokenSource.Token;
+            cancelToken = _cancellationTokenSource.Token;
 
             Channel<IP>.IReader reader = null;
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
-            foreach (var pl in Links)
+            foreach (var pl in Shared.Shared.AttachedLinks(this))
             {
                 if (
                     pl
@@ -105,12 +128,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(
-                        conMan,
-                        Editor.CurrentChannelStarterService,
-                        outPort,
-                        inPort
-                    );
+                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
                 }
 
                 if (inPort.Parent == this)
@@ -118,33 +136,18 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     reader = Proxy.Share(inPort.Reader);
                 }
 
-                rcplm.Color = inPort.Channel != null ? "#1ac12e" : "black";
+                CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
                 // deal with OUT port
-                if (outPort.RetrieveWriterFromChannelTask != null)
-                {
-                    Console.WriteLine(
-                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: awaiting out port '{outPort.Name}' ChannelTask"
-                    );
-                    await outPort.RetrieveWriterFromChannelTask;
-                }
-                else
-                {
-                    if (outPort.WriterSturdyRef == null)
-                    {
-                        Console.WriteLine(
-                            $"T{Environment.CurrentManagedThreadId} {ProcessName}: getting new writer for out port '{outPort.Name}' from channel"
-                        );
-                        (outPort.Writer, outPort.WriterSturdyRef) =
-                            await Shared.Shared.GetNewWriterFromChannel(
-                                inPort.Channel,
-                                cancelToken
-                            );
-                        outPort.Parent.Refresh();
-                    }
-                }
+                await rcplm.EnsureWriterFromChannelAsync(cancelToken);
                 outPort.Parent.Refresh();
                 outPort.Parent.RefreshLinks();
+            }
+
+            if (reader == null)
+            {
+                SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
+                return;
             }
 
             //run loop to receive messages on in-port
@@ -237,9 +240,17 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                     throw new ArgumentOutOfRangeException();
                             }
                         }
-                        catch (TaskCanceledException tce)
+                        catch (TaskCanceledException)
                         {
                             await reader.Close();
+                            leave = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(
+                                $"T{Environment.CurrentManagedThreadId} {ProcessName}: view receive loop faulted: {ex}"
+                            );
+                            SetLifecycleFault(ex, refresh: true);
                             leave = true;
                         }
                     }
@@ -248,31 +259,39 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: left view's receive loop"
                     );
-                    ProcessStarted = false;
+                    if (LifecycleState != ComponentLifecycleState.Failed)
+                        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
                 },
                 cancelToken
             );
 
-            ProcessStarted = !ViewMsgReceiveTask.IsFaulted;
-            RefreshAll();
-            RefreshLinks();
+            SetLifecycleState(ComponentLifecycleState.Running, refresh: true);
+        }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         }
         catch (Exception e)
         {
+            await CancelAndDisposeViewTasks();
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
+            SetLifecycleFault(e, refresh: true);
         }
     }
 
     public async Task StopProcess(ConnectionManager conMan)
     {
         Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: stop process");
+        if (IsLifecycleBusy || !CanStop)
+            return;
+
+        SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
         try
         {
-            await CancelAndDisposeViewTasks();
-            ProcessStarted = false;
+            await ResetExecution();
         }
         catch (Exception e)
         {
@@ -280,7 +299,14 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
+            SetLifecycleFault(e, refresh: true);
         }
+    }
+
+    public async Task ResetExecution()
+    {
+        await CancelAndDisposeViewTasks();
+        SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     public async ValueTask DisposeAsync()
@@ -291,9 +317,13 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(Links, Editor.Diagram);
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
+            this,
+            Editor.Diagram,
+            this
+        );
         await FreeRemoteChannelsAttachedToPorts();
-        await CancelAndDisposeViewTasks();
+        await ResetExecution();
     }
 
     private async Task FreeRemoteChannelsAttachedToPorts()
@@ -326,5 +356,28 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 t.Dispose();
                 ViewMsgReceiveTask = null;
             });
+    }
+
+    private void SetLifecycleState(
+        ComponentLifecycleState state,
+        string error = null,
+        bool refresh = false
+    )
+    {
+        LifecycleState = state;
+        ProcessStarted = state == ComponentLifecycleState.Running;
+        LifecycleError = state == ComponentLifecycleState.Failed ? error ?? LifecycleError : null;
+
+        if (refresh)
+        {
+            RefreshAll();
+            RefreshLinks();
+        }
+    }
+
+    private void SetLifecycleFault(Exception exception, bool refresh = false)
+    {
+        Console.Error.WriteLine(exception);
+        SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 }

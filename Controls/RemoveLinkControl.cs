@@ -36,10 +36,10 @@ public class RemoveLinkControl : ExecutableControl
             return;
         }
 
-        DeleteModel(diagram, model);
+        await DeleteModel(diagram, model);
     }
 
-    private static void DeleteModel(Diagram diagram, Model model)
+    private static async Task DeleteModel(Diagram diagram, Model model)
     {
         switch (model)
         {
@@ -50,8 +50,7 @@ public class RemoveLinkControl : ExecutableControl
                 diagram.Nodes.Remove(nodeModel);
                 break;
             case BaseLinkModel baseLinkModel:
-                Shared.Shared.RestoreDefaultPortVisibility(diagram, baseLinkModel);
-                diagram.Links.Remove(baseLinkModel);
+                await Shared.Shared.RemoveLinkAndCleanupAsync(diagram, baseLinkModel);
                 break;
         }
     }

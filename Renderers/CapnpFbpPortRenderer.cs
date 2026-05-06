@@ -23,6 +23,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     private bool _isParentSvg;
     private bool _shouldRefreshPort;
     private bool _shouldRender = true;
+    private bool _shouldUpdateDimensions;
+    private string _lastStyle;
     private bool _updatingDimensions;
 
     [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; }
@@ -33,9 +35,13 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     [Parameter] public string Class { get; set; }
 
-    [Parameter] public string Style { get; set; }
+    [Parameter] public string SocketColor { get; set; }
     
     [Parameter] public RenderFragment ChildContent { get; set; }
+
+    private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
+    private string PortLabelText =>
+        Port.IsArrayPort ? $"{Port.Name} [{Port.ConnectedChannelCount}]" : Port.Name;
 
     public void Dispose()
     {
@@ -54,6 +60,17 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
+        var iconColor = CapnpFbpPortColors.ResolvePortIconColor(Port);
+        var renderSignature =
+            $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{iconColor}|{SocketColor}";
+        if (string.Equals(renderSignature, _lastStyle, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastStyle = renderSignature;
+        _shouldRender = true;
+        _shouldUpdateDimensions = true;
     }
 
     protected override bool ShouldRender()
@@ -68,22 +85,31 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         if (!Port.Visible)
             return;
-        
-        var visibility = Port.Visibility switch
-        {
-            CapnpFbpPortModel.VisibilityState.Hidden => "display: none;",
-            CapnpFbpPortModel.VisibilityState.Dashed => "border-style: dashed;",
-            CapnpFbpPortModel.VisibilityState.Visible => "",
-            _ => throw new ArgumentOutOfRangeException()
-        };
-        
+
+        var disabled = !Port.CanAcceptMoreConnections;
+        var dashed = Port.Visibility == CapnpFbpPortModel.VisibilityState.Dashed;
+        var shellColor = SocketColor ?? "#d4d4d4";
+        var iconColor = CapnpFbpPortColors.ResolvePortIconColor(Port);
+        var style = new CapnpFbpPortLayout.PortPlacement(
+            EffectiveAlignment,
+            Port.LayoutOffsetPx
+        ).ToStyle();
+
         builder.OpenElement(0, _isParentSvg ? "g" : "div");
-        builder.AddAttribute(1, "style", Style + visibility);
+        builder.AddAttribute(
+            1,
+            "style",
+            style
+                + (disabled ? "cursor: not-allowed;" : "")
+                + $"--port-shell-color: {shellColor}; --port-icon-color: {iconColor};"
+        );
         builder.AddAttribute(2, "class",
-            "diagram-port " + (Port.Alignment.ToString().ToLower() ?? "") + " " + 
+            "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " +
             Port.ThePortType.ToString().ToLower() + " " +
-            //offsetString + " " + 
-            (Port.Links.Count > 0 ? "has-links" : "") + " " + Class);
+            (Port.ConnectedChannelCount > 0 ? "has-links" : "") + " " +
+            (disabled ? "disabled" : "") + " " +
+            (dashed ? "dashed" : "") + " " +
+            Class);
         builder.AddAttribute(3, "data-port-id", Port.Id);
         builder.AddAttribute(4, "onpointerdown",
             EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerDown));
@@ -92,14 +118,41 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerUp));
         builder.AddEventStopPropagationAttribute(7, "onpointerup", true);
         builder.AddElementReferenceCapture(8, (Action<ElementReference>)(value => _element = value));
-        builder.AddContent(9, ChildContent);
+
+        if (ChildContent != null)
+        {
+            builder.AddContent(9, ChildContent);
+        }
+        else
+        {
+            builder.OpenElement(9, "span");
+            builder.AddAttribute(10, "class", "diagram-port-shell");
+
+            builder.OpenElement(11, "span");
+            builder.AddAttribute(
+                12,
+                "class",
+                "diagram-port-icon " + Port.ThePortType.ToString().ToLowerInvariant()
+            );
+            builder.CloseElement();
+            builder.CloseElement();
+
+            if (!string.IsNullOrWhiteSpace(PortLabelText))
+            {
+                builder.OpenElement(13, "span");
+                builder.AddAttribute(14, "class", "diagram-port-label");
+                builder.AddContent(15, PortLabelText);
+                builder.CloseElement();
+            }
+        }
         builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Port.Initialized)
+        if (Port.Initialized && !_shouldUpdateDimensions)
             return;
+        _shouldUpdateDimensions = false;
         await UpdateDimensions();
     }
 
@@ -137,6 +190,21 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         if (BlazorDiagram.Container == null)
         {
             pan = null;
+        }
+        else if (Port is CapnpFbpPortModel)
+        {
+            _updatingDimensions = true;
+            Port.Initialized = true;
+            _updatingDimensions = false;
+            if (_shouldRefreshPort)
+            {
+                _shouldRefreshPort = false;
+                Port.RefreshAll();
+            }
+            else
+            {
+                Port.RefreshLinks();
+            }
         }
         else
         {
