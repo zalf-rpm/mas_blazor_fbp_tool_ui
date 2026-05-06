@@ -140,6 +140,68 @@ public partial class Editor
         return ComponentServicePalette[0];
     }
 
+    public IReadOnlyList<KeyValuePair<string, (string, string)>> GetBindableComponentServices(
+        CapnpFbpComponentModel node
+    )
+    {
+        if (node == null)
+            return [];
+
+        return RegistryServiceIdToPetNameAndSturdyRef
+            .Where(entry =>
+                entry.Key == node.ComponentServiceId || TryGetBindableComponent(node, entry.Key, out _)
+            )
+            .ToList();
+    }
+
+    public async Task SwitchComponentServiceAsync(
+        CapnpFbpComponentModel node,
+        string componentServiceId
+    )
+    {
+        if (
+            node == null
+            || node.IsLifecycleBusy
+            || string.IsNullOrWhiteSpace(componentServiceId)
+            || componentServiceId == node.ComponentServiceId
+        )
+        {
+            return;
+        }
+
+        if (!TryGetBindableComponent(node, componentServiceId, out var component))
+            return;
+
+        await node.RebindToComponentServiceAsync(component, componentServiceId);
+    }
+
+    private bool TryGetBindableComponent(
+        CapnpFbpComponentModel node,
+        string componentServiceId,
+        out Component component
+    )
+    {
+        if (
+            node == null
+            || string.IsNullOrWhiteSpace(node.ComponentId)
+            || !ServiceIdAndComponentId2Component.TryGetValue(
+                (componentServiceId, node.ComponentId),
+                out component
+            )
+        )
+        {
+            component = null;
+            return false;
+        }
+
+        return node switch
+        {
+            CapnpFbpRunnableComponentModel => component.Type == Component.ComponentType.standard,
+            CapnpFbpProcessComponentModel => component.Type == Component.ComponentType.process,
+            _ => false,
+        };
+    }
+
     private async Task<IStartChannelsService> ConnectToStartChannelsService(
         ConnectionManager conMan,
         string petName,

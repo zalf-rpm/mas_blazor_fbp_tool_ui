@@ -345,6 +345,25 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
+    protected override async Task ShutdownForComponentServiceSwitchAsync()
+    {
+        if (Process != null)
+            await TryStopRemoteProcessAsync();
+
+        await ResetRemoteRuntimeAsync(closeRemoteProcess: ProcessHandle != null || Process != null);
+    }
+
+    protected override void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    {
+        base.ApplyComponentServiceBinding(component, componentServiceId);
+
+        ProcessFactory?.Dispose();
+        ProcessFactory =
+            component.Factory?.which == Component.factory.WHICH.Process
+                ? Capnp.Rpc.Proxy.Share(component.Factory.Process)
+                : null;
+    }
+
     protected override async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine(

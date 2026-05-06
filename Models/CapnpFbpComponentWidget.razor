@@ -20,18 +20,19 @@
 
         @if (_changeComponentServiceId) {
             <MudChipSet T="string"
-                        @bind-SelectedValue="Node.ComponentServiceId"
+                        SelectedValue="@Node.ComponentServiceId"
                         CheckMark
                         SelectionMode="SelectionMode.SingleSelection">
-                @foreach (var (i, p) in Node.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p))) {
+                @foreach (var (i, p) in Node.Editor.GetBindableComponentServices(Node).Select((p, i) => (i, p))) {
                     var style = $"left: 3px; top: {-15 - i * 25}px; {Node.Editor.GetComponentServiceBadgeStyle(p.Key)}";
                     <MudChip Class="absolute"
                              Style="@style"
                              Color="Color.Default"
                              SelectedColor="Color.Default"
+                             Disabled="@Node.IsLifecycleBusy"
                              Label="true"
                              Default="@(p.Key == Node.ComponentServiceId)"
-                             OnClick="() => { _changeComponentServiceId = false; }"
+                             OnClick="() => SelectComponentServiceAsync(p.Key)"
                              Size="Size.Small"
                              Value="@p.Key"
                              T="string">
@@ -43,6 +44,7 @@
             <MudChip Class="absolute"
                      Style="@($"left: 3px; top: -15px; {Node.Editor.GetComponentServiceBadgeStyle(Node.ComponentServiceId)}")"
                      Color="Color.Default"
+                     Disabled="@Node.IsLifecycleBusy"
                      Label="true"
                      Size="Size.Small"
                      OnClick="() => { _changeComponentServiceId = true; }"
@@ -260,6 +262,13 @@
             await Node.StartProcess(ConMan);
 
         StateHasChanged();
+    }
+
+    private async Task SelectComponentServiceAsync(string componentServiceId)
+    {
+        _changeComponentServiceId = false;
+        await Node.Editor.SwitchComponentServiceAsync(Node, componentServiceId);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ShowJsonDetails(MouseEventArgs e) {

@@ -67,19 +67,20 @@
                 @if (_changeComponentServiceId)
                 {
                     <MudChipSet T="string"
-                                @bind-SelectedValue="Node.ComponentModel.ComponentServiceId"
+                                SelectedValue="@Node.ComponentModel.ComponentServiceId"
                                 CheckMark
                                 SelectionMode="SelectionMode.SingleSelection">
-                        @foreach (var (i, p) in Node.ComponentModel.Editor.RegistryServiceIdToPetNameAndSturdyRef.Select((p, i) => (i, p)))
+                        @foreach (var (i, p) in Node.ComponentModel.Editor.GetBindableComponentServices(Node.ComponentModel).Select((p, i) => (i, p)))
                         {
                             var style = $"left: 3px; top: {-15 - i * 25}px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(p.Key)}";
                             <MudChip Class="absolute"
                                      Style="@style"
                                      Color="Color.Default"
                                      SelectedColor="Color.Default"
+                                     Disabled="@Node.ComponentModel.IsLifecycleBusy"
                                      Label="true"
                                      Default="@(p.Key == Node.ComponentModel.ComponentServiceId)"
-                                     OnClick="() => { _changeComponentServiceId = false; }"
+                                     OnClick="() => SelectComponentServiceAsync(p.Key)"
                                      Size="Size.Small"
                                      Value="@p.Key"
                                      T="string">
@@ -93,6 +94,7 @@
                     <MudChip Class="absolute"
                              Style="@($"left: 3px; top: -15px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(Node.ComponentModel.ComponentServiceId)}")"
                              Color="Color.Default"
+                             Disabled="@Node.ComponentModel.IsLifecycleBusy"
                              Label="true"
                              Size="Size.Small"
                              OnClick="() => { _changeComponentServiceId = true; }"
@@ -203,6 +205,16 @@
         // Node.PortModel.Refresh();
         // UpdateLinkNames();
         // _alreadyRemoved = true;
+    }
+
+    private async Task SelectComponentServiceAsync(string componentServiceId)
+    {
+        _changeComponentServiceId = false;
+        await Node.ComponentModel.Editor.SwitchComponentServiceAsync(
+            Node.ComponentModel,
+            componentServiceId
+        );
+        await InvokeAsync(StateHasChanged);
     }
 
 }
