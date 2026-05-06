@@ -33,20 +33,16 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     public ProcessSchema.IFactory ProcessFactory { get; set; }
 
     public override bool RemoteProcessAttached() => ProcessHandle != null || Process != null;
+
     public override bool CanEditCommandLine() =>
         ProcessFactory != null || ProcessHandle != null || Process != null;
+
     public bool SupportsLivePortChanges =>
-        Process != null
-        && LifecycleState == ComponentLifecycleState.Running
-        && !IsLifecycleBusy;
+        Process != null && LifecycleState == ComponentLifecycleState.Running && !IsLifecycleBusy;
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
-        if (
-            Editor.CurrentChannelStarterService == null
-            || ProcessFactory == null
-            || !CanStart
-        )
+        if (Editor.CurrentChannelStarterService == null || ProcessFactory == null || !CanStart)
         {
             return;
         }
@@ -55,7 +51,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             ProcessHandle != null
             && (
                 LifecycleState is not ComponentLifecycleState.Idle
-                    || !await TryIsProcessHandleAliveAsync()
+                || !await TryIsProcessHandleAliveAsync()
             );
         SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
         CancellationToken cancelToken = default;
@@ -101,7 +97,11 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
+                    await Shared.Shared.CreateChannel(
+                        conMan,
+                        Editor.CurrentChannelStarterService,
+                        rcplm
+                    );
                 }
 
                 // if this is our IN port, set it at the remote process
@@ -214,8 +214,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                                 F64 = t.Value<double>(),
                                             },
                                             JTokenType.Boolean => new Value { B = t.Value<bool>() },
-                                            JTokenType.Array => MakeCommonValue(t),
-                                            JTokenType.Object => MakeCommonValue(t),
+                                            JTokenType.Array or JTokenType.Object =>
+                                                MakeCommonValue(t),
                                         }
                                     );
                                 }
@@ -252,8 +252,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                                 {
                                                     B = v.Value<bool>(),
                                                 },
-                                                JTokenType.Array => MakeCommonValue(v),
-                                                JTokenType.Object => MakeCommonValue(v),
+                                                JTokenType.Array or JTokenType.Object =>
+                                                    MakeCommonValue(v),
                                             },
                                         }
                                     );
@@ -339,7 +339,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             ProcessHandle != null
             && (
                 LifecycleState is not ComponentLifecycleState.Idle
-                    || !await TryIsProcessHandleAliveAsync()
+                || !await TryIsProcessHandleAliveAsync()
             );
         await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
@@ -574,8 +574,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             inPort.ClearProcessDisconnect();
 
         foreach (
-            var link in Shared.Shared
-                .AttachedLinks(this)
+            var link in Shared
+                .Shared.AttachedLinks(this)
                 .OfType<RememberCapnpPortsLinkModel>()
                 .Where(link => ReferenceEquals(link.OutPortModel.Parent, this))
         )
