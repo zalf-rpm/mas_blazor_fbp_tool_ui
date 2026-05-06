@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
@@ -200,17 +201,131 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: sending config on the fly"
                 );
 
+                Value MakeCommonValue(JToken jt)
+                {
+                    switch (jt.Type)
+                    {
+                        case JTokenType.String:
+                            return new Value { T = jt.Value<string>() };
+                        case JTokenType.Integer:
+                            return new Value { I64 = jt.Value<long>() };
+                        case JTokenType.Float:
+                            return new Value { F64 = jt.Value<double>() };
+                        case JTokenType.Boolean:
+                            return new Value { B = jt.Value<bool>() };
+                        case JTokenType.Array:
+                            if (jt is JArray arr)
+                            {
+                                var types = arr.Select(t => t.Type).ToHashSet();
+                                if (types.Count == 1)
+                                {
+                                    var x = arr.Select(t => new Value { T = t.Value<string>() })
+                                        .ToList();
+                                    switch (types.First())
+                                    {
+                                        case JTokenType.String:
+                                            return new Value
+                                            {
+                                                Lt = arr.Select(t => t.Value<string>()).ToList(),
+                                            };
+                                        case JTokenType.Integer:
+                                            return new Value
+                                            {
+                                                Li64 = arr.Select(t => t.Value<long>()).ToList(),
+                                            };
+                                        case JTokenType.Float:
+                                            return new Value
+                                            {
+                                                Lf64 = arr.Select(t => t.Value<double>()).ToList(),
+                                            };
+                                        case JTokenType.Boolean:
+                                            return new Value
+                                            {
+                                                Lb = arr.Select(t => t.Value<bool>()).ToList(),
+                                            };
+                                    }
+                                }
+                                var hl = new List<Value>();
+                                foreach (var t in arr)
+                                {
+                                    hl.Add(
+                                        t.Type switch
+                                        {
+                                            JTokenType.String => new Value
+                                            {
+                                                T = t.Value<string>(),
+                                            },
+                                            JTokenType.Integer => new Value
+                                            {
+                                                I64 = t.Value<long>(),
+                                            },
+                                            JTokenType.Float => new Value
+                                            {
+                                                F64 = t.Value<double>(),
+                                            },
+                                            JTokenType.Boolean => new Value { B = t.Value<bool>() },
+                                            JTokenType.Array => MakeCommonValue(t),
+                                            JTokenType.Object => MakeCommonValue(t),
+                                        }
+                                    );
+                                }
+                                return new Value { Lv = hl };
+                            }
+                            break;
+                        case JTokenType.Object:
+                            if (jt is JObject obj)
+                            {
+                                var pl = new List<Pair<object, object>>(); //string, Value>>();
+                                foreach (var (k, v) in obj)
+                                {
+                                    if (v == null)
+                                        continue;
+                                    pl.Add(
+                                        new Pair<object, object>()
+                                        { //}string, Value>() {
+                                            Fst = k,
+                                            Snd = v.Type switch
+                                            {
+                                                JTokenType.String => new Value
+                                                {
+                                                    T = v.Value<string>(),
+                                                },
+                                                JTokenType.Integer => new Value
+                                                {
+                                                    I64 = v.Value<long>(),
+                                                },
+                                                JTokenType.Float => new Value
+                                                {
+                                                    F64 = v.Value<double>(),
+                                                },
+                                                JTokenType.Boolean => new Value
+                                                {
+                                                    B = v.Value<bool>(),
+                                                },
+                                                JTokenType.Array => MakeCommonValue(v),
+                                                JTokenType.Object => MakeCommonValue(v),
+                                            },
+                                        }
+                                    );
+                                }
+                                return new Value { Lpair = pl };
+                            }
+
+                            break;
+                        case JTokenType.Null:
+                        default:
+                            return null;
+                    }
+
+                    return null;
+                }
+
                 //var model = Toml.ToModel(ConfigString);
                 var model = JObject.Parse(ConfigString);
                 foreach (var kv in model)
                 {
-                    var val = kv.Value.Type switch
-                    {
-                        JTokenType.String => new Value { T = kv.Value.Value<string>() },
-                        JTokenType.Integer => new Value { I64 = kv.Value.Value<long>() },
-                        JTokenType.Float => new Value { F64 = kv.Value.Value<double>() },
-                        JTokenType.Boolean => new Value { B = kv.Value.Value<bool>() },
-                    };
+                    var val = MakeCommonValue(kv.Value);
+                    //if (val != null)
                     await Process.SetConfigEntry(
                         new Process.ConfigEntry { Name = kv.Key, Val = val },
                         cancelToken
