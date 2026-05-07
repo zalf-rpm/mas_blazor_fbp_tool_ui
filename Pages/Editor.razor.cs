@@ -81,6 +81,7 @@ public partial class Editor
     private Component _draggedComponent;
     private string _draggedComponentServiceId;
     private bool _executingFlow;
+    private bool _loadingFlow;
     public BlazorDiagram Diagram { get; set; } = null!;
 
     private Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
@@ -638,6 +639,23 @@ public partial class Editor
         }
     }
 
+    private void QueueProcStructureSyncForLink(BaseLinkModel link)
+    {
+        if (_loadingFlow || link is not RememberCapnpPortsLinkModel { IsInternalProcLink: false } rememberedLink)
+            return;
+
+        if (rememberedLink.OutPortModel.Parent is CapnpFbpComponentModel sourceComponent)
+            sourceComponent.QueueProcStructureSync();
+        if (rememberedLink.InPortModel.Parent is CapnpFbpComponentModel targetComponent)
+            targetComponent.QueueProcStructureSync();
+    }
+
+    private async Task SyncProcStructureAsync(IEnumerable<CapnpFbpComponentModel> nodes)
+    {
+        foreach (var node in nodes.Where(node => node != null && !node.IsInternalProcChild).Distinct())
+            await node.EnsureProcStructureSynchronizedAsync();
+    }
+
     private static IEnumerable<NodeModel> GetNodesAffectingPortLayout(NodeModel node)
     {
         var nodes = new List<NodeModel> { node };
@@ -701,6 +719,7 @@ public partial class Editor
                     rememberedLink
                 );
                 RefreshPortLayout(l);
+                QueueProcStructureSyncForLink(rememberedLink);
                 return;
             }
 
@@ -759,6 +778,8 @@ public partial class Editor
             // Console.WriteLine($"Links.Added, LinkId={l.Id}, Source={l.Source}, Target={l.Target}");
             // events.Add($"Links.Added, LinkId={l.Id}");
         };
+
+        Diagram.Links.Removed += l => { QueueProcStructureSyncForLink(l); };
 
         // Diagram.Links.Removed += (l) => events.Add($"Links.Removed, LinkId={l.Id}");
 
@@ -902,160 +923,174 @@ public partial class Editor
         var dia = JObject.Parse(await new StreamReader(s).ReadToEndAsync());
         var oldNodeIdToNewNode = new Dictionary<string, NodeModel>();
 
+        _loadingFlow = true;
         Diagram.SuspendRefresh = true;
-        foreach (var node in dia["nodes"] ?? new JArray())
+        try
         {
-            if (node is not JObject nodeObj)
-                continue;
-
-            var position = new Point(
-                nodeObj["location"]?["x"]?.Value<double>() ?? 0,
-                nodeObj["location"]?["y"]?.Value<double>() ?? 0
-            );
-
-            var compId =
-                nodeObj["componentId"]?.ToString() ?? nodeObj["component_id"]?.ToString() ?? "";
-            var compServiceId = nodeObj["componentServiceId"]?.ToString() ?? NoRegistryServiceId;
-            Component component;
-            var cmd = "";
-            if (string.IsNullOrEmpty(compId) && nodeObj.TryGetValue("component", out var compDesc))
+            foreach (var node in dia["nodes"] ?? new JArray())
             {
-                component = CreateFromJson(compDesc);
-                cmd = compDesc["cmd"]?.ToString() ?? "";
-            }
-            else if (
-                !ServiceIdAndComponentId2Component.TryGetValue(
-                    (compServiceId, compId),
-                    out component
-                )
-            )
-            {
-                //there is no component service with the given component id
-                //let's try to find some service which offers that component
-                foreach (var (key, value) in ServiceIdAndComponentId2Component)
+                if (node is not JObject nodeObj)
+                    continue;
+
+                var position = new Point(
+                    nodeObj["location"]?["x"]?.Value<double>() ?? 0,
+                    nodeObj["location"]?["y"]?.Value<double>() ?? 0
+                );
+
+                var compId =
+                    nodeObj["componentId"]?.ToString() ?? nodeObj["component_id"]?.ToString() ?? "";
+                var compServiceId = nodeObj["componentServiceId"]?.ToString() ?? NoRegistryServiceId;
+                Component component;
+                var cmd = "";
+                if (string.IsNullOrEmpty(compId) && nodeObj.TryGetValue("component", out var compDesc))
                 {
-                    if (key.Item2 != compId)
-                        continue;
-                    component = value;
-                    nodeObj["componentServiceId"] = key.Item1;
-                    break;
+                    component = CreateFromJson(compDesc);
+                    cmd = compDesc["cmd"]?.ToString() ?? "";
+                }
+                else if (
+                    !ServiceIdAndComponentId2Component.TryGetValue(
+                        (compServiceId, compId),
+                        out component
+                    )
+                )
+                {
+                    //there is no component service with the given component id
+                    //let's try to find some service which offers that component
+                    foreach (var (key, value) in ServiceIdAndComponentId2Component)
+                    {
+                        if (key.Item2 != compId)
+                            continue;
+                        component = value;
+                        nodeObj["componentServiceId"] = key.Item1;
+                        break;
+                    }
+
+                    //no service with the correct component id available, make it an empty_component
+                    if (component == null)
+                    {
+                        component = nodeObj.ContainsKey("content")
+                            ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
+                            : ServiceIdAndComponentId2Component[
+                                (NoRegistryServiceId, "empty_component")
+                            ];
+                    }
                 }
 
-                //no service with the correct component id available, make it an empty_component
-                if (component == null)
+                var diaNode = AddFbpNode(position, component, nodeObj, cmd);
+                oldNodeIdToNewNode.Add(
+                    nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "",
+                    diaNode
+                );
+            }
+
+            foreach (var link in dia["links"] ?? new JArray())
+            {
+                if (link["source"] is not JObject source || link["target"] is not JObject target)
+                    continue;
+
+                var sourcePortName = source["port"]?.ToString();
+                var targetPortName = target["port"]?.ToString();
+                if (sourcePortName == null || targetPortName == null)
+                    continue;
+
+                if (
+                    !oldNodeIdToNewNode.TryGetValue(
+                        source["nodeId"]?.ToString() ?? source["node_id"]?.ToString() ?? "",
+                        out var sourceNode
+                    )
+                    || !oldNodeIdToNewNode.TryGetValue(
+                        target["nodeId"]?.ToString() ?? target["node_id"]?.ToString() ?? "",
+                        out var targetNode
+                    )
+                )
                 {
-                    component = nodeObj.ContainsKey("content")
-                        ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
-                        : ServiceIdAndComponentId2Component[
-                            (NoRegistryServiceId, "empty_component")
-                        ];
+                    continue;
                 }
+
+                if (
+                    sourceNode == null
+                    || sourceNode.Ports.Count == 0
+                    || targetNode == null
+                    || targetNode.Ports.Count == 0
+                )
+                    continue;
+
+                var sourcePort = sourceNode
+                    .Ports.Where(p =>
+                        p is CapnpFbpPortModel capnpPort && capnpPort.Name == sourcePortName
+                    )
+                    .DefaultIfEmpty(null)
+                    .First();
+                var noOfSourcePorts = sourceNode.Ports.Count(p =>
+                    p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out }
+                );
+                var targetPort = targetNode
+                    .Ports.Where(p =>
+                        p is CapnpFbpPortModel capnpPort && capnpPort.Name == targetPortName
+                    )
+                    .DefaultIfEmpty(null)
+                    .First();
+                var noOfTargetPorts = targetNode.Ports.Count(p =>
+                    p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
+                );
+                if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
+                {
+                    // Older flow files stored one of the former hard-coded IIP alignments.
+                    sourcePort = sourceNode.Ports.OfType<CapnpFbpOutPortModel>().FirstOrDefault();
+                }
+                if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
+                    sourcePort = AddPortControl.CreateAndAddPort(
+                        sn,
+                        CapnpFbpPortModel.PortType.Out,
+                        noOfSourcePorts,
+                        sourcePortName
+                    );
+                if (targetPort == null && targetNode is CapnpFbpComponentModel tn)
+                    targetPort = AddPortControl.CreateAndAddPort(
+                        tn,
+                        CapnpFbpPortModel.PortType.In,
+                        noOfTargetPorts,
+                        targetPortName
+                    );
+
+                if (sourcePort is CapnpFbpOutPortModel scp)
+                {
+                    scp.SyncVisibility();
+                }
+                else
+                {
+                    continue;
+                }
+                if (targetPort is CapnpFbpInPortModel tcp)
+                {
+                    tcp.SyncVisibility();
+                    tcp.SetKnownChannelBufferSize(
+                        link["bufferSize"]?.Value<ulong>()
+                            ?? link["buffer_size"]?.Value<ulong>()
+                            ?? tcp.ChannelBufferSize,
+                        refreshLinks: false
+                    );
+                }
+                else
+                {
+                    continue;
+                }
+
+                var l = new RememberCapnpPortsLinkModel(scp, tcp);
+                CapnpFbpPortColors.ApplyLinkColor(l);
+                var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
+                l.Labels.Add(cllm);
+                Diagram.Links.Add(l);
             }
-
-            var diaNode = AddFbpNode(position, component, nodeObj, cmd);
-            oldNodeIdToNewNode.Add(
-                nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "",
-                diaNode
-            );
         }
-
-        foreach (var link in dia["links"] ?? new JArray())
+        finally
         {
-            if (link["source"] is not JObject source || link["target"] is not JObject target)
-                continue;
-
-            var sourcePortName = source["port"]?.ToString();
-            var targetPortName = target["port"]?.ToString();
-            if (sourcePortName == null || targetPortName == null)
-                continue;
-
-            var sourceNode = oldNodeIdToNewNode[
-                source["nodeId"]?.ToString() ?? source["node_id"]?.ToString() ?? ""
-            ];
-            var targetNode = oldNodeIdToNewNode[
-                target["nodeId"]?.ToString() ?? target["node_id"]?.ToString() ?? ""
-            ];
-            if (
-                sourceNode == null
-                || sourceNode.Ports.Count == 0
-                || targetNode == null
-                || targetNode.Ports.Count == 0
-            )
-                continue;
-
-            var sourcePort = sourceNode
-                .Ports.Where(p =>
-                    p is CapnpFbpPortModel capnpPort && capnpPort.Name == sourcePortName
-                )
-                .DefaultIfEmpty(null)
-                .First();
-            var noOfSourcePorts = sourceNode.Ports.Count(p =>
-                p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out }
-            );
-            var targetPort = targetNode
-                .Ports.Where(p =>
-                    p is CapnpFbpPortModel capnpPort && capnpPort.Name == targetPortName
-                )
-                .DefaultIfEmpty(null)
-                .First();
-            var noOfTargetPorts = targetNode.Ports.Count(p =>
-                p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
-            );
-            if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
-            {
-                // Older flow files stored one of the former hard-coded IIP alignments.
-                sourcePort = sourceNode.Ports.OfType<CapnpFbpOutPortModel>().FirstOrDefault();
-            }
-            if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
-                sourcePort = AddPortControl.CreateAndAddPort(
-                    sn,
-                    CapnpFbpPortModel.PortType.Out,
-                    noOfSourcePorts,
-                    sourcePortName
-                );
-            if (targetPort == null && targetNode is CapnpFbpComponentModel tn)
-                targetPort = AddPortControl.CreateAndAddPort(
-                    tn,
-                    CapnpFbpPortModel.PortType.In,
-                    noOfTargetPorts,
-                    targetPortName
-                );
-            //if (sourcePort == null || targetPort == null) continue;
-            //Diagram.Links.Add(new LinkModel(sourcePort, targetPort));
-
-            if (sourcePort is CapnpFbpOutPortModel scp)
-            {
-                scp.SyncVisibility();
-            }
-            else
-            {
-                continue;
-            }
-            if (targetPort is CapnpFbpInPortModel tcp)
-            {
-                tcp.SyncVisibility();
-                tcp.SetKnownChannelBufferSize(
-                    link["bufferSize"]?.Value<ulong>()
-                        ?? link["buffer_size"]?.Value<ulong>()
-                        ?? tcp.ChannelBufferSize,
-                    refreshLinks: false
-                );
-            }
-            else
-            {
-                continue;
-            }
-
-            var l = new RememberCapnpPortsLinkModel(scp, tcp);
-            CapnpFbpPortColors.ApplyLinkColor(l);
-            var cllm = new ChannelLinkLabelModel(l, "Channel", 0.5);
-            l.Labels.Add(cllm);
-            Diagram.Links.Add(l);
+            Diagram.SuspendRefresh = false;
+            _loadingFlow = false;
         }
 
-        Diagram.SuspendRefresh = false;
+        await SyncProcStructureAsync(Diagram.Nodes.OfType<CapnpFbpComponentModel>());
         Diagram.Refresh();
-
         await InvokeAsync(ZoomToFitFlow);
     }
 
@@ -1119,6 +1154,14 @@ public partial class Editor
         var procIdCount = 2;
         HashSet<string> shortProcIds = [];
         Dictionary<string, string> uuid2ShortProcId = new();
+        var persistedLinks = Diagram.Links
+            .OfType<RememberCapnpPortsLinkModel>()
+            .Where(link =>
+                !link.IsInternalProcLink
+                && link.OutPortModel.Parent is not CapnpFbpComponentModel { IsInternalProcChild: true }
+                && link.InPortModel.Parent is not CapnpFbpComponentModel { IsInternalProcChild: true }
+            )
+            .ToHashSet();
 
         string ShortProcId(string oldId, string procName)
         {
@@ -1391,8 +1434,14 @@ public partial class Editor
 
             foreach (var pl in node.PortLinks.Concat(node.Links))
             {
-                if (!pl.IsAttached || pl is not RememberCapnpPortsLinkModel rcplm)
+                if (
+                    !pl.IsAttached
+                    || pl is not RememberCapnpPortsLinkModel rcplm
+                    || !persistedLinks.Contains(rcplm)
+                )
+                {
                     continue;
+                }
 
                 var outCapnpPort = rcplm.OutPortModel as CapnpFbpOutPortModel;
                 var inCapnpPort = rcplm.InPortModel as CapnpFbpInPortModel;

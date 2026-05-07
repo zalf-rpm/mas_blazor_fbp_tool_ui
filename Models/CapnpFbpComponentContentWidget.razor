@@ -21,9 +21,10 @@
                               @onpointerleave="_ => Node.Locked = false"
                               Label="Process name"
                               Variant="Variant.Outlined"/>
-                @if (ParallelOn)
+                @if (Node.ComponentModel.ProcControlsVisible)
                 {
                     <MudNumericField Class="d-inline-flex pr-6" Style="width: 80px;"
+                                     Disabled="@ProcTopologyLocked"
                                      @bind-Value="Node.ComponentModel.InParallelCount"
                                      Label="#Procs"
                                      Variant="Variant.Outlined"
@@ -175,12 +176,7 @@
     bool _alreadyRemoved = false;
 
     private bool _linesOn;
-
-    private bool ParallelOn
-    {
-        get => Node.ComponentModel.InParallelCount > 1;
-        set => Node.ComponentModel.InParallelCount = value ? 2 : 1;
-    }
+    private bool ProcTopologyLocked => Node.ComponentModel.ProcCountAdjustmentLocked;
 
     private bool ProcessStarted => Node.ComponentModel.ProcessStarted;
 

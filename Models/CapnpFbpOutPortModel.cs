@@ -36,8 +36,7 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel
 
     public void SyncLinkedWriterState()
     {
-        var linkedWriters = Links
-            .OfType<RememberCapnpPortsLinkModel>()
+        var linkedWriters = GetCountedLinksForUi()
             .Where(link => ReferenceEquals(link.OutPortModel, this))
             .ToList();
 
@@ -62,8 +61,7 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel
 
     public void SyncProcessConnectionState()
     {
-        Connected = Links
-            .OfType<RememberCapnpPortsLinkModel>()
+        Connected = GetCountedLinksForUi()
             .Where(link => ReferenceEquals(link.OutPortModel, this))
             .Any(link => link.ProcessOutConnected);
     }

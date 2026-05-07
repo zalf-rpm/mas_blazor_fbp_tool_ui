@@ -23,6 +23,8 @@
         if (_alreadyRemoved) return;
         Node.PortModel.Name = Node.PortName;
         Node.PortModel.Refresh();
+        if (Node.PortModel.Parent is CapnpFbpComponentModel component)
+            component.QueueProcStructureSync();
         Node.Container.Nodes.Remove(Node);
     }
 
@@ -33,6 +35,8 @@
         Node.Container.Nodes.Remove(Node);
         Node.PortModel.Name = Node.PortName;
         Node.PortModel.Refresh();
+        if (Node.PortModel.Parent is CapnpFbpComponentModel component)
+            component.QueueProcStructureSync();
         _alreadyRemoved = true;
     }
 }

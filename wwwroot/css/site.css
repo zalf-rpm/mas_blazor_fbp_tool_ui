@@ -426,3 +426,44 @@ a, .btn-link {
     top: 50%;
     right: 0;
 }
+
+.proc-stepper-count {
+    min-width: 2rem;
+}
+
+.proc-expand-toggle {
+    right: 8px;
+    bottom: 8px;
+    z-index: 4;
+    min-width: 0;
+    min-height: 0;
+}
+
+.proc-expand-toggle .mud-icon-button {
+    width: 22px;
+    height: 22px;
+    padding: 2px;
+    font-size: 16px;
+}
+
+.proc-expanded-row-state {
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+}
+
+.proc-expanded-diagram-port {
+    cursor: default;
+    z-index: 3;
+}
+
+.proc-expanded-diagram-port.left .diagram-port-label {
+    left: calc(100% + 6px);
+    right: auto;
+    text-align: left;
+}
+
+.proc-expanded-diagram-port.right .diagram-port-label {
+    right: calc(100% + 6px);
+    left: auto;
+    text-align: right;
+}

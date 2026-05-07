@@ -81,6 +81,8 @@
         foreach (var port in Node.NodeModel.Ports) port.Refresh();
 
         CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         Node.NodeModel.RefreshAll();
         Node.Container.Nodes.Remove(Node);
         StateHasChanged();
@@ -103,6 +105,8 @@
         Node.PortModel.Refresh();
 
         CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         Node.NodeModel?.RefreshAll();
         StateHasChanged();
     }
@@ -125,12 +129,16 @@
         Node.PortModel.Refresh();
 
         CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         Node.NodeModel?.RefreshAll();
         StateHasChanged();
     }
 
     void RemoveWidget()
     {
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         Node.Container.Nodes.Remove(Node);
     }
 
@@ -138,6 +146,8 @@
     {
         if (_alreadyRemoved) return;
         Node.PortModel.Refresh();
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         Node.Container.Nodes.Remove(Node);
     }
 
@@ -146,6 +156,8 @@
         if (e.Key != "Enter") return;
         Node.Container.Nodes.Remove(Node);
         Node.PortModel.Refresh();
+        if (Node.NodeModel is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         _alreadyRemoved = true;
     }
 

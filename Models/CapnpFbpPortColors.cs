@@ -17,8 +17,7 @@ public static class CapnpFbpPortColors
             return DefaultColor;
 
         var linkColors = port
-            .Links
-            .OfType<RememberCapnpPortsLinkModel>()
+            .GetCountedLinksForUi()
             .Select(link => NormalizeColor(link.Color))
             .Where(static color => color != null)
             .Cast<string>()
@@ -45,7 +44,7 @@ public static class CapnpFbpPortColors
 
     public static string ResolveComponentFrameColor(CapnpFbpComponentModel node)
     {
-        return ResolveLifecycleFrameColor(node.LifecycleState);
+        return ResolveLifecycleFrameColor(node.DisplayLifecycleState);
     }
 
     public static string ResolveActiveFrameColor(bool isReady)

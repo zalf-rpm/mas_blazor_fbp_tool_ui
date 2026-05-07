@@ -31,6 +31,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     public ProcessSchema.IProcessHandle ProcessHandle { get; set; }
 
     public ProcessSchema.IFactory ProcessFactory { get; set; }
+    protected override bool SupportsProcMultiplication => true;
 
     public override bool RemoteProcessAttached() => ProcessHandle != null || Process != null;
 
@@ -38,11 +39,33 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         ProcessFactory != null || ProcessHandle != null || Process != null;
 
     public bool SupportsLivePortChanges =>
-        Process != null && LifecycleState == ComponentLifecycleState.Running && !IsLifecycleBusy;
+        Process != null && LifecycleState == ComponentLifecycleState.Running;
+
+    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
+        new CapnpFbpProcessComponentModel(
+            $"{Id}__proc_{displayIndex}",
+            Position == null ? null : new Point(Position.X, Position.Y)
+        );
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
-        if (Editor.CurrentChannelStarterService == null || ProcessFactory == null || !CanStart)
+        await StartSingleProcessAsync(conMan);
+        if (!IsInternalProcChild && LifecycleState == ComponentLifecycleState.Running)
+            await StartOwnedProcChildrenAsync(conMan);
+    }
+
+    private async Task StartSingleProcessAsync(ConnectionManager conMan)
+    {
+        if (
+            Editor.CurrentChannelStarterService == null
+            || ProcessFactory == null
+            || LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
+            || LifecycleState is not (
+                ComponentLifecycleState.Idle
+                or ComponentLifecycleState.Failed
+                or ComponentLifecycleState.Closed
+            )
+        )
         {
             return;
         }
@@ -296,6 +319,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             var started = await Process.Start(cancelToken);
             if (!started)
                 throw new InvalidOperationException($"Process '{ProcessName}' failed to start.");
+            SetLifecycleState(ComponentLifecycleState.Running, refresh: true);
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process start launched"
             );
@@ -315,7 +339,18 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     public override async Task StopProcess(ConnectionManager conMan)
     {
-        if (IsLifecycleBusy || !CanStop)
+        if (!IsInternalProcChild)
+            await StopOwnedProcChildrenAsync(conMan);
+
+        await StopSingleProcessAsync(conMan);
+    }
+
+    private async Task StopSingleProcessAsync(ConnectionManager conMan)
+    {
+        if (
+            LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
+            || LifecycleState != ComponentLifecycleState.Running
+        )
             return;
 
         SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
@@ -335,6 +370,14 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     public override async Task ResetExecution()
     {
+        if (!IsInternalProcChild)
+            await ResetOwnedProcChildrenAsync();
+
+        await ResetSingleExecutionAsync();
+    }
+
+    private async Task ResetSingleExecutionAsync()
+    {
         var shouldStopExistingRuntime =
             ProcessHandle != null
             && (
@@ -346,6 +389,14 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     }
 
     protected override async Task ShutdownForComponentServiceSwitchAsync()
+    {
+        if (!IsInternalProcChild)
+            await ShutdownOwnedProcChildrenAsync();
+
+        await ShutdownSingleForComponentServiceSwitchAsync();
+    }
+
+    private async Task ShutdownSingleForComponentServiceSwitchAsync()
     {
         if (Process != null)
             await TryStopRemoteProcessAsync();
@@ -362,6 +413,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             component.Factory?.which == Component.factory.WHICH.Process
                 ? Capnp.Rpc.Proxy.Share(component.Factory.Process)
                 : null;
+    }
+
+    protected override void CopyProcBindingTo(CapnpFbpComponentModel child)
+    {
+        if (child is not CapnpFbpProcessComponentModel processChild)
+            return;
+
+        processChild.ProcessFactory =
+            ProcessFactory != null ? Capnp.Rpc.Proxy.Share(ProcessFactory) : null;
     }
 
     protected override async ValueTask DisposeAsyncCore()

@@ -1,4 +1,6 @@
 @using System.Diagnostics
+@using System.Globalization
+@using System.Linq
 @using BlazorDrawFBP.Controls
 @using BlazorDrawFBP.Renderers
 @using Mas.Infrastructure.BlazorComponents
@@ -8,12 +10,12 @@
 @inject IDialogService DialogService
 @* @inject BlazorDispatcher Dispatcher *@
 
-<div>
-    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
+<div class="relative overflow-visible" style="@ShellStyle">
+    <MudPaper Style="@CompactCardStyle" Class="relative overflow-visible d-flex flex-column align-content-space-between"
               Elevation="0">
-        <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
-                                    Label="@LifecycleIndicatorLabel"
-                                    Error="@Node.LifecycleError" />
+        <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
+                                     Label="@LifecycleIndicatorLabel"
+                                     Error="@Node.DisplayLifecycleError" />
         @code {
             bool _changeComponentServiceId;
         }
@@ -54,30 +56,39 @@
         }
         <MudGrid Justify="Justify.Center" Spacing="1">
             <MudItem xs="5">
-                <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
-                          Elevation="0">
+                <div class="d-flex align-center mud-width-full pl-3 pt-3">
                     <MudButton Color="@Color.Primary"
                                Disabled="@Node.IsLifecycleBusy"
                                StartIcon="@LifecycleButtonIcon"
                                OnClick="@HandleLifecycleAction">
                         @LifecycleButtonText
                     </MudButton>
-                </MudPaper>
+                </div>
             </MudItem>
-            <MudItem Class="align-content-end" xs="7">
-                <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    @if (ParallelOn) {
-                        <MudNumericField Style="width: 45px;"
-                                         @bind-Value="Node.InParallelCount"
-                                         Min="1" Max="10000"/>
+            <MudItem xs="7">
+                <div class="d-flex align-center justify-end mud-width-full pr-3 pt-3">
+                    @if (Node.ProcControlsVisible) {
+                        <MudPaper Class="d-inline-flex align-center gap-1 px-1 py-1 rounded-pill"
+                                  Outlined="true"
+                                  Elevation="0">
+                            <MudIconButton Class="ma-0"
+                                           Icon="@Icons.Material.Filled.Remove"
+                                           Color="Color.Primary"
+                                           Disabled="@ProcCountDecreaseDisabled"
+                                           Size="Size.Small"
+                                           OnClick="@DecreaseProcCount" />
+                            <MudText Typo="Typo.button" Align="Align.Center" Class="proc-stepper-count px-1">
+                                @Node.InParallelCount
+                            </MudText>
+                            <MudIconButton Class="ma-0"
+                                           Icon="@Icons.Material.Filled.Add"
+                                           Color="Color.Primary"
+                                           Disabled="@ProcCountIncreaseDisabled"
+                                           Size="Size.Small"
+                                           OnClick="@IncreaseProcCount" />
+                        </MudPaper>
                     }
-                    <MudButton Color="@Color.Primary"
-                               OnClick="() => { ParallelOn = !ParallelOn; }"
-                               EndIcon="@(ParallelOn ? Icons.Material.Filled.LooksOne : Icons.Material.Filled.AddBox)">
-                        Procs
-                    </MudButton>
-                </MudPaper>
+                </div>
             </MudItem>
         </MudGrid>
         <MudGrid Class="flex-grow-1" Justify="Justify.Center" Spacing="1">
@@ -195,8 +206,73 @@
                 }
             </MudItem>
         </MudGrid>
+        @if (Node.HasProcChildren) {
+            <MudPaper Class="proc-expand-toggle absolute d-inline-flex align-center justify-center rounded-pill"
+                      Outlined="true"
+                      Elevation="0">
+                <MudIconButton Class="ma-0"
+                               Icon="@(Node.ProcChildrenExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="() => Node.ProcChildrenExpanded = !Node.ProcChildrenExpanded" />
+            </MudPaper>
+        }
     </MudPaper>
-    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
+
+    @if (Node.ProcChildrenExpanded && Node.HasProcChildren) {
+        <MudStack Spacing="2" Class="relative py-3 overflow-visible">
+            @foreach (var row in ExpandedProcRows) {
+                var procNode = row.Node;
+                var inputPorts = GetProcPorts(procNode, CapnpFbpPortModel.PortType.In);
+                var outputPorts = GetProcPorts(procNode, CapnpFbpPortModel.PortType.Out);
+                var procRowHeight = row.HeightPx;
+                <MudTooltip Text="@GetProcRowLifecycleLabel(procNode)" Delay="300" Arrow="true">
+                    <MudPaper Class="relative d-flex align-center justify-center rounded-lg overflow-visible"
+                              Outlined="true"
+                              Elevation="0"
+                              Style="@GetProcRowStyle(procNode, procRowHeight)">
+                        @for (var portIndex = 0; portIndex < inputPorts.Count; portIndex++) {
+                            var port = inputPorts[portIndex];
+                            <div class="@GetProcDiagramPortClass(port, CapnpFbpPortModel.PortType.In)"
+                                 style="@GetProcDiagramPortStyle(procNode, port, procRowHeight, portIndex, inputPorts.Count)"
+                                 @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(port))"
+                                 @onmouseleave="@(() => CardToolTipText = new MarkupString())">
+                                <span class="diagram-port-shell">
+                                    <span class="diagram-port-icon in"></span>
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(GetProcPortLabel(port))) {
+                                    <span class="diagram-port-label">@GetProcPortLabel(port)</span>
+                                }
+                            </div>
+                        }
+
+                        <MudPaper Class="relative d-inline-flex align-center justify-center rounded-pill px-2"
+                                  Elevation="0"
+                                  Style="@GetProcRowCoreStyle()">
+                            <span class="d-inline-block rounded-pill proc-expanded-row-state"
+                                  style="@GetProcStateStyle(procNode)"></span>
+                        </MudPaper>
+
+                        @for (var portIndex = 0; portIndex < outputPorts.Count; portIndex++) {
+                            var port = outputPorts[portIndex];
+                            <div class="@GetProcDiagramPortClass(port, CapnpFbpPortModel.PortType.Out)"
+                                 style="@GetProcDiagramPortStyle(procNode, port, procRowHeight, portIndex, outputPorts.Count)"
+                                 @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(port))"
+                                 @onmouseleave="@(() => CardToolTipText = new MarkupString())">
+                                <span class="diagram-port-shell">
+                                    <span class="diagram-port-icon out"></span>
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(GetProcPortLabel(port))) {
+                                    <span class="diagram-port-label">@GetProcPortLabel(port)</span>
+                                }
+                            </div>
+                        }
+                    </MudPaper>
+                </MudTooltip>
+            }
+        </MudStack>
+    }
+    <MudText Class="mud-width-full" Typo="Typo.subtitle1" Align="Align.Center">
         @CardToolTipText
     </MudText>
 
@@ -215,39 +291,40 @@
 @code {
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
 
-    private string CardStyle =>
-        $"height: {(Node.Size?.Height ?? Shared.CardHeight)}px; width: {(Node.Size?.Width ?? Shared.CardWidth)}px;{FrameWidth};{FrameColor}";
-
     private const string FrameWidth = "border-width: 1px";
     private string FrameBorderColorValue => CapnpFbpPortColors.ResolveComponentFrameColor(Node);
     private string FrameColor => $"border-color: {FrameBorderColorValue}";
+    private double NodeWidthPx => Node.Size?.Width ?? Shared.CardWidth;
+    private double NodeHeightPx => Node.Size?.Height ?? Shared.CardHeight;
+    private string ShellStyle => $"width: {ToPx(NodeWidthPx)}px; height: {ToPx(NodeHeightPx)}px;";
+    private string CompactCardStyle =>
+        $"height: {ToPx(Shared.CardHeight)}px; width: {ToPx(NodeWidthPx)}px;{FrameWidth};{FrameColor}";
+    private bool ProcTopologyLocked => Node.ProcCountAdjustmentLocked;
+    private bool ProcCountIncreaseDisabled => ProcTopologyLocked;
+    private bool ProcCountDecreaseDisabled => ProcTopologyLocked || Node.InParallelCount <= 1;
     private string LifecycleButtonText => Node.IsLifecycleBusy
-        ? $"{Node.LifecycleLabel}..."
-        : Node.LifecycleState switch
+        ? $"{Node.DisplayLifecycleLabel}..."
+        : Node.DisplayLifecycleState switch
     {
         ComponentLifecycleState.Running => "Stop",
         ComponentLifecycleState.Failed => "Retry",
         ComponentLifecycleState.Closed => "Reconnect",
-        ComponentLifecycleState.Idle when Node.RemoteProcessAttached() => "Run",
+        ComponentLifecycleState.Idle when Node.AnyProcRuntimeAttached => "Run",
         _ => "Start",
     };
-    private string LifecycleButtonIcon => Node.LifecycleState switch
+    private string LifecycleButtonIcon => Node.DisplayLifecycleState switch
     {
         ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
         _ => Icons.Material.Filled.PlayCircle,
     };
     private string LifecycleIndicatorLabel =>
-        Node.LifecycleState == ComponentLifecycleState.Idle && !Node.RemoteProcessAttached()
+        Node.DisplayLifecycleState == ComponentLifecycleState.Idle && !Node.AnyProcRuntimeAttached
             ? "Not started"
-            : Node.LifecycleLabel;
+            : Node.DisplayLifecycleLabel;
 
     private MarkupString CardToolTipText { get; set; }
-    private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? Shared.CardWidth)}px;";
-
-    private bool ParallelOn {
-        get => Node.InParallelCount > 1;
-        set => Node.InParallelCount = value ? 2 : 1;
-    }
+    private IReadOnlyList<CapnpFbpComponentModel.ProcDisplayRowLayout> ExpandedProcRows =>
+        Node.GetExpandedProcRowLayouts();
 
     protected override void OnInitialized()
     {
@@ -263,6 +340,10 @@
 
         StateHasChanged();
     }
+
+    private Task IncreaseProcCount() => Node.AdjustProcCountAsync(1);
+
+    private Task DecreaseProcCount() => Node.AdjustProcCountAsync(-1);
 
     private async Task SelectComponentServiceAsync(string componentServiceId)
     {
@@ -304,5 +385,59 @@
 
         Node.RefreshAll();
     }
+
+    private IReadOnlyList<CapnpFbpPortModel> GetProcPorts(CapnpFbpComponentModel child, CapnpFbpPortModel.PortType type) =>
+        child.Ports
+            .OfType<CapnpFbpPortModel>()
+            .Where(port => port.ThePortType == type && port.GetCountedLinksForUi().Any())
+            .OrderBy(port => port.OrderNo)
+            .ToList();
+
+    private static string GetProcRowStyle(CapnpFbpComponentModel child, double rowHeightPx) =>
+        $"border-color: {GetProcRowFrameColor(child)}; "
+        + $"min-height: {ToPx(rowHeightPx)}px; padding: 0 68px; background-color: rgba(255, 255, 255, 0.96);";
+
+    private static string GetProcRowCoreStyle() =>
+        "min-width: 34px; min-height: 20px; background-color: rgba(255, 255, 255, 0.96); z-index: 2;";
+
+    private static string GetProcStateStyle(CapnpFbpComponentModel child) =>
+        "width: 10px; height: 10px; "
+        + $"background-color: {GetProcRowFrameColor(child)};";
+
+    private static string GetProcDiagramPortClass(
+        CapnpFbpPortModel port,
+        CapnpFbpPortModel.PortType type
+    ) =>
+        "diagram-port "
+        + (type == CapnpFbpPortModel.PortType.In ? "left in " : "right out ")
+        + (port.ConnectedChannelCount > 0 ? "has-links " : "")
+        + (!port.CanAcceptMoreConnections ? "disabled " : "")
+        + (port.Visibility == CapnpFbpPortModel.VisibilityState.Dashed ? "dashed " : "")
+        + "proc-expanded-diagram-port";
+
+    private static string GetProcDiagramPortStyle(
+        CapnpFbpComponentModel procNode,
+        CapnpFbpPortModel port,
+        double rowHeightPx,
+        int portIndex,
+        int portCount
+    ) =>
+        $"top: {ToPx(CapnpFbpComponentModel.GetExpandedProcPortCenterOffset(portIndex, portCount, rowHeightPx))}px;"
+        + $"--port-shell-color: {GetProcRowFrameColor(procNode)};"
+        + $"--port-icon-color: {CapnpFbpPortColors.ResolvePortIconColor(port)};";
+
+    private static string GetProcPortLabel(CapnpFbpPortModel port) =>
+        port.IsArrayPort ? $"{port.Name} [{port.ConnectedChannelCount}]" : port.Name;
+
+    private static string GetProcRowLifecycleLabel(CapnpFbpComponentModel procNode) =>
+        procNode.LifecycleState == ComponentLifecycleState.Idle && !procNode.AnyProcRuntimeAttached
+            ? "Not started"
+            : procNode.LifecycleLabel;
+
+    private static string GetProcRowFrameColor(CapnpFbpComponentModel procNode) =>
+        CapnpFbpPortColors.ResolveLifecycleFrameColor(procNode.LifecycleState);
+
+    private static string ToPx(double value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
 
 }

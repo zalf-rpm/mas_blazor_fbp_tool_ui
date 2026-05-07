@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
@@ -67,7 +68,7 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public VisibilityState Visibility { get; set; } = VisibilityState.Visible;
 
-    public int ConnectedChannelCount => Links.OfType<RememberCapnpPortsLinkModel>().Count();
+    public int ConnectedChannelCount => GetCountedLinksForUi().Count();
 
     public bool CanAcceptMoreConnections =>
         ThePortType == PortType.In || IsArrayPort || ConnectedChannelCount == 0;
@@ -93,8 +94,7 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public void SyncVisibility(BaseLinkModel ignoredLink = null)
     {
-        var remainingConnections = Links
-            .OfType<RememberCapnpPortsLinkModel>()
+        var remainingConnections = GetCountedLinksForUi()
             .Count(link => !ReferenceEquals(link, ignoredLink));
 
         Visibility = ThePortType switch
@@ -153,4 +153,9 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     }
 
     protected virtual async ValueTask DisposeAsyncCore() { }
+
+    public IEnumerable<RememberCapnpPortsLinkModel> GetCountedLinksForUi()
+    {
+        return Links.OfType<RememberCapnpPortsLinkModel>();
+    }
 }
