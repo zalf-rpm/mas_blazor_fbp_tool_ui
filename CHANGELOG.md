@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.6.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.5.0...v1.6.0) (2026-05-08)
+
+
+### Features
+
+* add proper start stop and cleanup logic when switching component services ([fb907c7](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/fb907c7fcc10292a218ecafcbe276eee320369ab))
+* redesign link label make expandible and see buffer state and increase size ([db5b776](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/db5b7766b4cf5233d4e2b7cc3eafacaeafc04ed2))
+
+
+### Bug Fixes
+
+* prevent unresolvable failure state ([048152d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/048152dbea6b285b557f505e6868c2a59b31a589))
+* use less chars until shorting process name ([65a1546](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/65a154673171d4ede2701bfd735304117ff5860f))
+
 ## [1.5.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.4.0...v1.5.0) (2026-05-05)
 
 
