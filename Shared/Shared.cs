@@ -151,13 +151,13 @@ public static class Shared
                 inPort.Channel = (si.Item1[0].Channel as Channel_Proxy<object>)?.Cast<IChannel<IP>>(
                     false
                 );
-                inPort.SetKnownChannelBufferSize(si.Item1[0].BufferSize);
-                if (outPort.Parent != null && inPort.Parent != null && inPort.Channel != null)
-                {
-                    await inPort.Channel.SetAutoCloseSemantics(Channel<IP>.CloseSemantics.no);
-                    if (requestedBufferSize != inPort.ChannelBufferSize)
-                        await inPort.SetChannelBufferSizeAsync(requestedBufferSize);
-                }
+                // inPort.SetKnownChannelBufferSize(si.Item1[0].BufferSize);
+                // if (outPort.Parent != null && inPort.Parent != null && inPort.Channel != null)
+                // {
+                //     await inPort.Channel.SetAutoCloseSemantics(Channel<IP>.CloseSemantics.no);
+                //     if (requestedBufferSize != inPort.ChannelBufferSize)
+                //         await inPort.SetChannelBufferSizeAsync(requestedBufferSize);
+                // }
                 // attach stop channel cap to IN port
                 inPort.StopChannel = si.Item2;
                 inPort.Parent?.Refresh();
@@ -346,8 +346,8 @@ public static class Shared
     )
     {
         var excludedNodeSet = excludedNodes?.Where(node => node != null).ToHashSet() ?? [];
-        var affectedLinks = diagram.Links
-            .OfType<RememberCapnpPortsLinkModel>()
+        var affectedLinks = diagram
+            .Links.OfType<RememberCapnpPortsLinkModel>()
             .Where(link => ReferenceEquals(link.InPortModel, removedLink.InPortModel))
             .ToList();
         var affectedOutPorts = affectedLinks
@@ -364,15 +364,19 @@ public static class Shared
             .ToList();
         var lastWriterRemoved = remainingLinks.Count == 0;
         IEnumerable<Model> candidateNodesToReset = lastWriterRemoved
-            ? affectedOutPorts.Select(port => port.Parent).Append(removedLink.InPortModel.Parent).OfType<Model>()
+            ? affectedOutPorts
+                .Select(port => port.Parent)
+                .Append(removedLink.InPortModel.Parent)
+                .OfType<Model>()
             : new Model[] { removedLink.OutPortModel.Parent as Model };
         var nodesToReset = candidateNodesToReset
             .Where(node => node != null && !excludedNodeSet.Contains(node))
             .Distinct()
             .Where(RequiresLifecycleResetOnChannelRemoval)
             .ToList();
-        IReadOnlyCollection<RememberCapnpPortsLinkModel> linksToDisconnect =
-            lastWriterRemoved ? affectedLinks : new[] { removedLink };
+        IReadOnlyCollection<RememberCapnpPortsLinkModel> linksToDisconnect = lastWriterRemoved
+            ? affectedLinks
+            : new[] { removedLink };
 
         foreach (var node in nodesToReset)
         {
