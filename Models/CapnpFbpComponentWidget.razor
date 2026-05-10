@@ -1,3 +1,5 @@
+@using System
+@using System.Collections.Generic
 @using System.Diagnostics
 @using System.Globalization
 @using System.Linq
@@ -6,16 +8,18 @@
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Infrastructure.Common
 @using Newtonsoft.Json.Linq
+@using ProcessSchema = Mas.Schema.Fbp.Process
 @inject ConnectionManager ConMan
 @inject IDialogService DialogService
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div class="relative overflow-visible" style="@ShellStyle">
-    <MudPaper Style="@CompactCardStyle" Class="relative overflow-visible d-flex flex-column align-content-space-between"
+    <MudPaper Style="@CompactCardStyle" Class="@CompactCardClass"
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
                                      Label="@LifecycleIndicatorLabel"
-                                     Error="@Node.DisplayLifecycleError" />
+                                     Error="@Node.DisplayLifecycleError"
+                                     TooltipText="@LifecycleIndicatorTooltip" />
         @code {
             bool _changeComponentServiceId;
         }
@@ -227,10 +231,10 @@
                 var outputPorts = GetProcPorts(procNode, CapnpFbpPortModel.PortType.Out);
                 var procRowHeight = row.HeightPx;
                 <MudTooltip Text="@GetProcRowLifecycleLabel(procNode)" Delay="300" Arrow="true">
-                    <MudPaper Class="relative d-flex align-center justify-center rounded-lg overflow-visible"
-                              Outlined="true"
-                              Elevation="0"
-                              Style="@GetProcRowStyle(procNode, procRowHeight)">
+                    <MudPaper Class="@GetProcRowClass(procNode)"
+                               Outlined="true"
+                               Elevation="0"
+                               Style="@GetProcRowStyle(procNode, procRowHeight)">
                         @for (var portIndex = 0; portIndex < inputPorts.Count; portIndex++) {
                             var port = inputPorts[portIndex];
                             <div class="@GetProcDiagramPortClass(port, CapnpFbpPortModel.PortType.In)"
@@ -283,7 +287,8 @@
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="port"
                                   Port="capnpPort"
-                                  SocketColor="@FrameBorderColorValue" />
+                                  SocketColor="@GetSocketColor(capnpPort)"
+                                  IconColor="@GetPortIconColor(capnpPort)" />
         </div>
     }
 </div>
@@ -292,11 +297,16 @@
     [Parameter] public CapnpFbpComponentModel Node { get; set; } = null!;
 
     private const string FrameWidth = "border-width: 1px";
-    private string FrameBorderColorValue => CapnpFbpPortColors.ResolveComponentFrameColor(Node);
+    private string FrameBorderColorValue => ResolveFrameColor(Node, aggregateProcChildren: true);
     private string FrameColor => $"border-color: {FrameBorderColorValue}";
     private double NodeWidthPx => Node.Size?.Width ?? Shared.CardWidth;
     private double NodeHeightPx => Node.Size?.Height ?? Shared.CardHeight;
     private string ShellStyle => $"width: {ToPx(NodeWidthPx)}px; height: {ToPx(NodeHeightPx)}px;";
+    private string CompactCardClass =>
+        "relative overflow-visible d-flex flex-column align-content-space-between activity-state-frame"
+        + (ShouldAnimateFrame(Node, aggregateProcChildren: true)
+            ? " processing-activity-frame"
+            : string.Empty);
     private string CompactCardStyle =>
         $"height: {ToPx(Shared.CardHeight)}px; width: {ToPx(NodeWidthPx)}px;{FrameWidth};{FrameColor}";
     private bool ProcTopologyLocked => Node.ProcCountAdjustmentLocked;
@@ -321,6 +331,7 @@
         Node.DisplayLifecycleState == ComponentLifecycleState.Idle && !Node.AnyProcRuntimeAttached
             ? "Not started"
             : Node.DisplayLifecycleLabel;
+    private string LifecycleIndicatorTooltip => GetLifecycleTooltip(Node, aggregateProcChildren: true);
 
     private MarkupString CardToolTipText { get; set; }
     private IReadOnlyList<CapnpFbpComponentModel.ProcDisplayRowLayout> ExpandedProcRows =>
@@ -397,6 +408,15 @@
         $"border-color: {GetProcRowFrameColor(child)}; "
         + $"min-height: {ToPx(rowHeightPx)}px; padding: 0 68px; background-color: rgba(255, 255, 255, 0.96);";
 
+    private string GetSocketColor(CapnpFbpPortModel port) =>
+        ResolveActivityPortColor(Node, port, aggregateProcChildren: true)
+        ?? CapnpFbpPortColors.ResolvePortShellColor(port)
+        ?? FrameBorderColorValue;
+
+    private string GetPortIconColor(CapnpFbpPortModel port) =>
+        ResolveActivityPortColor(Node, port, aggregateProcChildren: true)
+        ?? CapnpFbpPortColors.ResolvePortIconColor(port);
+
     private static string GetProcRowCoreStyle() =>
         "min-width: 34px; min-height: 20px; background-color: rgba(255, 255, 255, 0.96); z-index: 2;";
 
@@ -423,19 +443,179 @@
         int portCount
     ) =>
         $"top: {ToPx(CapnpFbpComponentModel.GetExpandedProcPortCenterOffset(portIndex, portCount, rowHeightPx))}px;"
-        + $"--port-shell-color: {GetProcRowFrameColor(procNode)};"
-        + $"--port-icon-color: {CapnpFbpPortColors.ResolvePortIconColor(port)};";
+        + $"--port-shell-color: {ResolveActivityPortColor(procNode, port, aggregateProcChildren: false) ?? CapnpFbpPortColors.ResolvePortShellColor(port) ?? GetProcRowFrameColor(procNode)};"
+        + $"--port-icon-color: {ResolveActivityPortColor(procNode, port, aggregateProcChildren: false) ?? CapnpFbpPortColors.ResolvePortIconColor(port)};";
 
     private static string GetProcPortLabel(CapnpFbpPortModel port) =>
         port.IsArrayPort ? $"{port.Name} [{port.ConnectedChannelCount}]" : port.Name;
 
+    private static string GetProcRowClass(CapnpFbpComponentModel procNode) =>
+        "relative d-flex align-center justify-center rounded-lg overflow-visible activity-state-frame"
+        + (ShouldAnimateFrame(procNode, aggregateProcChildren: false)
+            ? " processing-activity-frame"
+            : string.Empty);
+
     private static string GetProcRowLifecycleLabel(CapnpFbpComponentModel procNode) =>
-        procNode.LifecycleState == ComponentLifecycleState.Idle && !procNode.AnyProcRuntimeAttached
-            ? "Not started"
-            : procNode.LifecycleLabel;
+        GetLifecycleTooltip(procNode, aggregateProcChildren: false);
 
     private static string GetProcRowFrameColor(CapnpFbpComponentModel procNode) =>
-        CapnpFbpPortColors.ResolveLifecycleFrameColor(procNode.LifecycleState);
+        ResolveFrameColor(procNode, aggregateProcChildren: false);
+
+    private static string GetLifecycleTooltip(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        var lines = new List<string> { GetLifecycleLabel(node, aggregateProcChildren) };
+        lines.AddRange(GetActivityTooltipLines(node, aggregateProcChildren));
+
+        var lifecycleState = aggregateProcChildren ? node.DisplayLifecycleState : node.LifecycleState;
+        var lifecycleError = aggregateProcChildren ? node.DisplayLifecycleError : node.LifecycleError;
+        if (lifecycleState == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(lifecycleError))
+            lines.Add(lifecycleError);
+
+        return string.Join(
+            Environment.NewLine,
+            lines.Where(line => !string.IsNullOrWhiteSpace(line))
+        );
+    }
+
+    private static string GetLifecycleLabel(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        if (aggregateProcChildren)
+        {
+            return node.DisplayLifecycleState == ComponentLifecycleState.Idle
+                    && !node.AnyProcRuntimeAttached
+                ? "Not started"
+                : node.DisplayLifecycleLabel;
+        }
+
+        return node.LifecycleState == ComponentLifecycleState.Idle && !node.AnyProcRuntimeAttached
+            ? "Not started"
+            : node.LifecycleLabel;
+    }
+
+    private static IReadOnlyList<string> GetActivityTooltipLines(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        var activityNodes = GetProcessNodes(node, aggregateProcChildren)
+            .Where(ShouldDisplayActivity)
+            .ToList();
+        if (activityNodes.Count == 0)
+            return Array.Empty<string>();
+
+        if (!aggregateProcChildren || activityNodes.Count == 1)
+            return new[] { $"Activity: {activityNodes[0].ActivitySummary}" };
+
+        var groupedActivities = activityNodes
+            .GroupBy(procNode => procNode.ActivitySummary)
+            .OrderBy(group => GetActivitySortOrder(group.First().ActivityState))
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var lines = new List<string> { "Activities:" };
+        foreach (var group in groupedActivities)
+        {
+            var groupCountSuffix = group.Count() > 1 ? $" ({group.Count()})" : string.Empty;
+            lines.Add($"- {group.Key}{groupCountSuffix}");
+        }
+
+        return lines;
+    }
+
+    private static int GetActivitySortOrder(ProcessSchema.ActivityState activityState) =>
+        activityState switch
+        {
+            ProcessSchema.ActivityState.waitingInput => 0,
+            ProcessSchema.ActivityState.processing => 1,
+            ProcessSchema.ActivityState.waitingOutput => 2,
+            ProcessSchema.ActivityState.closing => 3,
+            _ => 4,
+        };
+
+    private static bool ShouldAnimateFrame(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    ) => GetProcessNodes(node, aggregateProcChildren).Any(procNode => procNode.IsProcessingActivity);
+
+    private static bool ShouldDisplayActivity(CapnpFbpProcessComponentModel procNode) =>
+        procNode.LifecycleState == ComponentLifecycleState.Running
+        || procNode.ActivityState == ProcessSchema.ActivityState.closing;
+
+    private static string ResolveActivityPortColor(
+        CapnpFbpComponentModel node,
+        CapnpFbpPortModel port,
+        bool aggregateProcChildren
+    )
+    {
+        var waitingNode = GetProcessNodes(node, aggregateProcChildren).FirstOrDefault(procNode =>
+            procNode.IsWaitingOnPort(port)
+        );
+        return waitingNode == null
+            ? null
+            : CapnpFbpPortColors.ResolveActivityColor(waitingNode.ActivityState);
+    }
+
+    private static string ResolveFrameColor(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        var activityState = ResolveDisplayActivityState(node, aggregateProcChildren);
+        if (activityState.HasValue)
+            return CapnpFbpPortColors.ResolveActivityColor(activityState.Value);
+
+        var lifecycleState = aggregateProcChildren ? node.DisplayLifecycleState : node.LifecycleState;
+        return CapnpFbpPortColors.ResolveLifecycleFrameColor(lifecycleState);
+    }
+
+    private static ProcessSchema.ActivityState? ResolveDisplayActivityState(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        var activityNodes = GetProcessNodes(node, aggregateProcChildren)
+            .Where(ShouldDisplayActivity)
+            .ToList();
+        if (activityNodes.Count == 0)
+            return null;
+
+        return activityNodes
+            .Select(procNode => procNode.ActivityState)
+            .OrderBy(GetActivityFramePriority)
+            .First();
+    }
+
+    private static int GetActivityFramePriority(ProcessSchema.ActivityState activityState) =>
+        activityState switch
+        {
+            ProcessSchema.ActivityState.processing => 0,
+            ProcessSchema.ActivityState.waitingInput => 1,
+            ProcessSchema.ActivityState.waitingOutput => 2,
+            ProcessSchema.ActivityState.closing => 3,
+            _ => 4,
+        };
+
+    private static IEnumerable<CapnpFbpProcessComponentModel> GetProcessNodes(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        if (node is not CapnpFbpProcessComponentModel processNode)
+            return Enumerable.Empty<CapnpFbpProcessComponentModel>();
+
+        if (!aggregateProcChildren)
+            return new[] { processNode };
+
+        return new[] { processNode }.Concat(
+            node.ProcChildComponents.OfType<CapnpFbpProcessComponentModel>()
+        );
+    }
 
     private static string ToPx(double value) =>
         value.ToString("0.###", CultureInfo.InvariantCulture);

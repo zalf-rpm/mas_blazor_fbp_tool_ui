@@ -27,6 +27,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     private CancellationTokenSource _cancellationTokenSource;
     private ProcessStateTransition _processStateTransitionCallback;
+    private ProcessActivityTransition _processActivityTransitionCallback;
     public IProcess Process { get; set; }
     public ProcessSchema.IProcessHandle ProcessHandle { get; set; }
 
@@ -40,12 +41,59 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     public bool SupportsLivePortChanges =>
         Process != null && LifecycleState == ComponentLifecycleState.Running;
+    public ProcessSchema.ActivityState ActivityState { get; private set; } =
+        ProcessSchema.ActivityState.none;
+    public string ActivityPortName { get; private set; }
+    public string ActivitySummary => FormatActivitySummary(ActivityState, ActivityPortName);
+    public bool IsProcessingActivity =>
+        LifecycleState == ComponentLifecycleState.Running
+        && ActivityState == ProcessSchema.ActivityState.processing;
 
     protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
         new CapnpFbpProcessComponentModel(
             $"{Id}__proc_{displayIndex}",
             Position == null ? null : new Point(Position.X, Position.Y)
         );
+
+    public bool IsWaitingOnPort(CapnpFbpPortModel port)
+    {
+        if (
+            port == null
+            || LifecycleState != ComponentLifecycleState.Running
+            || string.IsNullOrWhiteSpace(ActivityPortName)
+        )
+        {
+            return false;
+        }
+
+        if (
+            ActivityState == ProcessSchema.ActivityState.waitingInput
+            && port.ThePortType != CapnpFbpPortModel.PortType.In
+        )
+        {
+            return false;
+        }
+
+        if (
+            ActivityState == ProcessSchema.ActivityState.waitingOutput
+            && port.ThePortType != CapnpFbpPortModel.PortType.Out
+        )
+        {
+            return false;
+        }
+
+        if (
+            ActivityState
+            is not (
+                ProcessSchema.ActivityState.waitingInput or ProcessSchema.ActivityState.waitingOutput
+            )
+        )
+        {
+            return false;
+        }
+
+        return string.Equals(port.Name, ActivityPortName, StringComparison.OrdinalIgnoreCase);
+    }
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
@@ -458,6 +506,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         ClearOwnedDisconnects();
 
         ProcessStarted = false;
+        ResetActivityState();
         if (!closeRemoteProcess)
             return;
 
@@ -467,6 +516,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         ProcessHandle = null;
         _processStateTransitionCallback?.Dispose();
         _processStateTransitionCallback = null;
+        _processActivityTransitionCallback?.Dispose();
+        _processActivityTransitionCallback = null;
     }
 
     private async Task<bool> TryStopRemoteProcessAsync()
@@ -577,6 +628,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
 
         await Process.State(_processStateTransitionCallback, cancelToken);
+        await SubscribeToProcessActivityAsync(cancelToken);
 
         return true;
     }
@@ -614,6 +666,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 SetLifecycleState(ComponentLifecycleState.Closed, refresh: refresh);
                 break;
         }
+
+        if (refresh)
+            ProcOwnerNode?.RefreshAll();
     }
 
     private async Task ApplyProcessStateAsync(
@@ -630,10 +685,99 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 remoteError ?? LifecycleError ?? $"Process '{ProcessName}' failed on the server.",
                 refresh: refresh
             );
+            if (refresh)
+                ProcOwnerNode?.RefreshAll();
             return;
         }
 
         ApplyProcessState(state, refresh);
+    }
+
+    private async Task SubscribeToProcessActivityAsync(CancellationToken cancelToken)
+    {
+        if (Process == null)
+            return;
+
+        if (_processActivityTransitionCallback == null)
+        {
+            _processActivityTransitionCallback = new ProcessActivityTransition(
+                (old, @new, transitionCancelToken) =>
+                {
+                    ApplyActivityInfo(@new, refresh: true);
+                    return Task.CompletedTask;
+                }
+            );
+        }
+
+        var currentActivity = await Process.Activity(_processActivityTransitionCallback, cancelToken);
+        ApplyActivityInfo(currentActivity, refresh: false);
+    }
+
+    private void ApplyActivityInfo(ProcessSchema.ActivityInfo activity, bool refresh = false)
+    {
+        var nextState = activity?.State ?? ProcessSchema.ActivityState.none;
+        var nextPortName = NormalizeActivityPortName(activity?.Port);
+        var changed =
+            ActivityState != nextState
+            || !string.Equals(ActivityPortName, nextPortName, StringComparison.Ordinal);
+
+        ActivityState = nextState;
+        ActivityPortName = nextPortName;
+
+        if (refresh && changed)
+        {
+            RefreshAll();
+            ProcOwnerNode?.RefreshAll();
+        }
+    }
+
+    private void ResetActivityState(bool refresh = false)
+    {
+        var changed =
+            ActivityState != ProcessSchema.ActivityState.none
+            || !string.IsNullOrWhiteSpace(ActivityPortName);
+
+        ActivityState = ProcessSchema.ActivityState.none;
+        ActivityPortName = null;
+
+        if (refresh && changed)
+        {
+            RefreshAll();
+            ProcOwnerNode?.RefreshAll();
+        }
+    }
+
+    private static string NormalizeActivityPortName(string portName) =>
+        string.IsNullOrWhiteSpace(portName) ? null : portName.Trim();
+
+    private static string FormatActivitySummary(
+        ProcessSchema.ActivityState activityState,
+        string activityPortName
+    )
+    {
+        var label = activityState switch
+        {
+            ProcessSchema.ActivityState.none => "None",
+            ProcessSchema.ActivityState.waitingInput => "Waiting input",
+            ProcessSchema.ActivityState.processing => "Processing",
+            ProcessSchema.ActivityState.waitingOutput => "Waiting output",
+            ProcessSchema.ActivityState.closing => "Closing",
+            _ => activityState.ToString(),
+        };
+
+        if (
+            string.IsNullOrWhiteSpace(activityPortName)
+            || activityState
+                is not (
+                    ProcessSchema.ActivityState.waitingInput
+                    or ProcessSchema.ActivityState.waitingOutput
+                )
+        )
+        {
+            return label;
+        }
+
+        return $"{label} on {activityPortName}";
     }
 
     private async Task<string> TryGetRemoteLifecycleErrorAsync(
@@ -804,6 +948,23 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         public Task StateChanged(
             ProcessSchema.State old,
             ProcessSchema.State @new,
+            CancellationToken cancellationToken = default
+        )
+        {
+            return action(old, @new, cancellationToken);
+        }
+
+        public void Dispose() { }
+    }
+
+    private class ProcessActivityTransition(
+        Func<ProcessSchema.ActivityInfo, ProcessSchema.ActivityInfo, CancellationToken, Task> action
+    )
+        : ProcessSchema.IActivityTransition
+    {
+        public Task ActivityChanged(
+            ProcessSchema.ActivityInfo old,
+            ProcessSchema.ActivityInfo @new,
             CancellationToken cancellationToken = default
         )
         {
