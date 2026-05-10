@@ -1,12 +1,16 @@
 @using MudBlazor
 
 <span style="@AnchorStyle">
-    <MudTooltip Text="@TooltipText"
-                Delay="200"
+    <MudTooltip Delay="200"
                 Arrow="true"
                 Placement="Placement.Bottom"
                 Inline="true">
-        <span style="@IndicatorStyle"></span>
+        <TooltipContent>
+            <MudText Typo="Typo.body2" Style="@TooltipStyle">@TooltipText</MudText>
+        </TooltipContent>
+        <ChildContent>
+            <span style="@IndicatorStyle"></span>
+        </ChildContent>
     </MudTooltip>
 </span>
 
@@ -21,6 +25,9 @@
         State == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(Error)
             ? $"{Label}: {Error}"
             : Label;
+
+    private const string TooltipStyle =
+        "white-space: pre-line; overflow-wrap: anywhere; max-width: 420px;";
 
     private string AnchorStyle =>
         $"position: absolute; right: {Right}; top: {Top}; transform: translate(50%, -50%); z-index: 2; display: inline-flex;";

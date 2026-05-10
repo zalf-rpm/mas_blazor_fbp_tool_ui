@@ -318,7 +318,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
             var started = await Process.Start(cancelToken);
             if (!started)
-                throw new InvalidOperationException($"Process '{ProcessName}' failed to start.");
+            {
+                var remoteError = await TryGetRemoteLifecycleErrorAsync(cancelToken);
+                throw new InvalidOperationException(
+                    remoteError ?? $"Process '{ProcessName}' failed to start."
+                );
+            }
             SetLifecycleState(ComponentLifecycleState.Running, refresh: true);
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process start launched"
@@ -333,7 +338,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         catch (Exception e)
         {
             await ResetRemoteRuntimeAsync(closeRemoteProcess: true);
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFaultPreservingRemoteError(e, refresh: true);
         }
     }
 
@@ -364,7 +369,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
         catch (Exception e)
         {
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFaultPreservingRemoteError(e, refresh: true);
         }
     }
 
@@ -564,9 +569,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (_processStateTransitionCallback == null)
         {
             _processStateTransitionCallback = new ProcessStateTransition(
-                (old, @new) =>
+                async (old, @new, transitionCancelToken) =>
                 {
-                    ApplyProcessState(@new, refresh: true);
+                    await ApplyProcessStateAsync(@new, refresh: true, transitionCancelToken);
                 }
             );
         }
@@ -609,6 +614,134 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 SetLifecycleState(ComponentLifecycleState.Closed, refresh: refresh);
                 break;
         }
+    }
+
+    private async Task ApplyProcessStateAsync(
+        ProcessSchema.State state,
+        bool refresh = false,
+        CancellationToken cancelToken = default
+    )
+    {
+        if (state == ProcessSchema.State.failed)
+        {
+            var remoteError = await TryGetRemoteLifecycleErrorAsync(cancelToken);
+            SetLifecycleState(
+                ComponentLifecycleState.Failed,
+                remoteError ?? LifecycleError ?? $"Process '{ProcessName}' failed on the server.",
+                refresh: refresh
+            );
+            return;
+        }
+
+        ApplyProcessState(state, refresh);
+    }
+
+    private async Task<string> TryGetRemoteLifecycleErrorAsync(
+        CancellationToken cancelToken = default
+    )
+    {
+        if (Process == null)
+            return null;
+
+        try
+        {
+            return FormatRemoteLifecycleError(await Process.LastError(cancelToken));
+        }
+        catch (OperationCanceledException) when (cancelToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process lastError RPC unavailable: {ex.Message}"
+            );
+            return null;
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process lastError RPC failed: {ex.Message}"
+            );
+            return null;
+        }
+    }
+
+    private string FormatRemoteLifecycleError(ProcessSchema.ErrorInfo errorInfo)
+    {
+        if (errorInfo == null || !errorInfo.HasError)
+            return null;
+
+        List<string> lines = [];
+
+        var headline = FormatErrorSummary(errorInfo.ErrorType, errorInfo.Message);
+        if (!string.IsNullOrWhiteSpace(headline))
+            lines.Add(headline);
+
+        var processLabel = string.IsNullOrWhiteSpace(errorInfo.ProcessName)
+            ? null
+            : errorInfo.ProcessName.Trim();
+        var processId = string.IsNullOrWhiteSpace(errorInfo.ProcessId)
+            ? null
+            : errorInfo.ProcessId.Trim();
+        if (!string.IsNullOrWhiteSpace(processId))
+        {
+            processLabel = string.IsNullOrWhiteSpace(processLabel)
+                ? processId
+                : $"{processLabel} ({processId})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(processLabel))
+            lines.Add($"Process: {processLabel}");
+
+        if (errorInfo.ThePhase != ProcessSchema.ErrorInfo.Phase.unknown)
+            lines.Add($"Phase: {errorInfo.ThePhase}");
+
+        if (!string.IsNullOrWhiteSpace(errorInfo.Port))
+            lines.Add($"Port: {errorInfo.Port.Trim()}");
+
+        var cause = FormatErrorSummary(errorInfo.CauseType, errorInfo.CauseMessage);
+        if (!string.IsNullOrWhiteSpace(cause))
+            lines.Add($"Cause: {cause}");
+
+        var tracebackLines =
+            errorInfo.Traceback?
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim())
+                .ToList() ?? [];
+        if (tracebackLines.Count > 0)
+        {
+            lines.Add("Traceback:");
+            lines.AddRange(tracebackLines.Take(6).Select(line => $"  {line}"));
+            if (tracebackLines.Count > 6)
+                lines.Add("  ...");
+        }
+
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatErrorSummary(string errorType, string message)
+    {
+        var trimmedType = string.IsNullOrWhiteSpace(errorType) ? null : errorType.Trim();
+        var trimmedMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedType))
+            return trimmedMessage;
+        if (string.IsNullOrWhiteSpace(trimmedMessage))
+            return trimmedType;
+
+        return $"{trimmedType}: {trimmedMessage}";
+    }
+
+    private void SetLifecycleFaultPreservingRemoteError(Exception exception, bool refresh = false)
+    {
+        Console.Error.WriteLine(exception);
+        var error =
+            LifecycleState == ComponentLifecycleState.Failed
+            && !string.IsNullOrWhiteSpace(LifecycleError)
+                ? LifecycleError
+                : exception.Message;
+        SetLifecycleState(ComponentLifecycleState.Failed, error, refresh);
     }
 
     public async Task ConnectInputPortAsync(
@@ -663,7 +796,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    private class ProcessStateTransition(Action<ProcessSchema.State, ProcessSchema.State> action)
+    private class ProcessStateTransition(
+        Func<ProcessSchema.State, ProcessSchema.State, CancellationToken, Task> action
+    )
         : ProcessSchema.IStateTransition
     {
         public Task StateChanged(
@@ -672,8 +807,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             CancellationToken cancellationToken = default
         )
         {
-            action(old, @new);
-            return Task.CompletedTask;
+            return action(old, @new, cancellationToken);
         }
 
         public void Dispose() { }
