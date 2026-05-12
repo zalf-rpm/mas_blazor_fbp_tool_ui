@@ -144,6 +144,22 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
             RetrieveWriterFromChannelTask = null;
         }
 
+        if (Writer != null)
+        {
+            try
+            {
+                await Writer.Close();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Console.WriteLine($"Link {Id}: writer already disposed: {ex.Message}");
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine($"Link {Id}: writer close RPC failed: {ex.Message}");
+            }
+        }
+
         Writer?.Dispose();
         Writer = null;
         WriterSturdyRef = null;

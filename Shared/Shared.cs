@@ -221,10 +221,10 @@ public static class Shared
         switch (node)
         {
             case CapnpFbpComponentModel compNode:
-                await compNode.ResetExecution();
+                await compNode.StopProcess(compNode.Editor?.ConnectionManager);
                 break;
             case CapnpFbpViewComponentModel viewNode:
-                await viewNode.ResetExecution();
+                await viewNode.StopProcess(viewNode.Editor?.ConnectionManager);
                 break;
             case CapnpFbpIipComponentModel iipNode:
                 await iipNode.ResetExecution();
@@ -378,6 +378,15 @@ public static class Shared
             ? affectedLinks
             : new[] { removedLink };
 
+        if (
+            lastWriterRemoved
+            && removedLink.InPortModel.Parent is CapnpFbpComponentModel targetComponent
+            && !excludedNodeSet.Contains(targetComponent)
+        )
+        {
+            await ResetNodeLifecycleAsync(targetComponent);
+        }
+
         foreach (var node in nodesToReset)
         {
             await ResetNodeLifecycleAsync(node);
@@ -453,10 +462,9 @@ public static class Shared
     private static bool RequiresLifecycleResetOnChannelRemoval(Model node) =>
         node switch
         {
-            CapnpFbpProcessComponentModel => false,
+            CapnpFbpComponentModel => false,
             CapnpFbpViewComponentModel => true,
             CapnpFbpIipComponentModel => true,
-            CapnpFbpComponentModel => true,
             _ => false,
         };
 
