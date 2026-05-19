@@ -39,9 +39,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         ComponentLifecycleState.Idle;
     public string LifecycleError { get; private set; }
     public bool CanStart =>
-        LifecycleState is ComponentLifecycleState.Idle
-            or ComponentLifecycleState.Failed
-            or ComponentLifecycleState.Closed;
+        LifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed;
     public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;

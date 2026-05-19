@@ -18,7 +18,6 @@ public enum ComponentLifecycleState
     Running,
     Stopping,
     Failed,
-    Closed,
 }
 
 public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
@@ -104,9 +103,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     public bool CanStart =>
         !CanStop && !IsLifecycleBusy && EnumerateProcNodes().Any(node =>
-            node.LifecycleState is ComponentLifecycleState.Idle
-                or ComponentLifecycleState.Failed
-                or ComponentLifecycleState.Closed
+            node.LifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed
         );
 
     public bool CanStop =>
@@ -188,6 +185,17 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public void QueueProcStructureSync()
     {
         _ = EnsureProcStructureSynchronizedAsync();
+    }
+
+    public void QueueProcSyncForLinkChange()
+    {
+        if (HasProcChildren)
+        {
+            QueueProcStructureSync();
+            return;
+        }
+
+        QueueProcCountSync();
     }
 
     private Task EnsureProcCountSynchronizedAsync()
@@ -784,8 +792,6 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             return ComponentLifecycleState.Starting;
         if (states.Contains(ComponentLifecycleState.Running))
             return ComponentLifecycleState.Running;
-        if (states.Contains(ComponentLifecycleState.Closed))
-            return ComponentLifecycleState.Closed;
 
         return ComponentLifecycleState.Idle;
     }

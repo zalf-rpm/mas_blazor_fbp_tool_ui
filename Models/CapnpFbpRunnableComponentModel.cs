@@ -67,20 +67,14 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             Editor.CurrentChannelStarterService == null
             || RunnableFactory == null
             || LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
-            || LifecycleState is not (
-                ComponentLifecycleState.Idle
-                or ComponentLifecycleState.Failed
-                or ComponentLifecycleState.Closed
-            )
+            || LifecycleState is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
         {
             return;
         }
 
         var shouldStopExistingRuntime =
-            Runnable != null
-            && LifecycleState is not ComponentLifecycleState.Idle
-                and not ComponentLifecycleState.Closed;
+            Runnable != null && LifecycleState is not ComponentLifecycleState.Idle;
         SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
         CancellationToken cancelToken = default;
         try
@@ -447,9 +441,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     private async Task ResetSingleExecutionAsync()
     {
         var shouldStopExistingRuntime =
-            Runnable != null
-            && LifecycleState is not ComponentLifecycleState.Idle
-                and not ComponentLifecycleState.Closed;
+            Runnable != null && LifecycleState is not ComponentLifecycleState.Idle;
         await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }

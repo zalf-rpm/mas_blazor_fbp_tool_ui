@@ -90,7 +90,6 @@
     {
         ComponentLifecycleState.Running => "Stop",
         ComponentLifecycleState.Failed => "Retry",
-        ComponentLifecycleState.Closed => "Reconnect",
         _ => "Start",
     };
     private string LifecycleButtonIcon => Node.LifecycleState switch

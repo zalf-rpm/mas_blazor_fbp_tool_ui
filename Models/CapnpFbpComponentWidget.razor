@@ -318,7 +318,6 @@
     {
         ComponentLifecycleState.Running => "Stop",
         ComponentLifecycleState.Failed => "Retry",
-        ComponentLifecycleState.Closed => "Reconnect",
         ComponentLifecycleState.Idle when Node.AnyProcRuntimeAttached => "Run",
         _ => "Start",
     };
@@ -471,8 +470,18 @@
 
         var lifecycleState = aggregateProcChildren ? node.DisplayLifecycleState : node.LifecycleState;
         var lifecycleError = aggregateProcChildren ? node.DisplayLifecycleError : node.LifecycleError;
-        if (lifecycleState == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(lifecycleError))
+        var lastRunLines =
+            lifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed
+                ? GetLastRunTooltipLines(node, aggregateProcChildren)
+                : Array.Empty<string>();
+        if (lastRunLines.Count > 0)
+        {
+            lines.AddRange(lastRunLines);
+        }
+        else if (lifecycleState == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(lifecycleError))
+        {
             lines.Add(lifecycleError);
+        }
 
         return string.Join(
             Environment.NewLine,
@@ -528,6 +537,36 @@
         return lines;
     }
 
+    private static IReadOnlyList<string> GetLastRunTooltipLines(
+        CapnpFbpComponentModel node,
+        bool aggregateProcChildren
+    )
+    {
+        var runNodes = GetProcessNodes(node, aggregateProcChildren)
+            .Where(procNode => procNode.HasLastRunInfo)
+            .ToList();
+        if (runNodes.Count == 0)
+            return Array.Empty<string>();
+
+        if (!aggregateProcChildren || runNodes.Count == 1)
+            return runNodes[0].GetLastRunTooltipLines();
+
+        var groupedRuns = runNodes
+            .GroupBy(procNode => procNode.LastRunSummary)
+            .OrderBy(group => GetLastRunOutcomeSortOrder(group.First().LastRunOutcome))
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var lines = new List<string> { "Last runs:" };
+        foreach (var group in groupedRuns)
+        {
+            var groupCountSuffix = group.Count() > 1 ? $" ({group.Count()})" : string.Empty;
+            lines.Add($"- {group.Key}{groupCountSuffix}");
+        }
+
+        return lines;
+    }
+
     private static int GetActivitySortOrder(ProcessSchema.ActivityState activityState) =>
         activityState switch
         {
@@ -536,6 +575,15 @@
             ProcessSchema.ActivityState.waitingOutput => 2,
             ProcessSchema.ActivityState.closing => 3,
             _ => 4,
+        };
+
+    private static int GetLastRunOutcomeSortOrder(ProcessSchema.RunInfo.Outcome outcome) =>
+        outcome switch
+        {
+            ProcessSchema.RunInfo.Outcome.failed => 0,
+            ProcessSchema.RunInfo.Outcome.stopped => 1,
+            ProcessSchema.RunInfo.Outcome.completed => 2,
+            _ => 3,
         };
 
     private static bool ShouldAnimateFrame(

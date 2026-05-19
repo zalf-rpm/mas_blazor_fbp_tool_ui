@@ -645,9 +645,9 @@ public partial class Editor
             return;
 
         if (rememberedLink.OutPortModel.Parent is CapnpFbpComponentModel sourceComponent)
-            sourceComponent.QueueProcStructureSync();
+            sourceComponent.QueueProcSyncForLinkChange();
         if (rememberedLink.InPortModel.Parent is CapnpFbpComponentModel targetComponent)
-            targetComponent.QueueProcStructureSync();
+            targetComponent.QueueProcSyncForLinkChange();
     }
 
     private async Task SyncProcStructureAsync(IEnumerable<CapnpFbpComponentModel> nodes)
