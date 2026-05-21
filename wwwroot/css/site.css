@@ -128,6 +128,7 @@ a, .btn-link {
     height: 20px;
     overflow: hidden;
     background-color: #fff;
+    transition: background-color 160ms ease;
 }
 
 .diagram-port-shell::before {
@@ -138,6 +139,7 @@ a, .btn-link {
     border: 1px solid var(--port-shell-color, #d4d4d4);
     background-color: #fff;
     pointer-events: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .diagram-port-icon {
@@ -154,6 +156,22 @@ a, .btn-link {
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-size: 100%;
     transform-origin: center;
+    transition: background-color 180ms ease;
+}
+
+.lifecycle-indicator-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background-color: var(--lifecycle-indicator-color, #111827);
+    border: 1px solid rgba(17, 24, 39, 0.45);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+    transition:
+        background-color 220ms ease,
+        border-color 220ms ease,
+        box-shadow 220ms ease,
+        transform 220ms ease;
 }
 
 .diagram-port-label {
@@ -425,4 +443,79 @@ a, .btn-link {
 .diagram-port.right {
     top: 50%;
     right: 0;
+}
+
+.proc-stepper-count {
+    min-width: 2rem;
+}
+
+.activity-state-frame {
+    transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.processing-activity-frame {
+    animation: process-activity-pulse 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: box-shadow;
+}
+
+@keyframes process-activity-pulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 1px rgba(26, 193, 46, 0.44),
+            0 0 0 0 rgba(26, 193, 46, 0.28),
+            0 0 12px rgba(26, 193, 46, 0.24);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 2px rgba(26, 193, 46, 0.68),
+            0 0 0 9px rgba(26, 193, 46, 0.28),
+            0 0 22px rgba(26, 193, 46, 0.40);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .processing-activity-frame {
+        animation: none;
+        box-shadow: 0 0 0 2px rgba(26, 193, 46, 0.42), 0 0 12px rgba(26, 193, 46, 0.24);
+    }
+}
+
+.proc-expand-toggle {
+    right: 8px;
+    bottom: 8px;
+    z-index: 4;
+    min-width: 0;
+    min-height: 0;
+}
+
+.proc-expand-toggle .mud-icon-button {
+    width: 22px;
+    height: 22px;
+    padding: 2px;
+    font-size: 16px;
+}
+
+.proc-expanded-row-state {
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+    transition: background-color 220ms ease, box-shadow 220ms ease;
+}
+
+.proc-expanded-diagram-port {
+    cursor: default;
+    z-index: 3;
+}
+
+.proc-expanded-diagram-port.left .diagram-port-label {
+    left: calc(100% + 6px);
+    right: auto;
+    text-align: left;
+}
+
+.proc-expanded-diagram-port.right .diagram-port-label {
+    right: calc(100% + 6px);
+    left: auto;
+    text-align: right;
 }

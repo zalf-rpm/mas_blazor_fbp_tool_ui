@@ -36,6 +36,8 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     [Parameter] public string Class { get; set; }
 
     [Parameter] public string SocketColor { get; set; }
+
+    [Parameter] public string IconColor { get; set; }
     
     [Parameter] public RenderFragment ChildContent { get; set; }
 
@@ -60,7 +62,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         base.OnParametersSet();
         _isParentSvg = Port.Parent is SvgNodeModel;
-        var iconColor = CapnpFbpPortColors.ResolvePortIconColor(Port);
+        var iconColor = IconColor ?? CapnpFbpPortColors.ResolvePortIconColor(Port);
         var renderSignature =
             $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{iconColor}|{SocketColor}";
         if (string.Equals(renderSignature, _lastStyle, StringComparison.Ordinal))
@@ -89,7 +91,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         var disabled = !Port.CanAcceptMoreConnections;
         var dashed = Port.Visibility == CapnpFbpPortModel.VisibilityState.Dashed;
         var shellColor = SocketColor ?? "#d4d4d4";
-        var iconColor = CapnpFbpPortColors.ResolvePortIconColor(Port);
+        var iconColor = IconColor ?? CapnpFbpPortColors.ResolvePortIconColor(Port);
         var style = new CapnpFbpPortLayout.PortPlacement(
             EffectiveAlignment,
             Port.LayoutOffsetPx

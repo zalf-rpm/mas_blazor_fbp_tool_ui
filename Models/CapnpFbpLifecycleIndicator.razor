@@ -1,12 +1,16 @@
 @using MudBlazor
 
 <span style="@AnchorStyle">
-    <MudTooltip Text="@TooltipText"
-                Delay="200"
+    <MudTooltip Delay="200"
                 Arrow="true"
                 Placement="Placement.Bottom"
                 Inline="true">
-        <span style="@IndicatorStyle"></span>
+        <TooltipContent>
+            <MudText Typo="Typo.body2" Style="@TooltipStyle">@ResolvedTooltipText</MudText>
+        </TooltipContent>
+        <ChildContent>
+            <span class="lifecycle-indicator-dot" style="@IndicatorStyle"></span>
+        </ChildContent>
     </MudTooltip>
 </span>
 
@@ -14,19 +18,23 @@
     [Parameter] public ComponentLifecycleState State { get; set; }
     [Parameter] public string Label { get; set; } = "";
     [Parameter] public string Error { get; set; } = "";
+    [Parameter] public string TooltipText { get; set; } = "";
     [Parameter] public string Top { get; set; } = "0";
     [Parameter] public string Right { get; set; } = "0";
 
-    private string TooltipText =>
-        State == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(Error)
-            ? $"{Label}: {Error}"
-            : Label;
+    private string ResolvedTooltipText =>
+        !string.IsNullOrWhiteSpace(TooltipText)
+            ? TooltipText
+            : State == ComponentLifecycleState.Failed && !string.IsNullOrWhiteSpace(Error)
+                ? $"{Label}: {Error}"
+                : Label;
+
+    private const string TooltipStyle =
+        "white-space: pre-line; overflow-wrap: anywhere; max-width: 420px;";
 
     private string AnchorStyle =>
-        $"position: absolute; right: {Right}; top: {Top}; transform: translate(50%, -50%); z-index: 2; display: inline-flex;";
+        $"position: absolute; right: {Right}; top: {Top}; transform: translate(50%, -50%); z-index: 2; display: inline-flex; line-height: 0;";
 
     private string IndicatorStyle =>
-        "display: inline-block; width: 12px; height: 12px; border-radius: 9999px; "
-        + $"background-color: {CapnpFbpPortColors.ResolveLifecycleFrameColor(State)}; "
-        + "border: 1px solid rgba(17, 24, 39, 0.45); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);";
+        $"--lifecycle-indicator-color: {CapnpFbpPortColors.ResolveLifecycleFrameColor(State)};";
 }

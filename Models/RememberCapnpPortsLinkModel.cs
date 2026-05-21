@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Models;
+using Blazor.Diagrams.Core.Models.Base;
 using Capnp.Rpc;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
@@ -20,6 +22,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
 
     public CapnpFbpOutPortModel OutPortModel { get; set; }
     public CapnpFbpInPortModel InPortModel { get; set; }
+    public bool IsInternalProcLink { get; set; }
 
     public Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats { get; set; } = new();
     public Task RetrieveWriterFromChannelTask { get; set; }
@@ -141,6 +144,22 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
             RetrieveWriterFromChannelTask = null;
         }
 
+        if (Writer != null)
+        {
+            try
+            {
+                await Writer.Close();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Console.WriteLine($"Link {Id}: writer already disposed: {ex.Message}");
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine($"Link {Id}: writer close RPC failed: {ex.Message}");
+            }
+        }
+
         Writer?.Dispose();
         Writer = null;
         WriterSturdyRef = null;
@@ -150,5 +169,21 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
     public void Dispose()
     {
         Console.WriteLine("RememberCapnpPortsLinkModel::Dispose()");
+    }
+
+    public void AttachToPorts()
+    {
+        if (OutPortModel.Links is ICollection<BaseLinkModel> outLinks && !outLinks.Contains(this))
+            outLinks.Add(this);
+        if (InPortModel.Links is ICollection<BaseLinkModel> inLinks && !inLinks.Contains(this))
+            inLinks.Add(this);
+    }
+
+    public void DetachFromPorts()
+    {
+        if (OutPortModel?.Links is ICollection<BaseLinkModel> outLinks)
+            outLinks.Remove(this);
+        if (InPortModel?.Links is ICollection<BaseLinkModel> inLinks)
+            inLinks.Remove(this);
     }
 }

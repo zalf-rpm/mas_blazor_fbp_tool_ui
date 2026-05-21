@@ -44,6 +44,7 @@ public class AddPortControl : ExecutableControl
         var newOrderNo =
             ports.LastOrDefault() is CapnpFbpPortModel lastPort ? lastPort.OrderNo + 1 : 0;
         CreateAndAddPort(NodeModel, PortType, newOrderNo);
+        NodeModel?.QueueProcStructureSync();
         NodeModel.RefreshAll();
     }
 
@@ -81,6 +82,8 @@ public class AddPortControl : ExecutableControl
         node.AddPort(port);
         CapnpFbpPortLayout.Apply(node, refreshPorts: false);
         node.RefreshAll();
+        if (node is CapnpFbpComponentModel componentNode)
+            componentNode.QueueProcStructureSync();
         return port;
     }
 }

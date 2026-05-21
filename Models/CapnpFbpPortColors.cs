@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ProcessSchema = Mas.Schema.Fbp.Process;
 
 namespace BlazorDrawFBP.Models;
 
@@ -10,20 +11,31 @@ public static class CapnpFbpPortColors
     public const string ReadyColor = "#1ac12e";
     public const string PendingColor = "#ff0000";
     public const string TransitionColor = "#E69F00";
+    public const string WaitingInputColor = "#2563eb";
+    public const string WaitingOutputColor = "#7c3aed";
+    public const string ClosingColor = "#6b7280";
 
     public static string ResolvePortIconColor(CapnpFbpPortModel port)
     {
-        if (port.ConnectedChannelCount == 0)
+        var shellColor = ResolvePortShellColor(port);
+        if (string.IsNullOrWhiteSpace(shellColor))
             return DefaultColor;
 
-        var linkColors = port
-            .Links
-            .OfType<RememberCapnpPortsLinkModel>()
-            .Select(link => NormalizeColor(link.Color))
-            .Where(static color => color != null)
-            .Cast<string>()
-            .ToList();
+        if (string.Equals(shellColor, PendingColor, StringComparison.OrdinalIgnoreCase))
+            return PendingColor;
 
+        if (string.Equals(shellColor, ReadyColor, StringComparison.OrdinalIgnoreCase))
+            return ReadyColor;
+
+        return DefaultColor;
+    }
+
+    public static string ResolvePortShellColor(CapnpFbpPortModel port)
+    {
+        if (port.ConnectedChannelCount == 0)
+            return null;
+
+        var linkColors = GetLinkedPortColors(port);
         return linkColors.Count > 0 ? PrioritizeColors(linkColors) : ResolveLinkedPortFallbackColor(port);
     }
 
@@ -45,7 +57,19 @@ public static class CapnpFbpPortColors
 
     public static string ResolveComponentFrameColor(CapnpFbpComponentModel node)
     {
-        return ResolveLifecycleFrameColor(node.LifecycleState);
+        return ResolveLifecycleFrameColor(node.DisplayLifecycleState);
+    }
+
+    public static string ResolveActivityColor(ProcessSchema.ActivityState activityState)
+    {
+        return activityState switch
+        {
+            ProcessSchema.ActivityState.waitingInput => WaitingInputColor,
+            ProcessSchema.ActivityState.processing => ReadyColor,
+            ProcessSchema.ActivityState.waitingOutput => WaitingOutputColor,
+            ProcessSchema.ActivityState.closing => ClosingColor,
+            _ => DefaultColor,
+        };
     }
 
     public static string ResolveActiveFrameColor(bool isReady)
@@ -86,6 +110,16 @@ public static class CapnpFbpPortColors
             { Connected: true } => ReadyColor,
             _ => PendingColor,
         };
+    }
+
+    private static List<string> GetLinkedPortColors(CapnpFbpPortModel port)
+    {
+        return port
+            .GetCountedLinksForUi()
+            .Select(link => NormalizeColor(link.Color))
+            .Where(static color => color != null)
+            .Cast<string>()
+            .ToList();
     }
 
     private static string PrioritizeColors(IReadOnlyCollection<string> colors)

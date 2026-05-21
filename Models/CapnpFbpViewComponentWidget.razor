@@ -7,7 +7,7 @@
 @* @inject BlazorDispatcher Dispatcher *@
 
 <div>
-    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between"
+    <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between activity-state-frame"
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
                                     Label="@Node.LifecycleLabel"
@@ -68,7 +68,7 @@
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="capnpPort"
                                   Port="capnpPort"
-                                  SocketColor="@FrameBorderColorValue" />
+                                  SocketColor="@GetSocketColor(capnpPort)" />
         </div>
     }
 </div>
@@ -82,13 +82,14 @@
     private string FrameBorderColorValue =>
         CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.LifecycleState);
     private string FrameColor => $@"border-color: {FrameBorderColorValue}";
+    private string GetSocketColor(CapnpFbpPortModel port) =>
+        CapnpFbpPortColors.ResolvePortShellColor(port) ?? FrameBorderColorValue;
     private string LifecycleButtonText => Node.IsLifecycleBusy
         ? $"{Node.LifecycleLabel}..."
         : Node.LifecycleState switch
     {
         ComponentLifecycleState.Running => "Stop",
         ComponentLifecycleState.Failed => "Retry",
-        ComponentLifecycleState.Closed => "Reconnect",
         _ => "Start",
     };
     private string LifecycleButtonIcon => Node.LifecycleState switch

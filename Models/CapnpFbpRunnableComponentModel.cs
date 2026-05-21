@@ -43,25 +43,38 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     public IRunnable Runnable { get; set; }
 
     public Runnable.IFactory RunnableFactory { get; set; }
+    protected override bool SupportsProcMultiplication => true;
 
     public override bool RemoteProcessAttached() => Runnable != null;
     public override bool CanEditCommandLine() => RunnableFactory != null || Runnable != null;
 
+    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
+        new CapnpFbpRunnableComponentModel(
+            $"{Id}__proc_{displayIndex}",
+            Position == null ? null : new Point(Position.X, Position.Y)
+        );
+
     public override async Task StartProcess(ConnectionManager conMan)
+    {
+        await StartSingleProcessAsync(conMan);
+        if (!IsInternalProcChild && LifecycleState == ComponentLifecycleState.Running)
+            await StartOwnedProcChildrenAsync(conMan);
+    }
+
+    private async Task StartSingleProcessAsync(ConnectionManager conMan)
     {
         if (
             Editor.CurrentChannelStarterService == null
             || RunnableFactory == null
-            || !CanStart
+            || LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
+            || LifecycleState is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
         {
             return;
         }
 
         var shouldStopExistingRuntime =
-            Runnable != null
-            && LifecycleState is not ComponentLifecycleState.Idle
-                and not ComponentLifecycleState.Closed;
+            Runnable != null && LifecycleState is not ComponentLifecycleState.Idle;
         SetLifecycleState(ComponentLifecycleState.Starting, refresh: true);
         CancellationToken cancelToken = default;
         try
@@ -392,7 +405,18 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 
     public override async Task StopProcess(ConnectionManager conMan)
     {
-        if (IsLifecycleBusy || !CanStop)
+        if (!IsInternalProcChild)
+            await StopOwnedProcChildrenAsync(conMan);
+
+        await StopSingleProcessAsync(conMan);
+    }
+
+    private async Task StopSingleProcessAsync(ConnectionManager conMan)
+    {
+        if (
+            LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
+            || LifecycleState != ComponentLifecycleState.Running
+        )
             return;
 
         SetLifecycleState(ComponentLifecycleState.Stopping, refresh: true);
@@ -408,15 +432,29 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 
     public override async Task ResetExecution()
     {
+        if (!IsInternalProcChild)
+            await ResetOwnedProcChildrenAsync();
+
+        await ResetSingleExecutionAsync();
+    }
+
+    private async Task ResetSingleExecutionAsync()
+    {
         var shouldStopExistingRuntime =
-            Runnable != null
-            && LifecycleState is not ComponentLifecycleState.Idle
-                and not ComponentLifecycleState.Closed;
+            Runnable != null && LifecycleState is not ComponentLifecycleState.Idle;
         await ResetRemoteRuntimeAsync(shouldStopExistingRuntime);
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
     protected override async Task ShutdownForComponentServiceSwitchAsync()
+    {
+        if (!IsInternalProcChild)
+            await ShutdownOwnedProcChildrenAsync();
+
+        await ShutdownSingleForComponentServiceSwitchAsync();
+    }
+
+    private async Task ShutdownSingleForComponentServiceSwitchAsync()
     {
         await ResetRemoteRuntimeAsync(stopRunnable: Runnable != null);
     }
@@ -430,6 +468,15 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             component.Factory?.which == Component.factory.WHICH.Runnable
                 ? Capnp.Rpc.Proxy.Share(component.Factory.Runnable)
                 : null;
+    }
+
+    protected override void CopyProcBindingTo(CapnpFbpComponentModel child)
+    {
+        if (child is not CapnpFbpRunnableComponentModel runnableChild)
+            return;
+
+        runnableChild.RunnableFactory =
+            RunnableFactory != null ? Capnp.Rpc.Proxy.Share(RunnableFactory) : null;
     }
 
     protected override async ValueTask DisposeAsyncCore()

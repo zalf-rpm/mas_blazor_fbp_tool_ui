@@ -51,7 +51,7 @@ public static class CapnpFbpPortLayout
             return new Dictionary<string, PortPlacement>();
 
         var nodeWidth = Math.Max(node.Size?.Width ?? SharedHelpers.CardWidth, PortSizePx);
-        var nodeHeight = Math.Max(node.Size?.Height ?? SharedHelpers.CardHeight, PortSizePx);
+        var nodeHeight = Math.Max(GetLayoutNodeHeight(node), PortSizePx);
         var space = CreatePerimeterSpace(node, nodeWidth, nodeHeight);
         var stablePorts = ports
             .OrderBy(port => port.OrderNo)
@@ -81,7 +81,7 @@ public static class CapnpFbpPortLayout
             return placements;
 
         var nodeWidth = Math.Max(node.Size?.Width ?? SharedHelpers.CardWidth, PortSizePx);
-        var nodeHeight = Math.Max(node.Size?.Height ?? SharedHelpers.CardHeight, PortSizePx);
+        var nodeHeight = Math.Max(GetLayoutNodeHeight(node), PortSizePx);
 
         foreach (var port in node.Ports.OfType<CapnpFbpPortModel>())
         {
@@ -618,10 +618,17 @@ public static class CapnpFbpPortLayout
     private static (double X, double Y) GetNodeCenter(NodeModel node)
     {
         var width = node.Size?.Width ?? SharedHelpers.CardWidth;
-        var height = node.Size?.Height ?? SharedHelpers.CardHeight;
+        var height = GetLayoutNodeHeight(node);
         var x = node.Position?.X ?? 0d;
         var y = node.Position?.Y ?? 0d;
         return (x + (width / 2d), y + (height / 2d));
+    }
+
+    private static double GetLayoutNodeHeight(NodeModel node)
+    {
+        return node is CapnpFbpComponentModel { PortLayoutHeightOverride: { } layoutHeight }
+            ? layoutHeight
+            : node.Size?.Height ?? SharedHelpers.CardHeight;
     }
 
     private static PerimeterSpace CreatePerimeterSpace(

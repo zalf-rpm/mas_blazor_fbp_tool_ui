@@ -124,6 +124,38 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             _unregisterStatsCallback = null;
         }
 
+        if (Reader != null)
+        {
+            try
+            {
+                await Reader.Close();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Console.WriteLine($"Port {Name}: channel reader already disposed: {ex.Message}");
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine($"Port {Name}: channel reader close RPC failed: {ex.Message}");
+            }
+        }
+
+        if (Channel != null)
+        {
+            try
+            {
+                await Channel.Close(waitForEmptyBuffer: false);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Console.WriteLine($"Port {Name}: channel already disposed: {ex.Message}");
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine($"Port {Name}: channel close RPC failed: {ex.Message}");
+            }
+        }
+
         if (stopChannel && StopChannel != null)
         {
             await StopChannel.Stop();
