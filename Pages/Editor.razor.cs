@@ -149,7 +149,8 @@ public partial class Editor
 
         return RegistryServiceIdToPetNameAndSturdyRef
             .Where(entry =>
-                entry.Key == node.ComponentServiceId || TryGetBindableComponent(node, entry.Key, out _)
+                entry.Key == node.ComponentServiceId
+                || TryGetBindableComponent(node, entry.Key, out _)
             )
             .ToList();
     }
@@ -276,7 +277,10 @@ public partial class Editor
             if (value is IStartChannelsService service)
             {
                 var info = await service.Info();
-                var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2ChannelStarterServices, petName);
+                var petName2 = Shared.Shared.MakeUniqueKey(
+                    ServiceId2ChannelStarterServices,
+                    petName
+                );
                 ServiceId2ChannelStarterServices[info.Id] = service;
                 ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
                 updatedConnections = true;
@@ -348,8 +352,8 @@ public partial class Editor
     private void RemoveRegistryPaletteEntries(string serviceId)
     {
         foreach (
-            var componentKey in ServiceIdAndComponentId2Component.Keys
-                .Where(componentKey => componentKey.Item1 == serviceId)
+            var componentKey in ServiceIdAndComponentId2Component
+                .Keys.Where(componentKey => componentKey.Item1 == serviceId)
                 .ToList()
         )
         {
@@ -358,9 +362,8 @@ public partial class Editor
 
         foreach (var categoryId in CatId2CompServiceIdAndComponentIds.Keys.ToList())
         {
-            CatId2CompServiceIdAndComponentIds[categoryId].RemoveWhere(
-                componentKey => componentKey.Item1 == serviceId
-            );
+            CatId2CompServiceIdAndComponentIds[categoryId]
+                .RemoveWhere(componentKey => componentKey.Item1 == serviceId);
 
             if (
                 categoryId != DefaultCatId
@@ -454,24 +457,26 @@ public partial class Editor
                     ?.Select(p => new Component.Port
                     {
                         Name = p["name"]?.ToString() ?? "no_name",
-                        Type = p["type"]?.ToString() == "array"
-                            ? Component.Port.PortType.array
-                            : Component.Port.PortType.standard,
+                        Type =
+                            p["type"]?.ToString() == "array"
+                                ? Component.Port.PortType.array
+                                : Component.Port.PortType.standard,
                         ContentType = p["contentType"]?.ToString() ?? "?",
                     })
-                .ToList()
+                    .ToList()
                 ?? [],
             OutPorts =
                 comp["outPorts"]
                     ?.Select(p => new Component.Port
                     {
                         Name = p["name"]?.ToString() ?? "no_name",
-                        Type = p["type"]?.ToString() == "array"
-                            ? Component.Port.PortType.array
-                            : Component.Port.PortType.standard,
+                        Type =
+                            p["type"]?.ToString() == "array"
+                                ? Component.Port.PortType.array
+                                : Component.Port.PortType.standard,
                         ContentType = p["contentType"]?.ToString() ?? "?",
                     })
-                .ToList()
+                    .ToList()
                 ?? [],
         };
     }
@@ -985,21 +990,21 @@ public partial class Editor
 
             var sourcePort = sourceNode
                 .Ports.Where(p =>
-                    p is CapnpFbpPortModel capnpPort && capnpPort.Name == sourcePortName
+                    p is CapnpFbpOutPortModel capnpPort && capnpPort.Name == sourcePortName
                 )
                 .DefaultIfEmpty(null)
                 .First();
             var noOfSourcePorts = sourceNode.Ports.Count(p =>
-                p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.Out }
+                p is CapnpFbpOutPortModel { ThePortType: CapnpFbpPortModel.PortType.Out }
             );
             var targetPort = targetNode
                 .Ports.Where(p =>
-                    p is CapnpFbpPortModel capnpPort && capnpPort.Name == targetPortName
+                    p is CapnpFbpInPortModel capnpPort && capnpPort.Name == targetPortName
                 )
                 .DefaultIfEmpty(null)
                 .First();
             var noOfTargetPorts = targetNode.Ports.Count(p =>
-                p is CapnpFbpPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
+                p is CapnpFbpInPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
             );
             if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
             {
@@ -1683,7 +1688,9 @@ public partial class Editor
     private IReadOnlyList<Model> GetFlowStartupOrder()
     {
         var nodes = Diagram.Nodes.Where(IsExecutableFlowNode).Cast<Model>().ToList();
-        var originalOrder = nodes.Select((node, index) => (node, index)).ToDictionary(x => x.node, x => x.index);
+        var originalOrder = nodes
+            .Select((node, index) => (node, index))
+            .ToDictionary(x => x.node, x => x.index);
         var outgoing = nodes.ToDictionary(node => node, _ => new HashSet<Model>());
         var indegree = nodes.ToDictionary(node => node, _ => 0);
 
@@ -1707,7 +1714,10 @@ public partial class Editor
                 indegree[source]++;
         }
 
-        var ready = nodes.Where(node => indegree[node] == 0).OrderBy(node => originalOrder[node]).ToList();
+        var ready = nodes
+            .Where(node => indegree[node] == 0)
+            .OrderBy(node => originalOrder[node])
+            .ToList();
         var ordered = new List<Model>(nodes.Count);
 
         while (ready.Count > 0)
@@ -1729,7 +1739,11 @@ public partial class Editor
         if (ordered.Count == nodes.Count)
             return ordered;
 
-        foreach (var node in nodes.Where(node => !ordered.Contains(node)).OrderBy(node => originalOrder[node]))
+        foreach (
+            var node in nodes
+                .Where(node => !ordered.Contains(node))
+                .OrderBy(node => originalOrder[node])
+        )
             ordered.Add(node);
 
         return ordered;
