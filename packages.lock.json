@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.AspNetCore.App.Internal.Assets": {
+        "type": "Direct",
+        "requested": "[10.0.7, )",
+        "resolved": "10.0.7",
+        "contentHash": "ao3i+ks0uOQ7FWacI1hqHkUczebmXrGkUB63Xhkc34QbSzG9nYBlDv9v5l6rtCrHMsDW+13kZlpJrSj1HXddqg=="
+      },
+      "Tomlyn": {
+        "type": "Direct",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "6w9WetXD5WrsToN21uAH7vXIvP29z5V/tvb4h4FD4bSB+nL6M6e9uK5QWdEzlA6EolR1/VV9htEqi0Fm/9Qq5g=="
+      },
+      "Z.Blazor.Diagrams": {
+        "type": "Direct",
+        "requested": "[3.0.4.1, )",
+        "resolved": "3.0.4.1",
+        "contentHash": "A+Muday/GzA5p6adV5LgHsuOAC8uuOXX+1p0jo1Hde7cDEBM/CkYftTm1PaxiGLUf2YK8o+bls2A7dreC9pCyQ==",
+        "dependencies": {
+          "Z.Blazor.Diagrams.Core": "3.0.4.1"
+        }
+      },
+      "Z.Blazor.Diagrams.Algorithms": {
+        "type": "Direct",
+        "requested": "[3.0.4.1, )",
+        "resolved": "3.0.4.1",
+        "contentHash": "cMVFme+PDYWNyRvQ2N65NgTawa/0awI92dBvsDqurVzijA/75gHIEQdVKxOKT8hb0a25vPv1Xlz7GXkCYaREYQ==",
+        "dependencies": {
+          "Z.Blazor.Diagrams.Core": "3.0.4.1"
+        }
+      },
+      "Z.Blazor.Diagrams.Core": {
+        "type": "Direct",
+        "requested": "[3.0.4.1, )",
+        "resolved": "3.0.4.1",
+        "contentHash": "CLBLNVgHcpCTXUZ1KTQptfIao82jrlVg1c1xnZFCF8+3WNZgRBszRrNFcPtAT8KsUiE+4+iA1eydbWdplOpq2w==",
+        "dependencies": {
+          "SvgPathProperties": "1.1.2"
+        }
+      },
+      "Allegiance.Blazor.Highcharts": {
+        "type": "Transitive",
+        "resolved": "7.0.5",
+        "contentHash": "9clPMZtSFpXZFNVHbtYaPHUAHBlF0hWyuEWOSUH3X7zw1Smue3mq6Ge1FMDV7fv63fFlSmgoTQ2zM3fnuWsNnA==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.2"
+        }
+      },
+      "Blazored.LocalStorage": {
+        "type": "Transitive",
+        "resolved": "4.5.0",
+        "contentHash": "6nZuJwA7zNIKx83IsObiHXZb09ponJOpCClU3en+hI8ZFvrOKXeOw+H7TegQZQrvdR1n9fkrVkEBQZg8vx6ZTw=="
+      },
+      "BlazorGoogleMaps": {
+        "type": "Transitive",
+        "resolved": "4.15.1",
+        "contentHash": "NJ3o8xT9YiCWYQzpXk5z7BF+T/WAEGMsqb0A8Tvj9thxKpj66ZtqrVUHdoQUjUKA5uTHrQtr0AYplHUt3p4d5Q==",
+        "dependencies": {
+          "OneOf": "3.0.271"
+        }
+      },
+      "libsodium": {
+        "type": "Transitive",
+        "resolved": "1.0.20.1",
+        "contentHash": "pkiceEqJDQFHjbga3k/oPfTVX9g+GKJZ1VrkuiLhaymt9YNw1Dr7cX9hNuZuNaWcr9WD0moW55k4pMwzQ7JaZQ=="
+      },
+      "MudBlazor": {
+        "type": "Transitive",
+        "resolved": "9.4.0",
+        "contentHash": "p6BF8zmt4c/yi/hD9hP7yPioUK5loOnif19gwIEANq6I46407QnSu0HTW1NuALC5seRKcWb2pBP5LwC8aBE2Mg=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.4",
+        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
+      },
+      "NSec.Cryptography": {
+        "type": "Transitive",
+        "resolved": "25.4.0",
+        "contentHash": "Z3wPpG0xefMLmhn9T+Ka/EzAmMQPT0THL/5E4lf9cXI/N9rbGH0G23ZFpRcPnD0ast2k7ieG6QSVNIjmfPCXBQ==",
+        "dependencies": {
+          "libsodium": "[1.0.20.1, 1.0.21)"
+        }
+      },
+      "OneOf": {
+        "type": "Transitive",
+        "resolved": "3.0.271",
+        "contentHash": "pqpqeK8xQGggExhr4tesVgJkjdn+9HQAO0QgrYV2hFjE3y90okzk1kQMntMiUOGfV7FrCUfKPaVvPBD4IANqKg=="
+      },
+      "SvgPathProperties": {
+        "type": "Transitive",
+        "resolved": "1.1.2",
+        "contentHash": "oqCX5+CxcLfC1lC6gfzOSM+WOmfwn4V7yzMHQfofi+QmYoY+Hq5oye6BgnqhHC+3BSsiadLSOnfYxpcv/enkcw=="
+      },
+      "blazorcomponents": {
+        "type": "Project",
+        "dependencies": {
+          "Allegiance.Blazor.Highcharts": "[7.0.5, )",
+          "BlazorGoogleMaps": "[4.15.1, )",
+          "Blazored.LocalStorage": "[4.5.0, )",
+          "Capnp.Net.Runtime": "[1.0.0, )",
+          "MudBlazor": "[9.4.0, )",
+          "Newtonsoft.Json": "[13.0.4, )",
+          "Tomlyn": "[2.4.0, )",
+          "Zalf.Mas.CapnpSchemas": "[0.0.1, )",
+          "common": "[1.0.0, )"
+        }
+      },
+      "capnp.net.runtime": {
+        "type": "Project"
+      },
+      "common": {
+        "type": "Project",
+        "dependencies": {
+          "Capnp.Net.Runtime": "[1.0.0, )",
+          "NSec.Cryptography": "[25.4.0, )",
+          "Zalf.Mas.CapnpSchemas": "[0.0.1, )"
+        }
+      },
+      "Zalf.Mas.CapnpSchemas": {
+        "type": "Project",
+        "dependencies": {
+          "Capnp.Net.Runtime": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
