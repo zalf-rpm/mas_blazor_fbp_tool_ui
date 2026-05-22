@@ -90,7 +90,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (
             ActivityState
             is not (
-                ProcessSchema.ActivityState.waitingInput or ProcessSchema.ActivityState.waitingOutput
+                ProcessSchema.ActivityState.waitingInput
+                or ProcessSchema.ActivityState.waitingOutput
             )
         )
         {
@@ -112,8 +113,11 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (
             Editor.CurrentChannelStarterService == null
             || ProcessFactory == null
-            || LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
-            || LifecycleState is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
+            || LifecycleState
+                is ComponentLifecycleState.Starting
+                    or ComponentLifecycleState.Stopping
+            || LifecycleState
+                is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
         {
             return;
@@ -241,8 +245,6 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                 var types = arr.Select(t => t.Type).ToHashSet();
                                 if (types.Count == 1)
                                 {
-                                    var x = arr.Select(t => new Value { T = t.Value<string>() })
-                                        .ToList();
                                     switch (types.First())
                                     {
                                         case JTokenType.String:
@@ -459,7 +461,10 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         await ResetRemoteRuntimeAsync(closeRemoteProcess: ProcessHandle != null || Process != null);
     }
 
-    protected override void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    protected override void ApplyComponentServiceBinding(
+        Component component,
+        string componentServiceId
+    )
     {
         base.ApplyComponentServiceBinding(component, componentServiceId);
         ClearLastRunInfo();
@@ -715,7 +720,10 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             );
         }
 
-        var currentActivity = await Process.Activity(_processActivityTransitionCallback, cancelToken);
+        var currentActivity = await Process.Activity(
+            _processActivityTransitionCallback,
+            cancelToken
+        );
         ApplyActivityInfo(currentActivity, refresh: false);
     }
 
@@ -940,8 +948,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (!string.IsNullOrWhiteSpace(cause))
             lines.Add($"Cause: {cause}");
 
-        var tracebackLines = runInfo.Traceback?
-            .Where(line => !string.IsNullOrWhiteSpace(line))
+        var tracebackLines = runInfo
+            .Traceback?.Where(line => !string.IsNullOrWhiteSpace(line))
             .Select(line => line.Trim())
             .ToList();
         if (includeTraceback && tracebackLines?.Count > 0)
@@ -1057,8 +1065,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     private class ProcessStateTransition(
         Func<ProcessSchema.State, ProcessSchema.State, CancellationToken, Task> action
-    )
-        : ProcessSchema.IStateTransition
+    ) : ProcessSchema.IStateTransition
     {
         public Task StateChanged(
             ProcessSchema.State old,
@@ -1074,8 +1081,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 
     private class ProcessActivityTransition(
         Func<ProcessSchema.ActivityInfo, ProcessSchema.ActivityInfo, CancellationToken, Task> action
-    )
-        : ProcessSchema.IActivityTransition
+    ) : ProcessSchema.IActivityTransition
     {
         public Task ActivityChanged(
             ProcessSchema.ActivityInfo old,
