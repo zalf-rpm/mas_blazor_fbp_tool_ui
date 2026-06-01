@@ -126,7 +126,11 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
+                    await Shared.Shared.CreateChannel(
+                        conMan,
+                        Editor.CurrentChannelStarterService,
+                        rcplm
+                    );
                 }
 
                 if (inPort.Parent == this)
@@ -187,6 +191,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                             )
                                             {
                                                 var str = st.Value;
+                                                str = str.Replace("<", "&lt;");
+                                                str = str.Replace(">", "&gt;");
                                                 str = str.ReplaceLineEndings("<br>");
                                                 var stStr =
                                                     $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
@@ -205,6 +211,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                             {
                                                 if (CapnpSerializable.Create<string>(ds) is { } str)
                                                 {
+                                                    str = str.Replace("<", "&lt;");
+                                                    str = str.Replace(">", "&gt;");
                                                     str = str.ReplaceLineEndings("<br>");
                                                     Console.WriteLine(
                                                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
