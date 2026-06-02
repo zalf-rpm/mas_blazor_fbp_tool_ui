@@ -149,6 +149,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
+    public virtual Task RefreshConfigFromRemoteAsync() => Task.CompletedTask;
+
     public virtual Task ResetExecution()
     {
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);

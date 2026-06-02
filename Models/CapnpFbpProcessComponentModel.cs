@@ -54,11 +54,140 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         LifecycleState == ComponentLifecycleState.Running
         && ActivityState == ProcessSchema.ActivityState.processing;
 
+    public override async Task RefreshConfigFromRemoteAsync()
+    {
+        if (Process == null)
+            return;
+
+        try
+        {
+            var remoteEntries = await Process.ConfigEntries();
+            var config = new JObject();
+
+            foreach (var entry in remoteEntries ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(entry?.Name))
+                    continue;
+
+                config[entry.Name] = ConvertCommonValueToJson(entry.Val);
+            }
+
+            ConfigString = config.ToString(Newtonsoft.Json.Formatting.Indented);
+            RefreshAll();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process configEntries RPC unavailable: {ex.Message}"
+            );
+        }
+        catch (RpcException ex)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {ProcessName}: process configEntries RPC failed: {ex.Message}"
+            );
+        }
+    }
+
     protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
         new CapnpFbpProcessComponentModel(
             $"{Id}__proc_{displayIndex}",
             Position == null ? null : new Point(Position.X, Position.Y)
         );
+
+    private static JToken ConvertCommonValueToJson(Value value)
+    {
+        if (value == null)
+            return JValue.CreateNull();
+
+        return value.which switch
+        {
+            Value.WHICH.F64 => new JValue(value.F64),
+            Value.WHICH.F32 => new JValue(value.F32),
+            Value.WHICH.I64 => new JValue(value.I64),
+            Value.WHICH.I32 => new JValue(value.I32),
+            Value.WHICH.I16 => new JValue(value.I16),
+            Value.WHICH.I8 => new JValue(value.I8),
+            Value.WHICH.Ui64 => new JValue(value.Ui64),
+            Value.WHICH.Ui32 => new JValue(value.Ui32),
+            Value.WHICH.Ui16 => new JValue(value.Ui16),
+            Value.WHICH.Ui8 => new JValue(value.Ui8),
+            Value.WHICH.B => new JValue(value.B),
+            Value.WHICH.T => value.T == null ? JValue.CreateNull() : new JValue(value.T),
+            Value.WHICH.D => value.D == null ? JValue.CreateNull() : new JArray(value.D),
+            Value.WHICH.Lf64 => value.Lf64 == null ? JValue.CreateNull() : new JArray(value.Lf64),
+            Value.WHICH.Lf32 => value.Lf32 == null ? JValue.CreateNull() : new JArray(value.Lf32),
+            Value.WHICH.Li64 => value.Li64 == null ? JValue.CreateNull() : new JArray(value.Li64),
+            Value.WHICH.Li32 => value.Li32 == null ? JValue.CreateNull() : new JArray(value.Li32),
+            Value.WHICH.Li16 => value.Li16 == null ? JValue.CreateNull() : new JArray(value.Li16),
+            Value.WHICH.Li8 => value.Li8 == null ? JValue.CreateNull() : new JArray(value.Li8),
+            Value.WHICH.Lui64 => value.Lui64 == null ? JValue.CreateNull() : new JArray(value.Lui64),
+            Value.WHICH.Lui32 => value.Lui32 == null ? JValue.CreateNull() : new JArray(value.Lui32),
+            Value.WHICH.Lui16 => value.Lui16 == null ? JValue.CreateNull() : new JArray(value.Lui16),
+            Value.WHICH.Lui8 => value.Lui8 == null ? JValue.CreateNull() : new JArray(value.Lui8),
+            Value.WHICH.Lb => value.Lb == null ? JValue.CreateNull() : new JArray(value.Lb),
+            Value.WHICH.Lt => value.Lt == null ? JValue.CreateNull() : new JArray(value.Lt),
+            Value.WHICH.Ld => value.Ld == null
+                ? JValue.CreateNull()
+                : new JArray(
+                    value.Ld.Select(bytes =>
+                        bytes == null ? (JToken)JValue.CreateNull() : new JArray(bytes)
+                    )
+                ),
+            Value.WHICH.Lpair => ConvertCommonPairListToJson(value.Lpair),
+            Value.WHICH.Lv => value.Lv == null
+                ? JValue.CreateNull()
+                : new JArray(value.Lv.Select(ConvertCommonValueToJson)),
+            _ => JValue.CreateNull(),
+        };
+    }
+
+    private static JToken ConvertCommonPairListToJson(IReadOnlyList<Pair<object, object>> pairs)
+    {
+        if (pairs == null)
+            return JValue.CreateNull();
+
+        var obj = new JObject();
+        foreach (var pair in pairs)
+        {
+            var key = pair?.Fst switch
+            {
+                null => null,
+                string text => text,
+                _ => pair.Fst.ToString(),
+            };
+
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            obj[key] = ConvertPairValueToJson(pair.Snd);
+        }
+
+        return obj;
+    }
+
+    private static JToken ConvertPairValueToJson(object value)
+    {
+        return value switch
+        {
+            null => JValue.CreateNull(),
+            Value commonValue => ConvertCommonValueToJson(commonValue),
+            string text => new JValue(text),
+            bool boolean => new JValue(boolean),
+            sbyte number => new JValue(number),
+            byte number => new JValue(number),
+            short number => new JValue(number),
+            ushort number => new JValue(number),
+            int number => new JValue(number),
+            uint number => new JValue(number),
+            long number => new JValue(number),
+            ulong number => new JValue(number),
+            float number => new JValue(number),
+            double number => new JValue(number),
+            IReadOnlyList<byte> bytes => new JArray(bytes),
+            _ => new JValue(value.ToString()),
+        };
+    }
 
     public bool IsWaitingOnPort(CapnpFbpPortModel port)
     {
