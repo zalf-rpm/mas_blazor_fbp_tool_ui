@@ -46,6 +46,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     protected override bool SupportsProcMultiplication => true;
 
     public override bool RemoteProcessAttached() => Runnable != null;
+
     public override bool CanEditCommandLine() => RunnableFactory != null || Runnable != null;
 
     protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
@@ -66,8 +67,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         if (
             Editor.CurrentChannelStarterService == null
             || RunnableFactory == null
-            || LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
-            || LifecycleState is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
+            || LifecycleState
+                is ComponentLifecycleState.Starting
+                    or ComponentLifecycleState.Stopping
+            || LifecycleState
+                is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
         {
             return;
@@ -184,7 +188,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
                     );
-                    await Shared.Shared.CreateChannel(conMan, Editor.CurrentChannelStarterService, rcplm);
+                    await Shared.Shared.CreateChannel(
+                        conMan,
+                        Editor.CurrentChannelStarterService,
+                        rcplm
+                    );
                 }
 
                 if (inPort.Parent == this)
@@ -217,11 +225,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     var writerSrs = entry.Value;
                     if (entry.Key.IsArrayPort)
                     {
-                        return new PortInfos.NameAndSR
-                        {
-                            Name = entry.Key.Name,
-                            Srs = writerSrs,
-                        };
+                        return new PortInfos.NameAndSR { Name = entry.Key.Name, Srs = writerSrs };
                     }
 
                     return new PortInfos.NameAndSR
@@ -459,7 +463,10 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         await ResetRemoteRuntimeAsync(stopRunnable: Runnable != null);
     }
 
-    protected override void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    protected override void ApplyComponentServiceBinding(
+        Component component,
+        string componentServiceId
+    )
     {
         base.ApplyComponentServiceBinding(component, componentServiceId);
 
