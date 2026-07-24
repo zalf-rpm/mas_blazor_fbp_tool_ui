@@ -310,6 +310,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                             Fst = k,
                                             Snd = v.Type switch
                                             {
+                                                JTokenType.Null
+                                                or JTokenType.None
+                                                or JTokenType.Undefined => null,
                                                 JTokenType.String => new Value
                                                 {
                                                     T = v.Value<string>(),
