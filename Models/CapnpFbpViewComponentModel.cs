@@ -196,9 +196,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                                 str = str.ReplaceLineEndings("<br>");
                                                 var stStr =
                                                     $"<b>{Shared.Shared.FormatStructuredTextType(st.TheType)}:</b><p>{str}</p>";
-                                                Console.WriteLine(
-                                                    $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
-                                                );
+                                                // Console.WriteLine(
+                                                //     $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
+                                                // );
                                                 ViewContent = new MarkupString(stStr);
                                             }
                                         }
@@ -214,9 +214,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                                                     str = str.Replace("<", "&lt;");
                                                     str = str.Replace(">", "&gt;");
                                                     str = str.ReplaceLineEndings("<br>");
-                                                    Console.WriteLine(
-                                                        $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
-                                                    );
+                                                    // Console.WriteLine(
+                                                    //     $"T{Environment.CurrentManagedThreadId} {ProcessName}: read: '{str}' from channel"
+                                                    // );
                                                     ViewContent = new MarkupString(str);
                                                 }
                                             }
