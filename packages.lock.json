@@ -4,15 +4,15 @@
     "net10.0": {
       "Microsoft.AspNetCore.App.Internal.Assets": {
         "type": "Direct",
-        "requested": "[10.0.7, )",
-        "resolved": "10.0.7",
-        "contentHash": "ao3i+ks0uOQ7FWacI1hqHkUczebmXrGkUB63Xhkc34QbSzG9nYBlDv9v5l6rtCrHMsDW+13kZlpJrSj1HXddqg=="
+        "requested": "[10.0.11, )",
+        "resolved": "10.0.11",
+        "contentHash": "tYYYBZsuF2DSz1I3hcfB8qC4nNekIKufkYZOJ2R28fNK3PkS7fJao/mIX5H84NH94UACZQ4dhvt8GDlkrJFwLg=="
       },
       "Tomlyn": {
         "type": "Direct",
-        "requested": "[2.4.0, )",
-        "resolved": "2.4.0",
-        "contentHash": "6w9WetXD5WrsToN21uAH7vXIvP29z5V/tvb4h4FD4bSB+nL6M6e9uK5QWdEzlA6EolR1/VV9htEqi0Fm/9Qq5g=="
+        "requested": "[2.10.1, )",
+        "resolved": "2.10.1",
+        "contentHash": "ykjOY3IpYmC4SpPcAZRTl/w2jTmhPMDydHq8xcV7tTBAQ22nKBsOkPqauIrZlMjHm03cmKfV23UOPscKp+J4Og=="
       },
       "Z.Blazor.Diagrams": {
         "type": "Direct",
@@ -56,21 +56,21 @@
       },
       "BlazorGoogleMaps": {
         "type": "Transitive",
-        "resolved": "4.15.1",
-        "contentHash": "NJ3o8xT9YiCWYQzpXk5z7BF+T/WAEGMsqb0A8Tvj9thxKpj66ZtqrVUHdoQUjUKA5uTHrQtr0AYplHUt3p4d5Q==",
+        "resolved": "4.16.0",
+        "contentHash": "OKk8kbIyzaIXM7aki9F/3Mi4Nykwq3YPnMxKl8gp90PbasAvJbMZBXpsazWW2Zw2avSgoq+dvxxf6o+YaGS/9Q==",
         "dependencies": {
           "OneOf": "3.0.271"
         }
       },
       "libsodium": {
         "type": "Transitive",
-        "resolved": "1.0.20.1",
-        "contentHash": "pkiceEqJDQFHjbga3k/oPfTVX9g+GKJZ1VrkuiLhaymt9YNw1Dr7cX9hNuZuNaWcr9WD0moW55k4pMwzQ7JaZQ=="
+        "resolved": "1.0.22",
+        "contentHash": "KPD9SloJFclrsjnhABu7dzWrcyYkwPbvx5l1gRSPAX/0n+OBtSiVCKtGFv4n+ecWUHU0tCG9LSSwoZZx673zBQ=="
       },
       "MudBlazor": {
         "type": "Transitive",
-        "resolved": "9.4.0",
-        "contentHash": "p6BF8zmt4c/yi/hD9hP7yPioUK5loOnif19gwIEANq6I46407QnSu0HTW1NuALC5seRKcWb2pBP5LwC8aBE2Mg=="
+        "resolved": "9.9.0",
+        "contentHash": "da57tXFdMFbatyTQYDCzZ3I2pXZgOpS737+ErZuXLc2YRmSC98VL9/keJOjKd5Am8YAxg7cf3lrKqFc6IoG3ag=="
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
@@ -79,10 +79,10 @@
       },
       "NSec.Cryptography": {
         "type": "Transitive",
-        "resolved": "25.4.0",
-        "contentHash": "Z3wPpG0xefMLmhn9T+Ka/EzAmMQPT0THL/5E4lf9cXI/N9rbGH0G23ZFpRcPnD0ast2k7ieG6QSVNIjmfPCXBQ==",
+        "resolved": "26.4.0",
+        "contentHash": "0vsCtY5f+YgQROiWNqzgWp+l2pddfk9FkWoGV/bEo0MuEYPKlJWuoA8aOfO6qp3f+EnObKE3zSJhn1PspJeJVg==",
         "dependencies": {
-          "libsodium": "[1.0.20.1, 1.0.21)"
+          "libsodium": "[1.0.22, 1.0.23)"
         }
       },
       "OneOf": {
@@ -99,12 +99,12 @@
         "type": "Project",
         "dependencies": {
           "Allegiance.Blazor.Highcharts": "[7.0.5, )",
-          "BlazorGoogleMaps": "[4.15.1, )",
+          "BlazorGoogleMaps": "[4.16.0, )",
           "Blazored.LocalStorage": "[4.5.0, )",
           "Capnp.Net.Runtime": "[1.0.0, )",
-          "MudBlazor": "[9.4.0, )",
+          "MudBlazor": "[9.9.0, )",
           "Newtonsoft.Json": "[13.0.4, )",
-          "Tomlyn": "[2.4.0, )",
+          "Tomlyn": "[2.10.1, )",
           "Zalf.Mas.CapnpSchemas": "[0.0.1, )",
           "common": "[1.0.0, )"
         }
@@ -116,7 +116,7 @@
         "type": "Project",
         "dependencies": {
           "Capnp.Net.Runtime": "[1.0.0, )",
-          "NSec.Cryptography": "[25.4.0, )",
+          "NSec.Cryptography": "[26.4.0, )",
           "Zalf.Mas.CapnpSchemas": "[0.0.1, )"
         }
       },
