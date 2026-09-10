@@ -89,23 +89,18 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     var length = Path.Length;
     var distance = Label.Distance;
     double fractionLength;
-    if (distance.HasValue)
+    if (distance is double d)
     {
-      var valueOrDefault = distance.GetValueOrDefault();
-      if (valueOrDefault <= 1.0)
+      fractionLength = d switch
       {
-        fractionLength = valueOrDefault >= 0.0 ? Label.Distance.Value * length : length + Label.Distance.Value;
-        goto label_6;
-      }
-      else if (valueOrDefault > 1.0)
-      {
-        fractionLength = Label.Distance.Value;
-        goto label_6;
-      }
+        <= 1.0 => d >= 0.0 ? d * length : length + d,
+        _ => d,
+      };
     }
-
-    fractionLength = length * (Label.Parent.Labels.IndexOf(Label) + 1) / (Label.Parent.Labels.Count + 1);
-    label_6:
+    else
+    {
+      fractionLength = length * (Label.Parent.Labels.IndexOf(Label) + 1) / (Label.Parent.Labels.Count + 1);
+    }
     var pointAtLength = Path.GetPointAtLength(fractionLength);
     return new Blazor.Diagrams.Core.Geometry.Point(pointAtLength.X, pointAtLength.Y);
   }
