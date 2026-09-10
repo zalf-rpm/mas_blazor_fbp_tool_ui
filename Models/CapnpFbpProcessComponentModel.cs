@@ -150,7 +150,10 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         var obj = new JObject();
         foreach (var pair in pairs)
         {
-            var key = pair?.Fst switch
+            if (pair == null)
+                continue;
+
+            var key = pair.Fst switch
             {
                 null => null,
                 string text => text,

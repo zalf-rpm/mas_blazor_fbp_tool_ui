@@ -902,8 +902,10 @@ public partial class Editor
 
     protected void AddNode()
     {
-        var x = Random.Next(0, (int)Diagram.Container.Width - 120);
-        var y = Random.Next(0, (int)Diagram.Container.Height - 100);
+        var width = (int)(Diagram.Container?.Width ?? 800);
+        var height = (int)(Diagram.Container?.Height ?? 600);
+        var x = Random.Next(0, Math.Max(1, width - 120));
+        var y = Random.Next(0, Math.Max(1, height - 100));
         AddNode(x, y);
     }
 
@@ -915,8 +917,10 @@ public partial class Editor
 
     protected void AddDefaultNode()
     {
-        var x = Random.Next(0, (int)Diagram.Container.Width - 120);
-        var y = Random.Next(0, (int)Diagram.Container.Height - 100);
+        var width = (int)(Diagram.Container?.Width ?? 800);
+        var height = (int)(Diagram.Container?.Height ?? 600);
+        var x = Random.Next(0, Math.Max(1, width - 120));
+        var y = Random.Next(0, Math.Max(1, height - 100));
         Diagram.Nodes.Add(new NodeModel(new Point(x, y)));
     }
 
@@ -1153,7 +1157,7 @@ public partial class Editor
         {
             sb.AppendLine(await File.ReadAllTextAsync("Data/diagram_template.mmd"));
         }
-        else
+        else if (dia != null)
         {
             dia["pan"] = new JObject { { "x", Diagram.Pan.X }, { "y", Diagram.Pan.Y } };
             dia["zoom"] = Diagram.Zoom;
@@ -1381,7 +1385,7 @@ public partial class Editor
                                 jn.Add("componentServiceId", fbpNode.ComponentServiceId);
                         }
 
-                        if (dia["nodes"] is JArray nodes)
+                        if (dia?["nodes"] is JArray nodes)
                             nodes.Add(jn);
                     }
 
@@ -1414,7 +1418,7 @@ public partial class Editor
                             { "content", iipNode.Content },
                             { "displayNoOfLines", iipNode.DisplayNoOfLines },
                         };
-                        if (dia["nodes"] is JArray nodes)
+                        if (dia?["nodes"] is JArray nodes)
                             nodes.Add(jn);
                     }
 
@@ -1441,7 +1445,7 @@ public partial class Editor
                                 }
                             },
                         };
-                        if (dia["nodes"] is JArray nodes)
+                        if (dia?["nodes"] is JArray nodes)
                             nodes.Add(jn);
                     }
 
@@ -1513,7 +1517,7 @@ public partial class Editor
                                 },
                                 { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
-                            if (dia["links"] is JArray links)
+                            if (dia?["links"] is JArray links)
                                 links.Add(jl);
                         }
 
@@ -1565,7 +1569,7 @@ public partial class Editor
                                 },
                                 { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
-                            if (dia["links"] is JArray links)
+                            if (dia?["links"] is JArray links)
                                 links.Add(jl);
                         }
 
@@ -1616,7 +1620,7 @@ public partial class Editor
                                 },
                                 { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
-                            if (dia["links"] is JArray links)
+                            if (dia?["links"] is JArray links)
                                 links.Add(jl);
                         }
 
@@ -1669,7 +1673,7 @@ public partial class Editor
                                 },
                                 { "bufferSize", inCapnpPort.ChannelBufferSize },
                             };
-                            if (dia["links"] is JArray links)
+                            if (dia?["links"] is JArray links)
                                 links.Add(jl);
                         }
 

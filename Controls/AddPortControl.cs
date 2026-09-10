@@ -37,6 +37,9 @@ public class AddPortControl : ExecutableControl
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {
+        if (NodeModel is null)
+            return;
+
         var ports = NodeModel
             .Ports.Where(p => p is CapnpFbpPortModel cp && cp.ThePortType == PortType)
             .OrderBy(p => p is CapnpFbpPortModel cp ? cp.OrderNo : 0)
@@ -44,7 +47,7 @@ public class AddPortControl : ExecutableControl
         var newOrderNo =
             ports.LastOrDefault() is CapnpFbpPortModel lastPort ? lastPort.OrderNo + 1 : 0;
         CreateAndAddPort(NodeModel, PortType, newOrderNo);
-        NodeModel?.QueueProcStructureSync();
+        NodeModel.QueueProcStructureSync();
         NodeModel.RefreshAll();
     }
 
