@@ -99,7 +99,7 @@
             <MudItem xs="12" Class="d-flex justify-center">
                 @code {
                     bool _editName = false;
-                    private MudTextField<string> _procNameFieldRef;
+                    private MudTextField<string>? _procNameFieldRef;
                     string EditNameClass => $"pl-3 pr-3 {(_editName ? "" : "d-none")}";
                     string NameTextClass => $"pl-3 pr-3 {(_editName ? "d-none" : "")}";
                     private const Typo NameTypo = Typo.h6;
@@ -107,7 +107,7 @@
 
                     void showAndFocusOnNameEdit() {
                         _editName = true;
-                        Task.Delay(200).ContinueWith(_ => _procNameFieldRef.FocusAsync());
+                        Task.Delay(200).ContinueWith(_ => _procNameFieldRef?.FocusAsync());
                     }
 
                 }
@@ -143,7 +143,7 @@
             <MudItem xs="12" Class="d-flex justify-center">
                 @code {
                     bool _editShortDesc = false;
-                    private MudTextField<string> _procShortDescFieldRef;
+                    private MudTextField<string>? _procShortDescFieldRef;
                     string EditShortDescClass => $"pl-3 pr-3 {(_editShortDesc ? "" : "d-none")}";
                     string ShortDescTextClass => $"pl-3 pr-3 {(_editShortDesc ? "d-none" : "")}";
                     private const Typo ShortDescTypo = Typo.body2;
@@ -151,7 +151,7 @@
 
                     void showAndFocusOnShortDescEdit() {
                         _editShortDesc = true;
-                        Task.Delay(200).ContinueWith(_ => _procShortDescFieldRef.FocusAsync());
+                        Task.Delay(200).ContinueWith(_ => _procShortDescFieldRef?.FocusAsync());
                     }
 
                 }

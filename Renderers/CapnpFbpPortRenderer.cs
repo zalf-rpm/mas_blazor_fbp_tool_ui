@@ -24,22 +24,22 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     private bool _shouldRefreshPort;
     private bool _shouldRender = true;
     private bool _shouldUpdateDimensions;
-    private string _lastStyle;
+    private string? _lastStyle;
     private bool _updatingDimensions;
 
-    [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; }
+    [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; } = null!;
 
-    [Inject] private IJSRuntime JSRuntime { get; set; }
+    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
 
-    [Parameter] public CapnpFbpPortModel Port { get; set; }
+    [Parameter] public CapnpFbpPortModel Port { get; set; } = null!;
 
-    [Parameter] public string Class { get; set; }
+    [Parameter] public string? Class { get; set; }
 
-    [Parameter] public string SocketColor { get; set; }
+    [Parameter] public string? SocketColor { get; set; }
 
-    [Parameter] public string IconColor { get; set; }
+    [Parameter] public string? IconColor { get; set; }
     
-    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
     private string PortLabelText =>

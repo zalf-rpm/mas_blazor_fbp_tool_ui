@@ -14,13 +14,13 @@ namespace BlazorDrawFBP.Renderers;
 public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
 {
   [CascadingParameter]
-  public BlazorDiagram BlazorDiagram { get; set; }
+  public BlazorDiagram BlazorDiagram { get; set; } = null!;
 
   [Parameter]
-  public LinkLabelModel Label { get; set; }
+  public LinkLabelModel Label { get; set; } = null!;
 
   [Parameter]
-  public SvgPath Path { get; set; }
+  public SvgPath Path { get; set; } = null!;
 
   public void Dispose()
   {

@@ -16,7 +16,7 @@ public class AppCircuitHandler(CleanupDiagramService service) : CircuitHandler
 
 public class CleanupDiagramService
 {
-    public Editor Editor { get; set; }
+    public Editor? Editor { get; set; }
 
     public async Task Cleanup()
     {

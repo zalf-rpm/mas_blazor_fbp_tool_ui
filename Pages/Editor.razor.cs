@@ -2133,7 +2133,7 @@ public partial class Editor
                 return node;
             }
             case Component.ComponentType.subflow:
-                break;
+                throw new NotSupportedException("Subflow components are not supported.");
             case Component.ComponentType.view:
             {
                 var componentId = component.Info.Id;

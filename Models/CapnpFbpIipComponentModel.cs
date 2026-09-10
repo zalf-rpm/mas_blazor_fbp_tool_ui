@@ -23,12 +23,12 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 
     // public BlazorDispatcher Dispatcher { get; set; }
 
-    public Editor Editor { get; set; }
+    public Editor Editor { get; set; } = null!;
 
-    public string ComponentId { get; set; }
+    public string ComponentId { get; set; } = "";
 
-    public string ShortDescription { get; set; }
-    public string Content { get; set; }
+    public string ShortDescription { get; set; } = "";
+    public string Content { get; set; } = "";
 
     public (bool, StructuredText.Type) PlainTextOrContentType { get; set; } =
         (true, StructuredText.Type.unstructured);

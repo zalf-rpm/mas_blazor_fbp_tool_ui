@@ -24,10 +24,10 @@ public class FbpLinkWidget : ComponentBase
   private bool _hovered;
 
   [CascadingParameter]
-  public BlazorDiagram BlazorDiagram { get; set; }
+  public BlazorDiagram BlazorDiagram { get; set; } = null!;
 
   [Parameter]
-  public LinkModel Link { get; set; }
+  public LinkModel Link { get; set; } = null!;
 
   private RenderFragment GetSelectionHelperPath(string color, string d, int index, bool enableHoverFeedback)
   {

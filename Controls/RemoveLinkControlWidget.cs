@@ -24,8 +24,8 @@ public class RemoveLinkControlWidget : ComponentBase
     }
 
     [Parameter]
-    public RemoveLinkControl Control { get; set; }
+    public RemoveLinkControl Control { get; set; } = null!;
 
     [Parameter]
-    public Model Model { get; set; }
+    public Model Model { get; set; } = null!;
 }

@@ -10,8 +10,8 @@ public class CapnpFbpComponentContentModel : NodeModel
     public CapnpFbpComponentContentModel(Point? position = null)
         : base(position) { }
 
-    public string Label { get; set; }
-    public CapnpFbpComponentModel ComponentModel { get; set; }
+    public string Label { get; set; } = "";
+    public CapnpFbpComponentModel ComponentModel { get; set; } = null!;
 
-    public Diagram Container { get; set; }
+    public Diagram Container { get; set; } = null!;
 }

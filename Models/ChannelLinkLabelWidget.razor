@@ -152,7 +152,7 @@
 {
     private static readonly Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats EmptyStats = new();
 
-    [Parameter] public ChannelLinkLabelModel Label { get; set; }
+    [Parameter] public ChannelLinkLabelModel Label { get; set; } = null!;
 
     private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel?.Stats ?? EmptyStats;
     private ulong BufferSize => Label?.BufferSize ?? 1;

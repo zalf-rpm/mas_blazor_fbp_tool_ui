@@ -44,13 +44,13 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public CapnpFbpComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
-    public Editor Editor { get; set; }
-    public string ComponentId { get; set; }
-    public string ComponentServiceId { get; set; }
-    public string ComponentName { get; set; }
-    public string ProcessName { get; set; }
-    public string ShortDescription { get; set; }
-    public string Cmd { get; set; }
+    public Editor Editor { get; set; } = null!;
+    public string ComponentId { get; set; } = "";
+    public string ComponentServiceId { get; set; } = "";
+    public string ComponentName { get; set; } = "";
+    public string ProcessName { get; set; } = "";
+    public string ShortDescription { get; set; } = "";
+    public string Cmd { get; set; } = "";
 
     public int InParallelCount
     {
@@ -69,14 +69,14 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     public bool Editable { get; set; } = true;
     public static int ProcessNo { get; set; }
-    public string DefaultConfigString { get; set; }
-    public string ConfigString { get; set; }
+    public string DefaultConfigString { get; set; } = "";
+    public string ConfigString { get; set; } = "";
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public bool ProcessStarted { get; protected set; }
     public ComponentLifecycleState LifecycleState { get; private set; } = ComponentLifecycleState.Idle;
     public string? LifecycleError { get; private set; }
     public bool IsInternalProcChild { get; protected set; }
-    public CapnpFbpComponentModel ProcOwnerNode { get; protected set; }
+    public CapnpFbpComponentModel? ProcOwnerNode { get; protected set; }
     public int ProcDisplayIndex { get; protected set; } = 1;
     public double? PortLayoutHeightOverride { get; private set; }
 

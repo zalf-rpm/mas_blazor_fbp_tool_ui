@@ -229,11 +229,11 @@
 </div>
 
 @code {
-    private Timer ClearButtonTimer { get; set; }
+    private Timer? ClearButtonTimer { get; set; }
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
     private int _loadFlowInputVersion;
-    private Editor _editor;
+    private Editor? _editor;
     private string _searchText = "";
     private string _query = "";
     private const int MinSearchChars = 3;

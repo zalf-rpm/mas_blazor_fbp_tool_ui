@@ -30,10 +30,10 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     // public BlazorDispatcher Dispatcher { get; set; }
 
-    public Editor Editor { get; set; }
-    public string ComponentId { get; set; }
-    public string ComponentName { get; set; }
-    public string ProcessName { get; set; }
+    public Editor Editor { get; set; } = null!;
+    public string ComponentId { get; set; } = "";
+    public string ComponentName { get; set; } = "";
+    public string ProcessName { get; set; } = "";
 
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;

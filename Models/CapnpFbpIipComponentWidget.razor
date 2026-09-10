@@ -86,7 +86,7 @@
 
 @code
 {
-    [Parameter] public CapnpFbpIipComponentModel Node { get; set; }
+    [Parameter] public CapnpFbpIipComponentModel Node { get; set; } = null!;
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private const string FrameWidth = "border-width: 1px";
