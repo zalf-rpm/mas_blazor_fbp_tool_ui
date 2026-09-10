@@ -604,7 +604,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 var holder = p.Cast<IIdentifiableHolder<Component>>(true);
                 try
                 {
-                    ServiceIdAndComponentId2Component.Add((info.Id, e.Id), await holder.Value());
+                    ServiceIdAndComponentId2Component[(info.Id, e.Id)] = await holder.Value();
                 }
                 catch (System.Exception ex)
                 {

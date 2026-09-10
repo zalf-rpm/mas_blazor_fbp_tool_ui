@@ -265,4 +265,22 @@ public class FbpRuntimeServiceTests
         Assert.IsTrue(order.Contains(nodeA));
         Assert.IsTrue(order.Contains(nodeB));
     }
+
+    [TestMethod]
+    public void ServiceIdAndComponentId2Component_AllowsRepeatedRegistrationWithoutException()
+    {
+        var key = ("service-1", "comp-1");
+        var component = new Mas.Schema.Fbp.Component
+        {
+            Info = new Mas.Schema.Common.IdInformation { Id = "comp-1", Name = "Component 1" }
+        };
+
+        _runtimeService.ServiceIdAndComponentId2Component[key] = component;
+        // Re-adding / assigning same key must be idempotent and not throw ArgumentException
+        _runtimeService.ServiceIdAndComponentId2Component[key] = component;
+
+        Assert.IsTrue(_runtimeService.ServiceIdAndComponentId2Component.ContainsKey(key));
+        Assert.AreEqual("comp-1", _runtimeService.ServiceIdAndComponentId2Component[key].Info.Id);
+    }
 }
+

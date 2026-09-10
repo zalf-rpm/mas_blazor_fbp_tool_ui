@@ -765,10 +765,8 @@ public partial class Editor : IAsyncDisposable
                 }
 
                 var diaNode = AddFbpNode(position, component, nodeObj, cmd);
-                oldNodeIdToNewNode.Add(
-                    nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "",
-                    diaNode
-                );
+                var oldNodeId = nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "";
+                oldNodeIdToNewNode[oldNodeId] = diaNode;
             }
 
             foreach (var link in dia["links"] ?? new JArray())
@@ -1556,13 +1554,11 @@ public partial class Editor : IAsyncDisposable
                 if (!RegistryServiceIdToPetNameAndSturdyRef.ContainsKey(componentServiceId))
                 {
                     unavailableService = true;
-                    RegistryServiceIdToPetNameAndSturdyRef.Add(
-                        componentServiceId,
+                    RegistryServiceIdToPetNameAndSturdyRef[componentServiceId] =
                         (
                             $"Service '{componentServiceId[..3]}..{componentServiceId[^3..]}' unavailable!",
                             null
-                        )
-                    );
+                        );
                 }
 
                 var initNodeComponentId = initNode?["componentId"]?.Value<string>() ?? "";
