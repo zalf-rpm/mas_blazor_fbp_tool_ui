@@ -29,6 +29,7 @@ using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components;
+using MudBlazor;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -37,6 +38,7 @@ using Newtonsoft.Json.Linq;
 using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 using Exception = System.Exception;
 using Restorer = Mas.Infrastructure.Common.Restorer;
+using Size = Blazor.Diagrams.Core.Geometry.Size;
 
 namespace BlazorDrawFBP.Pages;
 
@@ -81,6 +83,64 @@ public partial class Editor : IAsyncDisposable
                 Console.WriteLine($"Session snapshot failed: {ex.Message}");
             }
         });
+    }
+
+    public string ShortFlowId => FlowId.HasValue ? FlowId.Value.ToString("N")[..8] : "";
+
+    public void CreateNewFlow()
+    {
+        var newId = Guid.NewGuid();
+        NavigationManager.NavigateTo($"/flow/{newId}");
+    }
+
+    public async Task CopyFlowUrlToClipboard()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", NavigationManager.Uri);
+            Snackbar.Add("Flow URL copied to clipboard!", Severity.Info);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"Flow URL: {NavigationManager.Uri}", Severity.Info);
+        }
+    }
+
+    public async Task TerminateFlowSessionAsync()
+    {
+        if (!FlowId.HasValue)
+            return;
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Terminate Flow Session?",
+            "Are you sure you want to terminate this flow session? All running processes and channels will be stopped immediately and the session will be purged.",
+            yesText: "Terminate",
+            cancelText: "Cancel"
+        );
+
+        if (confirmed != true)
+            return;
+
+        var targetFlowId = FlowId.Value;
+        if (SessionStore.RemoveSession(targetFlowId, out var session))
+        {
+            if (session.RuntimeService is IAsyncDisposable disposable)
+            {
+                await disposable.DisposeAsync();
+            }
+            else
+            {
+                await session.RuntimeService.ClearDiagramAsync();
+            }
+        }
+        else
+        {
+            await RuntimeService.ClearDiagramAsync();
+        }
+
+        Snackbar.Add("Flow session terminated.", Severity.Warning);
+        var newId = Guid.NewGuid();
+        NavigationManager.NavigateTo($"/flow/{newId}");
     }
 
     private void OnDiagramStructureChanged(Model _) => ScheduleSessionSnapshot();

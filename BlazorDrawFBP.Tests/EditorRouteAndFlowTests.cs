@@ -64,4 +64,43 @@ public class EditorRouteAndFlowTests
         Assert.IsNotNull(loadJsonMethod, "Public method 'LoadFlowFromJsonAsync(JObject)' must exist on Editor.");
         Assert.AreEqual(typeof(Task), loadJsonMethod.ReturnType);
     }
+
+    [TestMethod]
+    public void Editor_ShortFlowId_FormatsCorrectly()
+    {
+        var editor = new Editor();
+        Assert.AreEqual("", editor.ShortFlowId);
+
+#pragma warning disable BL0005
+        editor.FlowId = Guid.Parse("abcdef12-3456-7890-abcd-ef1234567890");
+#pragma warning restore BL0005
+        Assert.AreEqual("abcdef12", editor.ShortFlowId);
+    }
+
+    [TestMethod]
+    public void Editor_HasPhase4SessionManagementMethods()
+    {
+        var createNewFlow = typeof(Editor).GetMethod(
+            "CreateNewFlow",
+            BindingFlags.Public | BindingFlags.Instance,
+            Type.EmptyTypes
+        );
+        Assert.IsNotNull(createNewFlow, "Method 'CreateNewFlow()' must exist on Editor.");
+
+        var copyUrl = typeof(Editor).GetMethod(
+            "CopyFlowUrlToClipboard",
+            BindingFlags.Public | BindingFlags.Instance,
+            Type.EmptyTypes
+        );
+        Assert.IsNotNull(copyUrl, "Method 'CopyFlowUrlToClipboard()' must exist on Editor.");
+
+        var terminateSession = typeof(Editor).GetMethod(
+            "TerminateFlowSessionAsync",
+            BindingFlags.Public | BindingFlags.Instance,
+            Type.EmptyTypes
+        );
+        Assert.IsNotNull(terminateSession, "Method 'TerminateFlowSessionAsync()' must exist on Editor.");
+        Assert.AreEqual(typeof(Task), terminateSession.ReturnType);
+    }
 }
+

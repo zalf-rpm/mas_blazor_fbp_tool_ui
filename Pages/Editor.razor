@@ -12,6 +12,7 @@
 @inject IFbpRuntimeService InjectedRuntimeService
 @inject IFlowSessionStore SessionStore
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
 
 @using System.Collections.Immutable
 @using System.Reflection
@@ -35,6 +36,28 @@
                        OnClick="@ToggleComponentList"/>
         <MudImage Class="ml-1 mr-1" Src="img/ocapi_just_logo.png" Height="45"/>
         <MudText Typo="Typo.h4">OCAPI-Flow Tool</MudText>
+        @if (FlowId.HasValue)
+        {
+            <MudTooltip Text="Click to copy flow URL">
+                <MudChip T="string"
+                         Icon="@Icons.Material.Filled.Share"
+                         Variant="Variant.Outlined"
+                         Color="Color.Primary"
+                         Size="Size.Small"
+                         Class="ml-3 cursor-pointer"
+                         OnClick="@CopyFlowUrlToClipboard">
+                    Flow: @ShortFlowId
+                </MudChip>
+            </MudTooltip>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                   Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   Class="ml-2"
+                   OnClick="@CreateNewFlow">
+            New Flow
+        </MudButton>
         <MudSpacer/>
         <MudButtonGroup>
             <MudButton StartIcon="@Icons.Material.Filled.Add"
@@ -208,6 +231,13 @@
                         Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
                         OnClick="ClearButtonClicked">
                         @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.StopCircle"
+                               Variant="@Variant.Filled"
+                               Color="@Color.Error"
+                               title="Terminate all running processes and purge flow session"
+                               OnClick="@TerminateFlowSessionAsync">
+                        Terminate Session
                     </MudButton>
                     <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
                                 Variant="@Variant.Filled"
