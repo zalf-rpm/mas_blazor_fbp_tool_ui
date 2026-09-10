@@ -45,6 +45,46 @@ public partial class Editor : IAsyncDisposable
     [Parameter]
     public Guid? FlowId { get; set; }
 
+    public FlowSession? CurrentSession { get; private set; }
+    public IFbpRuntimeService RuntimeService => CurrentSession?.RuntimeService ?? InjectedRuntimeService;
+
+    private CancellationTokenSource? _snapshotDebounceCts;
+
+    public void ScheduleSessionSnapshot()
+    {
+        if (CurrentSession == null || _loadingFlow)
+            return;
+
+        _snapshotDebounceCts?.Cancel();
+        _snapshotDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _snapshotDebounceCts = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(250, cts.Token);
+                if (cts.Token.IsCancellationRequested)
+                    return;
+
+                var doc = await ExportFlowJsonAsync();
+                if (CurrentSession != null)
+                {
+                    CurrentSession.FlowDocument = doc;
+                    CurrentSession.Touch();
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Session snapshot failed: {ex.Message}");
+            }
+        });
+    }
+
+    private void OnDiagramStructureChanged(Model _) => ScheduleSessionSnapshot();
+
     private const string NoRegistryServiceId = "no_service";
     private const string LoadFlowInputId = "load-flow-input";
     private const double ZoomToFitMargin = 80;
@@ -145,6 +185,13 @@ public partial class Editor : IAsyncDisposable
 
     protected override void OnInitialized()
     {
+        if (!FlowId.HasValue)
+        {
+            FlowId = Guid.NewGuid();
+            NavigationManager.NavigateTo($"/flow/{FlowId.Value}", replace: true);
+        }
+
+        CurrentSession = SessionStore.GetOrCreateSession(FlowId.Value, () => InjectedRuntimeService);
         CleanupService.RegisterCleanup(RuntimeService.ClearDiagramAsync);
         RuntimeService.StateChanged += OnRuntimeStateChanged;
 
@@ -222,6 +269,11 @@ public partial class Editor : IAsyncDisposable
         ConMan.Restorer = _restorer;
         ConMan.Bind(IPAddress.Any, 0, _restorer);
         _restorer.TcpPort = ConMan.Port;
+
+        Diagram.Nodes.Added += OnDiagramStructureChanged;
+        Diagram.Nodes.Removed += OnDiagramStructureChanged;
+        Diagram.Links.Added += OnDiagramStructureChanged;
+        Diagram.Links.Removed += OnDiagramStructureChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -244,7 +296,13 @@ public partial class Editor : IAsyncDisposable
         StateHasChanged();
     }
 
-    protected override async Task OnInitializedAsync() { }
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentSession?.FlowDocument != null)
+        {
+            await LoadFlowFromJsonAsync(CurrentSession.FlowDocument);
+        }
+    }
 
     private void CreateChannel(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort)
     {
@@ -311,21 +369,23 @@ public partial class Editor : IAsyncDisposable
         return nodes.Distinct();
     }
 
-    private static void RegisterNodeLayoutEvents(NodeModel node)
+    private void RegisterNodeLayoutEvents(NodeModel node)
     {
         node.Moved += OnNodeMoved;
         node.SizeChanged += OnNodeSizeChanged;
     }
 
-    private static void OnNodeMoved(MovableModel movedModel)
+    private void OnNodeMoved(MovableModel movedModel)
     {
         if (movedModel is NodeModel movedNode)
             RefreshPortLayout(movedNode);
+        ScheduleSessionSnapshot();
     }
 
-    private static void OnNodeSizeChanged(NodeModel node)
+    private void OnNodeSizeChanged(NodeModel node)
     {
         RefreshPortLayout(node);
+        ScheduleSessionSnapshot();
     }
 
     private void RegisterEvents()
@@ -1356,16 +1416,26 @@ public partial class Editor : IAsyncDisposable
         );
     }
 
-    public Task ClearDiagram() => RuntimeService.ClearDiagramAsync();
+    public async Task ClearDiagram()
+    {
+        if (CurrentSession != null)
+        {
+            CurrentSession.FlowDocument = null;
+        }
+        await RuntimeService.ClearDiagramAsync();
+    }
 
     public async ValueTask DisposeAsync()
     {
+        _snapshotDebounceCts?.Cancel();
+        _snapshotDebounceCts?.Dispose();
+        _snapshotDebounceCts = null;
+
         _clearButtonCts?.Cancel();
         _clearButtonCts?.Dispose();
         _clearButtonCts = null;
         RuntimeService.StateChanged -= OnRuntimeStateChanged;
         CleanupService.UnregisterCleanup();
-        await RuntimeService.ClearDiagramAsync();
     }
 
     private void OnRuntimeStateChanged() => _ = InvokeAsync(StateHasChanged);

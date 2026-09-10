@@ -9,7 +9,9 @@
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 @inject CleanupDiagramService CleanupService
-@inject IFbpRuntimeService RuntimeService
+@inject IFbpRuntimeService InjectedRuntimeService
+@inject IFlowSessionStore SessionStore
+@inject NavigationManager NavigationManager
 
 @using System.Collections.Immutable
 @using System.Reflection
