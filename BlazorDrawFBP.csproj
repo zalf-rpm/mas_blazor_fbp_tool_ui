@@ -26,6 +26,7 @@
     <Compile Remove="mas_blazor_components\**" />
     <Compile Remove="mas_csharp_common\**" />
     <Compile Remove="mas_capnproto_schemas\**" />
+    <Compile Remove="BlazorDrawFBP.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +34,7 @@
     <EmbeddedResource Remove="mas_blazor_components\**" />
     <EmbeddedResource Remove="mas_csharp_common\**" />
     <EmbeddedResource Remove="mas_capnproto_schemas\**" />
+    <EmbeddedResource Remove="BlazorDrawFBP.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,6 +42,7 @@
     <Content Remove="mas_blazor_components\**" />
     <Content Remove="mas_csharp_common\**" />
     <Content Remove="mas_capnproto_schemas\**" />
+    <Content Remove="BlazorDrawFBP.Tests\**" />
     <None Update="Data\diagram_template.mmd">
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -52,6 +55,7 @@
     <None Remove="mas_blazor_components\**" />
     <None Remove="mas_csharp_common\**" />
     <None Remove="mas_capnproto_schemas\**" />
+    <None Remove="BlazorDrawFBP.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
