@@ -291,7 +291,7 @@ public partial class Editor : IAsyncDisposable
             CurrentSession.RuntimeService.Diagram = Diagram;
         }
 
-        StateHasChanged();
+        SafeStateHasChanged();
     }
 
     private BlazorDiagram CreateConfiguredDiagram(IFbpRuntimeService runtime)
@@ -391,7 +391,7 @@ public partial class Editor : IAsyncDisposable
             else if (ssrd.InterfaceId == Shared.Shared.RegistryInterfaceId)
                 await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
 
-        StateHasChanged();
+        SafeStateHasChanged();
     }
 
     private void CreateChannel(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort)
@@ -639,7 +639,7 @@ public partial class Editor : IAsyncDisposable
 
             //Console.WriteLine($"MouseClick, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
             //events.Add($"MouseClick, Type={m?.GetType().Name}, ModelId={m?.Id}");
-            StateHasChanged();
+            SafeStateHasChanged();
         };
 
         diagram.PointerDoubleClick += (m, e) =>
@@ -676,7 +676,7 @@ public partial class Editor : IAsyncDisposable
             // Console.WriteLine(
             //     $"MouseDoubleClick, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
             // events.Add($"MouseDoubleClick, Type={m?.GetType().Name}, ModelId={m?.Id}");
-            StateHasChanged();
+            SafeStateHasChanged();
         };
     }
 
@@ -1526,7 +1526,20 @@ public partial class Editor : IAsyncDisposable
         CleanupService.UnregisterCleanup();
     }
 
-    private void OnRuntimeStateChanged() => _ = InvokeAsync(StateHasChanged);
+    private void SafeStateHasChanged()
+    {
+        try
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SafeStateHasChanged failed: {ex.Message}");
+        }
+    }
+
+    private void OnRuntimeStateChanged() => SafeStateHasChanged();
 
     private Task ExecuteNode(Model node) => RuntimeService.ExecuteNodeAsync(node);
     private Task ResetNode(Model node) => RuntimeService.ResetNodeAsync(node);

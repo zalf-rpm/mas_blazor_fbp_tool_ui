@@ -261,7 +261,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         if (Port.Initialized)
         {
             _shouldRender = true;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
         else
         {

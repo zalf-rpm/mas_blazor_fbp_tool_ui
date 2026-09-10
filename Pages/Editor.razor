@@ -424,7 +424,7 @@
             if (nb.AutoConnect) await ConnectToRegistryService(ConMan, nb.PetName, nb.SturdyRef);
         }
 
-        StateHasChanged();
+        SafeStateHasChanged();
     }
 
     private async Task AddChannelServiceSturdyRef()
@@ -441,7 +441,7 @@
             if (nb.AutoConnect) await ConnectToStartChannelsService(ConMan, nb.PetName, nb.SturdyRef);
         }
 
-        StateHasChanged();
+        SafeStateHasChanged();
     }
 
     private async Task ShowSturdyRefDialog()
