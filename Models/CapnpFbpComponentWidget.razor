@@ -373,7 +373,7 @@
         var dialog = await DialogService.ShowAsync<JsonEditorDialog>("Edit Configuration", parameters, options);
         var result = await dialog.Result;
         if (result == null || result.Canceled) return;
-        Node.ConfigString = result.Data as string;
+        Node.ConfigString = result.Data as string ?? "";
         StateHasChanged();
     }
 
@@ -384,7 +384,7 @@
         var dialog = await DialogService.ShowAsync<TomlEditorDialog>("Edit Configuration", parameters);
         var result = await dialog.Result;
         if (result == null || result.Canceled) return;
-        Node.ConfigString = result.Data as string;
+        Node.ConfigString = result.Data as string ?? "";
         StateHasChanged();
     }
 

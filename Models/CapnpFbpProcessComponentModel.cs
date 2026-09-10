@@ -19,19 +19,19 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 {
-    public CapnpFbpProcessComponentModel(Point position = null)
+    public CapnpFbpProcessComponentModel(Point? position = null)
         : base(position) { }
 
-    public CapnpFbpProcessComponentModel(string id, Point position = null)
+    public CapnpFbpProcessComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
-    private CancellationTokenSource _cancellationTokenSource;
-    private ProcessStateTransition _processStateTransitionCallback;
-    private ProcessActivityTransition _processActivityTransitionCallback;
-    public IProcess Process { get; set; }
-    public ProcessSchema.IProcessHandle ProcessHandle { get; set; }
+    private CancellationTokenSource? _cancellationTokenSource;
+    private ProcessStateTransition? _processStateTransitionCallback;
+    private ProcessActivityTransition? _processActivityTransitionCallback;
+    public IProcess? Process { get; set; }
+    public ProcessSchema.IProcessHandle? ProcessHandle { get; set; }
 
-    public ProcessSchema.IFactory ProcessFactory { get; set; }
+    public ProcessSchema.IFactory? ProcessFactory { get; set; }
     protected override bool SupportsProcMultiplication => true;
 
     public override bool RemoteProcessAttached() => ProcessHandle != null || Process != null;
@@ -43,9 +43,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Process != null && LifecycleState == ComponentLifecycleState.Running;
     public ProcessSchema.ActivityState ActivityState { get; private set; } =
         ProcessSchema.ActivityState.none;
-    public string ActivityPortName { get; private set; }
+    public string? ActivityPortName { get; private set; }
     public string ActivitySummary => FormatActivitySummary(ActivityState, ActivityPortName);
-    public ProcessSchema.RunInfo LastRunInfo { get; private set; }
+    public ProcessSchema.RunInfo? LastRunInfo { get; private set; }
     public bool HasLastRunInfo => LastRunInfo != null;
     public ProcessSchema.RunInfo.Outcome LastRunOutcome =>
         LastRunInfo?.TheOutcome ?? ProcessSchema.RunInfo.Outcome.none;
@@ -271,7 +271,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             _cancellationTokenSource = new CancellationTokenSource();
             cancelToken = _cancellationTokenSource.Token;
 
-            if (!await EnsureProcessAsync(cancelToken))
+            if (!await EnsureProcessAsync(cancelToken) || Process == null)
                 throw new InvalidOperationException(
                     $"Process '{ProcessName}' did not provide a usable process handle."
                 );
@@ -404,27 +404,27 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                 var hl = new List<Value>();
                                 foreach (var t in arr)
                                 {
-                                    hl.Add(
-                                        t.Type switch
+                                    var itemVal = t.Type switch
+                                    {
+                                        JTokenType.String => new Value
                                         {
-                                            JTokenType.String => new Value
-                                            {
-                                                T = t.Value<string>(),
-                                            },
-                                            JTokenType.Integer => new Value
-                                            {
-                                                I64 = t.Value<long>(),
-                                            },
-                                            JTokenType.Float => new Value
-                                            {
-                                                F64 = t.Value<double>(),
-                                            },
-                                            JTokenType.Boolean => new Value { B = t.Value<bool>() },
-                                            JTokenType.Array or JTokenType.Object =>
-                                                MakeCommonValue(t),
-                                            _ => new Value { T = t.ToString() },
-                                        }
-                                    );
+                                            T = t.Value<string>(),
+                                        },
+                                        JTokenType.Integer => new Value
+                                        {
+                                            I64 = t.Value<long>(),
+                                        },
+                                        JTokenType.Float => new Value
+                                        {
+                                            F64 = t.Value<double>(),
+                                        },
+                                        JTokenType.Boolean => new Value { B = t.Value<bool>() },
+                                        JTokenType.Array or JTokenType.Object =>
+                                            MakeCommonValue(t),
+                                        _ => new Value { T = t.ToString() },
+                                    };
+                                    if (itemVal != null)
+                                        hl.Add(itemVal);
                                 }
                                 return new Value { Lv = hl };
                             }
@@ -437,32 +437,35 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                 {
                                     if (v == null)
                                         continue;
+                                    var sndVal = v.Type switch
+                                    {
+                                        JTokenType.String => new Value
+                                        {
+                                            T = v.Value<string>(),
+                                        },
+                                        JTokenType.Integer => new Value
+                                        {
+                                            I64 = v.Value<long>(),
+                                        },
+                                        JTokenType.Float => new Value
+                                        {
+                                            F64 = v.Value<double>(),
+                                        },
+                                        JTokenType.Boolean => new Value
+                                        {
+                                            B = v.Value<bool>(),
+                                        },
+                                        JTokenType.Array or JTokenType.Object =>
+                                            MakeCommonValue(v),
+                                        _ => null,
+                                    };
+                                    if (sndVal == null)
+                                        continue;
                                     pl.Add(
                                         new Pair<object, object>()
                                         { //}string, Value>() {
                                             Fst = k,
-                                            Snd = v.Type switch
-                                            {
-                                                JTokenType.String => new Value
-                                                {
-                                                    T = v.Value<string>(),
-                                                },
-                                                JTokenType.Integer => new Value
-                                                {
-                                                    I64 = v.Value<long>(),
-                                                },
-                                                JTokenType.Float => new Value
-                                                {
-                                                    F64 = v.Value<double>(),
-                                                },
-                                                JTokenType.Boolean => new Value
-                                                {
-                                                    B = v.Value<bool>(),
-                                                },
-                                                JTokenType.Array or JTokenType.Object =>
-                                                    MakeCommonValue(v),
-                                                _ => null,
-                                            },
+                                            Snd = sndVal,
                                         }
                                     );
                                 }
@@ -482,6 +485,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 var model = JObject.Parse(ConfigString);
                 foreach (var kv in model)
                 {
+                    if (kv.Value == null)
+                        continue;
                     var val = MakeCommonValue(kv.Value);
                     if (val == null)
                     {
@@ -527,7 +532,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task StopProcess(ConnectionManager conMan)
+    public override async Task StopProcess(ConnectionManager? conMan)
     {
         if (!IsInternalProcChild)
             await StopOwnedProcChildrenAsync(conMan);
@@ -535,7 +540,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         await StopSingleProcessAsync(conMan);
     }
 
-    private async Task StopSingleProcessAsync(ConnectionManager conMan)
+    private async Task StopSingleProcessAsync(ConnectionManager? conMan)
     {
         if (
             LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
@@ -747,6 +752,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     {
         if (ProcessHandle == null)
         {
+            if (ProcessFactory == null)
+                return false;
+
             ProcessHandle = await ProcessFactory.Create(cancelToken);
             if (ProcessHandle == null)
                 return false;
@@ -817,7 +825,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         CancellationToken cancelToken = default
     )
     {
-        ProcessSchema.RunInfo lastRunInfo = null;
+        ProcessSchema.RunInfo? lastRunInfo = null;
         if (state is ProcessSchema.State.failed or ProcessSchema.State.idle)
             lastRunInfo = await RefreshLastRunInfoAsync(cancelToken);
 
@@ -861,7 +869,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         ApplyActivityInfo(currentActivity, refresh: false);
     }
 
-    private void ApplyActivityInfo(ProcessSchema.ActivityInfo activity, bool refresh = false)
+    private void ApplyActivityInfo(ProcessSchema.ActivityInfo? activity, bool refresh = false)
     {
         var nextState = activity?.State ?? ProcessSchema.ActivityState.none;
         var nextPortName = NormalizeActivityPortName(activity?.Port);
@@ -895,12 +903,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    private static string? NormalizeActivityPortName(string portName) =>
+    private static string? NormalizeActivityPortName(string? portName) =>
         string.IsNullOrWhiteSpace(portName) ? null : portName.Trim();
 
     private static string FormatActivitySummary(
         ProcessSchema.ActivityState activityState,
-        string activityPortName
+        string? activityPortName
     )
     {
         var label = activityState switch
@@ -997,7 +1005,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return runInfo;
     }
 
-    private static string? FormatLastRunFailure(ProcessSchema.RunInfo runInfo)
+    private static string? FormatLastRunFailure(ProcessSchema.RunInfo? runInfo)
     {
         var lines = BuildLastRunDetailLines(
             runInfo,
@@ -1008,7 +1016,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    private static string? FormatLastRunSummary(ProcessSchema.RunInfo runInfo)
+    private static string? FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
     {
         if (runInfo == null)
             return null;
@@ -1040,7 +1048,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     }
 
     private static IReadOnlyList<string> BuildLastRunDetailLines(
-        ProcessSchema.RunInfo runInfo,
+        ProcessSchema.RunInfo? runInfo,
         bool includeHeading,
         bool includeProcessIdentity,
         bool includeTraceback

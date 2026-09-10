@@ -41,9 +41,7 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     var position = FindPosition();
     var x = position.X + (Label.Offset?.X ?? 0.0);
     var y = position.Y + (Label.Offset?.Y ?? 0.0);
-    var type = BlazorDiagram.GetComponent(Label);
-    if ((object) type == null)
-      type = typeof (DefaultLinkLabelWidget);
+    var type = BlazorDiagram.GetComponent(Label) ?? typeof(DefaultLinkLabelWidget);
     var componentType = type;
     if (Label is ChannelLinkLabelModel channelLabel)
     {

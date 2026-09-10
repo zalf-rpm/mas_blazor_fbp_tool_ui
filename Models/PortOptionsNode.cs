@@ -7,17 +7,17 @@ using Blazor.Diagrams.Core.Models;
 
 public class PortOptionsNode : NodeModel
 {
-    public PortOptionsNode(Point position = null) : base(position) { }
+    public PortOptionsNode(Point? position = null) : base(position) { }
 
-    public string NameLabel { get; set; }
+    public string NameLabel { get; set; } = "";
     
-    public string ContentTypeLabel { get; set; }
+    public string ContentTypeLabel { get; set; } = "";
 
-    public string DescriptionLabel { get; set; }
+    public string DescriptionLabel { get; set; } = "";
 
-    public CapnpFbpPortModel PortModel { get; set; }
+    public CapnpFbpPortModel PortModel { get; set; } = null!;
     
-    public NodeModel NodeModel { get; set; }
+    public NodeModel? NodeModel { get; set; }
     
-    public Diagram Container { get; set; }
+    public Diagram Container { get; set; } = null!;
 }

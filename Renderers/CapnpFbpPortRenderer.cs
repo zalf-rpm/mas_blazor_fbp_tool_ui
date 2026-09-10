@@ -188,7 +188,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     private async Task UpdateDimensions()
     {
-        Point pan;
+        Point? pan;
         if (BlazorDiagram.Container == null)
         {
             pan = null;

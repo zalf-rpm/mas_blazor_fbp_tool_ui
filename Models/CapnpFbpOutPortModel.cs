@@ -29,10 +29,10 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel
     )
         : base(id, parent, PortType.Out, alignment, position, size) { }
 
-    public Task RetrieveWriterFromChannelTask { get; set; }
-    public SturdyRef WriterSturdyRef { get; set; }
+    public Task? RetrieveWriterFromChannelTask { get; set; }
+    public SturdyRef? WriterSturdyRef { get; set; }
 
-    public Channel<IP>.IWriter Writer { get; set; }
+    public Channel<IP>.IWriter? Writer { get; set; }
 
     public void SyncLinkedWriterState()
     {

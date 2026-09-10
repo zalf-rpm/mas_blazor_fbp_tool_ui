@@ -36,7 +36,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     public int DisplayNoOfLines { get; set; } = 3;
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;
-    public string LifecycleError { get; private set; }
+    public string? LifecycleError { get; private set; }
     public bool CanStart => !IsLifecycleBusy;
     public bool CanStop => false;
     public bool IsLifecycleBusy =>

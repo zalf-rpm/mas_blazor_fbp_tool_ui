@@ -137,7 +137,7 @@
         var dialog = await DialogService.ShowAsync<TextEditorDialog>("Edit IIP Content", parameters);
         var result = await dialog.Result;
         if (result == null || result.Canceled) return;
-        Node.Content = result.Data as string;
+        Node.Content = result.Data as string ?? "";
         StateHasChanged();
     }
 }

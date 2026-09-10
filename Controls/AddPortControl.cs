@@ -63,7 +63,7 @@ public class AddPortControl : ExecutableControl
     {
         var alignment =
             portType == CapnpFbpPortModel.PortType.In ? PortAlignment.Left : PortAlignment.Right;
-        CapnpFbpPortModel port = portType switch {
+        CapnpFbpPortModel? port = portType switch {
             CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment) {
                 Name = name ?? "IN",
                 ContentType = contentType ?? "?",

@@ -20,29 +20,29 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 {
-    public CapnpFbpRunnableComponentModel(Point position = null)
+    public CapnpFbpRunnableComponentModel(Point? position = null)
         : base(position)
     {
         _stoppedCallback = new StoppedCallback(this);
     }
 
-    public CapnpFbpRunnableComponentModel(string id, Point position = null)
+    public CapnpFbpRunnableComponentModel(string id, Point? position = null)
         : base(id, position)
     {
         _stoppedCallback = new StoppedCallback(this);
     }
 
     private readonly StoppedCallback _stoppedCallback;
-    private CancellationTokenSource _cancellationTokenSource;
-    private CapnpFbpInPortModel _embeddedConfigInPort;
-    private CapnpFbpOutPortModel _embeddedConfIipOutPort;
-    private SturdyRef _portInfosReaderSr;
-    private Channel<PortInfos>.IWriter _portInfosWriter;
-    private IStoppable _stopPortInfosChannel { get; set; }
+    private CancellationTokenSource? _cancellationTokenSource;
+    private CapnpFbpInPortModel? _embeddedConfigInPort;
+    private CapnpFbpOutPortModel? _embeddedConfIipOutPort;
+    private SturdyRef? _portInfosReaderSr;
+    private Channel<PortInfos>.IWriter? _portInfosWriter;
+    private IStoppable? _stopPortInfosChannel { get; set; }
 
-    public IRunnable Runnable { get; set; }
+    public IRunnable? Runnable { get; set; }
 
-    public Runnable.IFactory RunnableFactory { get; set; }
+    public Runnable.IFactory? RunnableFactory { get; set; }
     protected override bool SupportsProcMultiplication => true;
 
     public override bool RemoteProcessAttached() => Runnable != null;
@@ -284,11 +284,11 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                         );
                         await _embeddedConfIipOutPort.RetrieveWriterFromChannelTask;
                     }
-                    else
+                    else if (_embeddedConfigInPort?.Channel is { } embeddedChannel)
                     {
                         (_embeddedConfIipOutPort.Writer, _embeddedConfIipOutPort.WriterSturdyRef) =
                             await Shared.Shared.GetNewWriterFromChannel(
-                                _embeddedConfigInPort.Channel,
+                                embeddedChannel,
                                 cancelToken
                             );
                     }
@@ -407,7 +407,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task StopProcess(ConnectionManager conMan)
+    public override async Task StopProcess(ConnectionManager? conMan)
     {
         if (!IsInternalProcChild)
             await StopOwnedProcChildrenAsync(conMan);
@@ -415,7 +415,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         await StopSingleProcessAsync(conMan);
     }
 
-    private async Task StopSingleProcessAsync(ConnectionManager conMan)
+    private async Task StopSingleProcessAsync(ConnectionManager? conMan)
     {
         if (
             LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping

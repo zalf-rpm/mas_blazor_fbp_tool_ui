@@ -18,8 +18,8 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
     public CapnpFbpInPortModel(
         NodeModel parent,
         PortAlignment alignment = PortAlignment.Bottom,
-        Point position = null,
-        Size size = null
+        Point? position = null,
+        Size? size = null
     )
         : base(parent, PortType.In, alignment, position, size)
     {
@@ -35,17 +35,17 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
     // )
     //     : base(id, parent, PortType.In, alignment, position, size) { }
 
-    public Task RetrieveReaderFromChannelTask { get; set; }
-    public SturdyRef ReaderSturdyRef { get; set; }
+    public Task? RetrieveReaderFromChannelTask { get; set; }
+    public SturdyRef? ReaderSturdyRef { get; set; }
 
-    public Channel<IP>.IReader Reader { get; set; }
+    public Channel<IP>.IReader? Reader { get; set; }
 
-    public IChannel<IP> Channel { get; set; }
-    public IStoppable StopChannel { get; set; }
-    public Mas.Schema.Fbp.Process.IDisconnect ProcessDisconnect { get; private set; }
+    public IChannel<IP>? Channel { get; set; }
+    public IStoppable? StopChannel { get; set; }
+    public Mas.Schema.Fbp.Process.IDisconnect? ProcessDisconnect { get; private set; }
 
     private readonly StatsCallback _statsCallback;
-    private Channel<IP>.StatsCallback.IUnregister _unregisterStatsCallback;
+    private Channel<IP>.StatsCallback.IUnregister? _unregisterStatsCallback;
 
     public ulong ChannelBufferSize { get; private set; } = 1;
     public bool ReceivingStats => _statsCallback != null;
@@ -183,6 +183,9 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         uint updateIntervalInMs = DefaultChannelStatsUpdateIntervalInMs
     )
     {
+        if (Channel == null)
+            return;
+
         var info = await Channel.Info();
         _statsCallback.ChannelName = info.Name ?? info.Id;
         Console.WriteLine(

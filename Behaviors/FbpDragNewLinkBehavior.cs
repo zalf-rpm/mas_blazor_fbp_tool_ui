@@ -15,9 +15,9 @@ using System.Linq;
 
 public class FbpDragNewLinkBehavior : Behavior
 {
-  private PositionAnchor _targetPositionAnchor;
+  private PositionAnchor? _targetPositionAnchor;
 
-  public BaseLinkModel OngoingLink { get; private set; }
+  public BaseLinkModel? OngoingLink { get; private set; }
 
   public FbpDragNewLinkBehavior(Diagram diagram)
     : base(diagram)
@@ -62,7 +62,7 @@ public class FbpDragNewLinkBehavior : Behavior
 
   private void OnPointerMove(Model? model, MouseEventArgs e)
   {
-    if (OngoingLink == null || model != null) return;
+    if (OngoingLink == null || model != null || _targetPositionAnchor == null) return;
     _targetPositionAnchor.SetPosition(CalculateTargetPosition(e.ClientX, e.ClientY));
     if (Diagram.Options.Links.EnableSnapping)
     {
@@ -122,7 +122,7 @@ public class FbpDragNewLinkBehavior : Behavior
   private PortModel? FindNearPortToAttachTo()
   {
     if (OngoingLink == null || _targetPositionAnchor == null) return null;
-    PortModel nearPortToAttachTo = null;
+    PortModel? nearPortToAttachTo = null;
     var num1 = double.PositiveInfinity;
     var position = _targetPositionAnchor.GetPosition(OngoingLink);
     if (position == null) return null;

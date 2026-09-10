@@ -122,7 +122,7 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
         LinkModel?.Refresh();
     }
 
-    private static string FormatPortLabel(CapnpFbpPortModel port)
+    private static string FormatPortLabel(CapnpFbpPortModel? port)
     {
         if (port == null)
             return "unknown";

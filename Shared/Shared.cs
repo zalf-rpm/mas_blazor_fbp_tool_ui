@@ -309,24 +309,24 @@ public static class Shared
     public static Task RemoveAttachedLinksAndCleanupAsync(
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
-        Model excludedNode = null
+        Model? excludedNode = null
     ) =>
         RemoveAttachedLinksAndCleanupAsyncCore(
             links,
             diagram,
-            excludedNode == null ? null : [excludedNode]
+            excludedNode == null ? [] : [excludedNode]
         );
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
-        IReadOnlyCollection<Model> excludedNodes
+        IReadOnlyCollection<Model>? excludedNodes
     ) => RemoveAttachedLinksAndCleanupAsyncCore(links, diagram, excludedNodes);
 
     private static async Task RemoveAttachedLinksAndCleanupAsyncCore(
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
-        IReadOnlyCollection<Model> excludedNodes
+        IReadOnlyCollection<Model>? excludedNodes
     )
     {
         var excludedNodeSet = excludedNodes?.Where(node => node != null).ToHashSet() ?? [];
@@ -348,7 +348,7 @@ public static class Shared
     private static async Task RemoveRememberedLinkAndCleanupAsync(
         Diagram diagram,
         RememberCapnpPortsLinkModel removedLink,
-        IReadOnlyCollection<Model> excludedNodes = null
+        IReadOnlyCollection<Model>? excludedNodes = null
     )
     {
         var excludedNodeSet = excludedNodes?.Where(node => node != null).ToHashSet() ?? [];

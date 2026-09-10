@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -180,7 +181,7 @@ public partial class Editor
     private bool TryGetBindableComponent(
         CapnpFbpComponentModel node,
         string componentServiceId,
-        out Component component
+        [NotNullWhen(true)] out Component? component
     )
     {
         if (
@@ -223,7 +224,8 @@ public partial class Editor
                 petName ?? "chan_start_serv"
             );
             ServiceId2ChannelStarterServices[info.Id] = Proxy.Share(service);
-            SturdyRef2Services[sturdyRef] = Proxy.Share(service) as Proxy;
+            if (Proxy.Share(service) is Proxy proxy)
+                SturdyRef2Services[sturdyRef] = proxy;
             ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
             return service;
         }
@@ -241,7 +243,7 @@ public partial class Editor
         string sturdyRef
     )
     {
-        IRegistry reg = null;
+        IRegistry? reg = null;
         try
         {
             reg = await conMan.Connect<IRegistry>(sturdyRef);
@@ -252,7 +254,8 @@ public partial class Editor
             //var iid = GetInterfaceId<IRegistry>();
             var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2Registries, petName ?? "reg_serv");
             ServiceId2Registries[info.Id] = Proxy.Share(reg);
-            SturdyRef2Services[sturdyRef] = Proxy.Share(reg) as Proxy;
+            if (Proxy.Share(reg) is Proxy proxy)
+                SturdyRef2Services[sturdyRef] = proxy;
             RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
             Console.WriteLine("added petName2: " + petName2 + " and sturdyRef: " + sturdyRef);
         }
@@ -262,7 +265,8 @@ public partial class Editor
             return null;
         }
 
-        await LoadComponentsFromRegistry(reg, sturdyRef);
+        if (reg != null)
+            await LoadComponentsFromRegistry(reg, sturdyRef);
         return reg;
     }
 
@@ -564,7 +568,7 @@ public partial class Editor
             if (!CatId2Info.ContainsKey(catId))
                 CatId2Info[catId] = new IdInformation { Id = catId, Name = catId };
 
-            var component = CreateFromJson(entry["component"]);
+            var component = CreateFromJson(comp);
             if (component == null)
                 continue;
             value.Add((NoRegistryServiceId, component.Info.Id));
@@ -958,7 +962,7 @@ public partial class Editor
                     nodeObj["componentId"]?.ToString() ?? nodeObj["component_id"]?.ToString() ?? "";
                 var compServiceId =
                     nodeObj["componentServiceId"]?.ToString() ?? NoRegistryServiceId;
-                Component component;
+                Component? component = null;
                 var cmd = "";
                 if (
                     string.IsNullOrEmpty(compId)
@@ -985,16 +989,16 @@ public partial class Editor
                         nodeObj["componentServiceId"] = key.Item1;
                         break;
                     }
+                }
 
-                    //no service with the correct component id available, make it an empty_component
-                    if (component == null)
-                    {
-                        component = nodeObj.ContainsKey("content")
-                            ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
-                            : ServiceIdAndComponentId2Component[
-                                (NoRegistryServiceId, "empty_component")
-                            ];
-                    }
+                //no service with the correct component id available, make it an empty_component
+                if (component == null)
+                {
+                    component = nodeObj.ContainsKey("content")
+                        ? ServiceIdAndComponentId2Component[(NoRegistryServiceId, "iip")]
+                        : ServiceIdAndComponentId2Component[
+                            (NoRegistryServiceId, "empty_component")
+                        ];
                 }
 
                 var diaNode = AddFbpNode(position, component, nodeObj, cmd);
@@ -1688,7 +1692,7 @@ public partial class Editor
             "saveAsBase64",
             "flow." + (asMermaid ? "mmd" : "json"),
             Convert.ToBase64String(
-                Encoding.UTF8.GetBytes(asMermaid ? sb.ToString() : dia?.ToString())
+                Encoding.UTF8.GetBytes(asMermaid ? sb.ToString() : (dia?.ToString() ?? "{}"))
             )
         );
     }
@@ -1956,12 +1960,12 @@ public partial class Editor
                 var config = initNode?.GetValue("config");
                 var configStr = (config?.Type ?? JTokenType.Null) switch
                 {
-                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented),
-                    JTokenType.String => config?.ToString(),
+                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "",
+                    JTokenType.String => config?.ToString() ?? "",
                     _ => "",
                 };
 
-                CapnpFbpComponentModel node = null;
+                CapnpFbpComponentModel node;
                 switch (component.Type)
                 {
                     case Component.ComponentType.standard:
@@ -2057,6 +2061,8 @@ public partial class Editor
                         node = pnode;
                         break;
                     }
+                    default:
+                        throw new InvalidOperationException($"Unsupported component type: {component.Type}");
                 }
 
                 var controlsContainer = Diagram.Controls.AddFor(node); //, ControlsType.OnHover);

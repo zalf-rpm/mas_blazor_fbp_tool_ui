@@ -30,8 +30,8 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
         NodeModel parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
-        Point position = null,
-        Size size = null
+        Point? position = null,
+        Size? size = null
     )
         : base(parent, alignment, position, size)
     {
@@ -45,8 +45,8 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
         NodeModel parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
-        Point position = null,
-        Size size = null
+        Point? position = null,
+        Size? size = null
     )
         : base(id, parent, alignment, position, size)
     {

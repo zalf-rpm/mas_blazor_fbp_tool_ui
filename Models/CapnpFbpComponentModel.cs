@@ -38,10 +38,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     private ComponentLifecycleState? _procAdjustmentState;
     private bool _procCountAdjustmentInFlight;
 
-    public CapnpFbpComponentModel(Point position = null)
+    public CapnpFbpComponentModel(Point? position = null)
         : base(position) { }
 
-    public CapnpFbpComponentModel(string id, Point position = null)
+    public CapnpFbpComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
     public Editor Editor { get; set; }
@@ -74,7 +74,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public bool ProcessStarted { get; protected set; }
     public ComponentLifecycleState LifecycleState { get; private set; } = ComponentLifecycleState.Idle;
-    public string LifecycleError { get; private set; }
+    public string? LifecycleError { get; private set; }
     public bool IsInternalProcChild { get; protected set; }
     public CapnpFbpComponentModel ProcOwnerNode { get; protected set; }
     public int ProcDisplayIndex { get; protected set; } = 1;
@@ -141,7 +141,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
-    public virtual async Task StopProcess(ConnectionManager conMan)
+    public virtual async Task StopProcess(ConnectionManager? conMan)
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StopProcess"
@@ -297,7 +297,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             await child.StartProcess(conMan);
     }
 
-    protected async Task StopOwnedProcChildrenAsync(ConnectionManager conMan)
+    protected async Task StopOwnedProcChildrenAsync(ConnectionManager? conMan)
     {
         foreach (var child in ProcChildComponents.Reverse())
             await child.StopProcess(conMan);
@@ -333,7 +333,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     protected void SetLifecycleState(
         ComponentLifecycleState state,
-        string error = null,
+        string? error = null,
         bool refresh = false
     )
     {
@@ -635,7 +635,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
                 .ThenBy(port => port.OrderNo)
         )
         {
-            CapnpFbpPortModel clonedPort = port switch
+            CapnpFbpPortModel? clonedPort = port switch
             {
                 CapnpFbpInPortModel => new CapnpFbpInPortModel(child, PortAlignment.Left),
                 CapnpFbpOutPortModel => new CapnpFbpOutPortModel(child, PortAlignment.Right),

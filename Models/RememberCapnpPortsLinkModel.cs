@@ -25,10 +25,10 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
     public bool IsInternalProcLink { get; set; }
 
     public Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats { get; set; } = new();
-    public Task RetrieveWriterFromChannelTask { get; set; }
-    public SturdyRef WriterSturdyRef { get; private set; }
-    public Channel<IP>.IWriter Writer { get; private set; }
-    public Mas.Schema.Fbp.Process.IDisconnect ProcessOutDisconnect { get; private set; }
+    public Task? RetrieveWriterFromChannelTask { get; set; }
+    public SturdyRef? WriterSturdyRef { get; private set; }
+    public Channel<IP>.IWriter? Writer { get; private set; }
+    public Mas.Schema.Fbp.Process.IDisconnect? ProcessOutDisconnect { get; private set; }
     public bool ProcessOutConnected { get; private set; }
 
     private static SinglePortAnchor CreatePortAnchor(CapnpFbpPortModel port) =>
@@ -71,7 +71,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
         return RetrieveWriterFromChannelTask;
     }
 
-    public void SetWriter(Channel<IP>.IWriter writer, SturdyRef writerSturdyRef)
+    public void SetWriter(Channel<IP>.IWriter? writer, SturdyRef? writerSturdyRef)
     {
         if (!ReferenceEquals(Writer, writer))
             Writer?.Dispose();
@@ -82,7 +82,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
     }
 
     public void SetProcessOutDisconnect(
-        Mas.Schema.Fbp.Process.IDisconnect disconnect,
+        Mas.Schema.Fbp.Process.IDisconnect? disconnect,
         bool connected
     )
     {

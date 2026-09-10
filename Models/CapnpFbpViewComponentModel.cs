@@ -37,7 +37,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;
-    public string LifecycleError { get; private set; }
+    public string? LifecycleError { get; private set; }
     public bool CanStart =>
         LifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed;
     public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
@@ -46,7 +46,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public string LifecycleLabel => LifecycleState.ToString();
 
     public bool ProcessStarted { get; protected set; }
-    private Task ViewMsgReceiveTask { get; set; }
+    private Task? ViewMsgReceiveTask { get; set; }
 
     public int DisplayWidthPx { get; set; } = 100;
     public int DisplayHeightPx { get; set; } = 132;
@@ -99,7 +99,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
             _cancellationTokenSource = new CancellationTokenSource();
             cancelToken = _cancellationTokenSource.Token;
 
-            Channel<IP>.IReader reader = null;
+            Channel<IP>.IReader? reader = null;
 
             // collect SRs from IN and OUT ports and for IIPs send it into the channel
             foreach (var pl in Shared.Shared.AttachedLinks(this))
@@ -133,7 +133,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     );
                 }
 
-                if (inPort.Parent == this)
+                if (inPort.Parent == this && inPort.Reader != null)
                 {
                     reader = Proxy.Share(inPort.Reader);
                 }
@@ -288,7 +288,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         }
     }
 
-    public async Task StopProcess(ConnectionManager conMan)
+    public async Task StopProcess(ConnectionManager? conMan)
     {
         Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: stop process");
         if (IsLifecycleBusy || !CanStop)

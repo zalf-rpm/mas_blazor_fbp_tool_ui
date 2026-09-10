@@ -104,34 +104,25 @@ public class FbpLinkWidget : ComponentBase
         }
       }
     }
-    double? nullable;
-    if (Link.SourceMarker != null)
+    if (Link.SourceMarker != null && pathGeneratorResult.SourceMarkerAngle is double sourceAngle && pathGeneratorResult.SourceMarkerPosition is Point sourcePos)
     {
-      nullable = pathGeneratorResult.SourceMarkerAngle;
-      if (nullable.HasValue && pathGeneratorResult.SourceMarkerPosition != (Point) null)
-      {
-        builder.OpenElement(7, "g");
-        builder.AddAttribute(8, "transform", FormattableString.Invariant(FormattableStringFactory.Create("translate({0}, {1}) rotate({2})", (object) pathGeneratorResult.SourceMarkerPosition.X, (object) pathGeneratorResult.SourceMarkerPosition.Y, (object) pathGeneratorResult.SourceMarkerAngle)));
-        builder.OpenElement(9, "path");
-        builder.AddAttribute(10, "d", Link.SourceMarker.Path);
-        builder.AddAttribute(11, "fill", color);
-        builder.CloseElement();
-        builder.CloseElement();
-      }
+      builder.OpenElement(7, "g");
+      builder.AddAttribute(8, "transform", FormattableString.Invariant($"translate({sourcePos.X}, {sourcePos.Y}) rotate({sourceAngle})"));
+      builder.OpenElement(9, "path");
+      builder.AddAttribute(10, "d", Link.SourceMarker.Path);
+      builder.AddAttribute(11, "fill", color);
+      builder.CloseElement();
+      builder.CloseElement();
     }
-    if (Link.TargetMarker != null)
+    if (Link.TargetMarker != null && pathGeneratorResult.TargetMarkerAngle is double targetAngle && pathGeneratorResult.TargetMarkerPosition is Point targetPos)
     {
-      nullable = pathGeneratorResult.TargetMarkerAngle;
-      if (nullable.HasValue && pathGeneratorResult.TargetMarkerPosition != (Point) null)
-      {
-        builder.OpenElement(12, "g");
-        builder.AddAttribute(13, "transform", FormattableString.Invariant(FormattableStringFactory.Create("translate({0}, {1}) rotate({2})", (object) pathGeneratorResult.TargetMarkerPosition.X, (object) pathGeneratorResult.TargetMarkerPosition.Y, (object) pathGeneratorResult.TargetMarkerAngle)));
-        builder.OpenElement(14, "path");
-        builder.AddAttribute(15, "d", Link.TargetMarker.Path);
-        builder.AddAttribute(16, "fill", color);
-        builder.CloseElement();
-        builder.CloseElement();
-      }
+      builder.OpenElement(12, "g");
+      builder.AddAttribute(13, "transform", FormattableString.Invariant($"translate({targetPos.X}, {targetPos.Y}) rotate({targetAngle})"));
+      builder.OpenElement(14, "path");
+      builder.AddAttribute(15, "d", Link.TargetMarker.Path);
+      builder.AddAttribute(16, "fill", color);
+      builder.CloseElement();
+      builder.CloseElement();
     }
     if (Link.Vertices.Count > 0)
     {
