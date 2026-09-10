@@ -37,26 +37,24 @@ public static class Shared
         return typeof(T).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0;
     }
 
-    public static string MakeUniqueKey<T>(Dictionary<string, T> dict, string key)
+    public static string MakeUniqueKey<T>(IReadOnlyDictionary<string, T> dict, string key)
     {
-        var key2 = key;
-        while (dict.ContainsKey(key))
+        if (!dict.ContainsKey(key))
+            return key;
+
+        var counter = 2;
+        var candidate = $"{key}{counter}";
+        while (dict.ContainsKey(candidate))
         {
-            if (!int.TryParse(key2[^1..^1], out var i))
-                key += 2;
-            if (i < 9)
-            {
-                key2 = key2[..^1] + (i + 1);
-            }
-            else
-            {
-                if (int.TryParse(key2[^2..^1], out var i2))
-                    key2 = key2[..^2] + (i2 + 1);
-            }
+            counter++;
+            candidate = $"{key}{counter}";
         }
 
-        return key2;
+        return candidate;
     }
+
+    public static string MakeUniqueKey<T>(Dictionary<string, T> dict, string key) =>
+        MakeUniqueKey((IReadOnlyDictionary<string, T>)dict, key);
 
     public static string NodeNameFromPort(PortModel port)
     {
