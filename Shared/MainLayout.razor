@@ -1,74 +1,16 @@
-﻿@inherits LayoutComponentBase
-
-@using System.Reflection
-@using System.Threading
-@using Mas.Infrastructure.BlazorComponents
-
-@* @inject BlazorDispatcher Dispatcher *@
-@* @inject IDialogService DialogService *@
-@* @inject Blazored.LocalStorage.ILocalStorageService LocalStorage *@
-@* @inject Mas.Infrastructure.Common.ConnectionManager ConMan *@
-@* @inject Shared Shared *@
+@inherits LayoutComponentBase
 
 <MudThemeProvider Theme="_currentTheme" />
-@* <MudDialogProvider/> *@
-@* <MudPopoverProvider/> *@
-@* <MudSnackbarProvider/> *@
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
 @Body
 
-@* <MudLayout> *@
-@*     $1$ <MudAppBar Elevation="1"> #1# *@
-@*     $1$     <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" /> #1# *@
-@*     $1$     <MudImage Class="ml-5 mr-5" Src="img/ocapi_just_logo.png" Height="50"/> #1# *@
-@*     $1$     <MudText Typo="Typo.h5">OCAPI-Flow Tool</MudText> #1# *@
-@*     $1$     <MudSpacer/> #1# *@
-@*     $1$     <MudButtonGroup> #1# *@
-@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Add" #1# *@
-@*     $1$                    Variant="@Variant.Filled" #1# *@
-@*     $1$                    Color="@Color.Inherit" #1# *@
-@*     $1$                    @onclick="AddComponentServiceSturdyRef"> #1# *@
-@*     $1$             Components #1# *@
-@*     $1$         </MudButton> #1# *@
-@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Add" #1# *@
-@*     $1$                    Variant="@Variant.Filled" #1# *@
-@*     $1$                    Color="@Color.Inherit" #1# *@
-@*     $1$                    @onclick="AddChannelServiceSturdyRef"> #1# *@
-@*     $1$             Channels #1# *@
-@*     $1$         </MudButton> #1# *@
-@*     $1$         <MudButton StartIcon="@Icons.Material.Filled.Settings" #1# *@
-@*     $1$                    Color="Color.Inherit" #1# *@
-@*     $1$                    Variant="Variant.Filled" #1# *@
-@*     $1$                    OnClick="@ShowSturdyRefDialog"> #1# *@
-@*     $1$             Edit SturdyRefs #1# *@
-@*     $1$         </MudButton> #1# *@
-@*     $1$     </MudButtonGroup> #1# *@
-@*     $1$     <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" /> #1# *@
-@*     $1$ </MudAppBar> #1# *@
-@*     $1$ <MudDrawer @bind-Open="_drawerOpen" Elevation="2"> #1# *@
-@*     $1$     <MudDrawerHeader Class="logo-container"> #1# *@
-@*     $1$         <img src="/images/no-fdsmas-logo.png" asp-append-version="true" /> #1# *@
-@*     $1$     </MudDrawerHeader> #1# *@
-@*     $1$     <NavMenu /> #1# *@
-@*     $1$ </MudDrawer> #1# *@
-@*     <MudMainContent> *@
-@*         <MudContainer Class="mt-4 px-4" MaxWidth="MaxWidth.False"> *@
-@*             @Body *@
-@*         </MudContainer> *@
-@*     </MudMainContent> *@
-@* </MudLayout> *@
 @code {
-    // bool _drawerOpen = false;
-
-    // void DrawerToggle()
-    // {
-    //     _drawerOpen = !_drawerOpen;
-    // }
-
     protected override void OnInitialized()
     {
         _currentTheme = _defaultTheme;
-        // Dispatcher.Capture();
     }
 
     void DarkMode()
@@ -133,31 +75,4 @@
             Secondary = "#4da950"
         }
     };
-
-    /*
-    UserSetting _userSetting = new UserSetting();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            var localUserSettings = await localStorage.GetItemAsync<UserSetting>(StaticFields.UserSettingsLocalStorageKey);
-
-            if (localUserSettings != null)
-            {
-                _userSetting = localUserSettings;
-            }
-
-            StateHasChanged();
-        }
-    }
-
-    async Task LogoutAsync()
-    {
-        _userSetting.GithubLoggedIn = false;
-        _userSetting = new UserSetting();
-        await localStorage.SetItemAsync<UserSetting>(StaticFields.UserSettingsLocalStorageKey, _userSetting);
-        StateHasChanged();
-    }
-    */
 }
