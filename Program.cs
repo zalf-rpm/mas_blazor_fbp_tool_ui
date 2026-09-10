@@ -2,6 +2,7 @@ using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Shared;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.DataProtection;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,14 @@ builder.Services.AddMudServices();
 
 builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
+
+var dataProtectionKeysFolder = builder.Configuration["DATA_PROTECTION_KEYS_PATH"]
+    ?? builder.Configuration["DataProtection:KeysFolder"];
+if (!string.IsNullOrEmpty(dataProtectionKeysFolder))
+{
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysFolder));
+}
 
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
@@ -29,7 +38,12 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-app.UseHttpsRedirection();
+// In container environments / reverse-proxy setups (like Kubernetes), TLS termination is handled by the Ingress/Gateway.
+// Only use in-process HTTPS redirection when running outside containers (e.g. local dotnet run with HTTPS dev cert).
+if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER")) || app.Configuration["HTTPS_PORT"] != null)
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAntiforgery();
 
