@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
-using BlazorDrawFBP.Pages;
+using Blazor.Diagrams;
+using BlazorDrawFBP.Services;
 using Capnp;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
@@ -23,7 +24,8 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 
     // public BlazorDispatcher Dispatcher { get; set; }
 
-    public Editor Editor { get; set; } = null!;
+    public IFbpRuntimeService RuntimeService { get; set; } = null!;
+    public BlazorDiagram Diagram { get; set; } = null!;
 
     public string ComponentId { get; set; } = "";
 
@@ -73,7 +75,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         if (!CanStart)
             return;
 
-        if (Editor.CurrentChannelStarterService == null)
+        if (RuntimeService.CurrentChannelStarterService == null)
         {
             SetLifecycleFault(
                 new InvalidOperationException("No channel service connected."),
@@ -149,7 +151,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         await ResetExecution();
         await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
             this,
-            Editor.Diagram,
+            Diagram,
             this
         );
 

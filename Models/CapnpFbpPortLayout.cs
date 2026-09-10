@@ -652,11 +652,11 @@ public static class CapnpFbpPortLayout
     )
     {
         interval = default;
-        if (node is not CapnpFbpComponentModel component || component.Editor == null)
+        if (node is not CapnpFbpComponentModel component || component.RuntimeService == null)
             return false;
 
         var serviceName =
-            component.Editor.GetComponentServiceName(component.ComponentServiceId) ?? "";
+            component.RuntimeService.GetComponentServiceName(component.ComponentServiceId) ?? "";
         var badgeWidth = Math.Clamp(
             ServiceBadgeBaseWidthPx + (serviceName.Length * ServiceBadgeCharacterWidthPx),
             ServiceBadgeMinWidthPx,

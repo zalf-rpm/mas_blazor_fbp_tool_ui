@@ -29,8 +29,8 @@
                         SelectedValue="@Node.ComponentServiceId"
                         CheckMark
                         SelectionMode="SelectionMode.SingleSelection">
-                @foreach (var (i, p) in Node.Editor.GetBindableComponentServices(Node).Select((p, i) => (i, p))) {
-                    var style = $"left: 3px; top: {-15 - i * 25}px; {Node.Editor.GetComponentServiceBadgeStyle(p.Key)}";
+                @foreach (var (i, p) in Node.RuntimeService.GetBindableComponentServices(Node).Select((p, i) => (i, p))) {
+                    var style = $"left: 3px; top: {-15 - i * 25}px; {Node.RuntimeService.GetComponentServiceBadgeStyle(p.Key)}";
                     <MudChip Class="absolute"
                              Style="@style"
                              Color="Color.Default"
@@ -48,14 +48,14 @@
             </MudChipSet>
         } else {
             <MudChip Class="absolute"
-                     Style="@($"left: 3px; top: -15px; {Node.Editor.GetComponentServiceBadgeStyle(Node.ComponentServiceId)}")"
+                     Style="@($"left: 3px; top: -15px; {Node.RuntimeService.GetComponentServiceBadgeStyle(Node.ComponentServiceId)}")"
                      Color="Color.Default"
                      Disabled="@Node.IsLifecycleBusy"
                      Label="true"
                      Size="Size.Small"
                      OnClick="() => { _changeComponentServiceId = true; }"
                      T="string">
-                @Node.Editor.GetComponentServiceName(Node.ComponentServiceId)
+                @Node.RuntimeService.GetComponentServiceName(Node.ComponentServiceId)
             </MudChip>
         }
         <MudGrid Justify="Justify.Center" Spacing="1">
@@ -358,7 +358,7 @@
     private async Task SelectComponentServiceAsync(string componentServiceId)
     {
         _changeComponentServiceId = false;
-        await Node.Editor.SwitchComponentServiceAsync(Node, componentServiceId);
+        await Node.RuntimeService.SwitchComponentServiceAsync(Node, componentServiceId);
         await InvokeAsync(StateHasChanged);
     }
 

@@ -49,8 +49,8 @@
             <MudItem xs="12" Class="pl-3 pr-3 pt-2 pb-3">
                 <Display WidthPx="@Node.DisplayWidthPx"
                          HeightPx="@Node.DisplayHeightPx"
-                         EnableZoom="@(() => { Node.Editor?.Diagram.Options.Zoom.Enabled = true; })"
-                         DisableZoom="@(() => { Node.Editor?.Diagram.Options.Zoom.Enabled = false; })">
+                         EnableZoom="@(() => { Node.Diagram.Options.Zoom.Enabled = true; })"
+                         DisableZoom="@(() => { Node.Diagram.Options.Zoom.Enabled = false; })">
                     @Node.ViewContent
                 </Display>
             </MudItem>
@@ -123,8 +123,8 @@
         var parameters = new DialogParameters
         {
             ["Content"] = Node.ViewContent,
-            ["EnableZoom"] = () => { Node.Editor?.Diagram.Options.Zoom.Enabled = true; },
-            ["DisableZoom"] = () => { Node.Editor?.Diagram.Options.Zoom.Enabled = false; },
+            ["EnableZoom"] = () => { Node.Diagram.Options.Zoom.Enabled = true; },
+            ["DisableZoom"] = () => { Node.Diagram.Options.Zoom.Enabled = false; },
         };
 
         await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters, options);

@@ -1,6 +1,6 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using BlazorDrawFBP.Pages;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 
 namespace BlazorDrawFBP.Services;
@@ -9,18 +9,21 @@ public class AppCircuitHandler(CleanupDiagramService service) : CircuitHandler
 {
     public override Task OnCircuitClosedAsync(Circuit circuit, CancellationToken ct)
     {
-        return service.Cleanup(); //circuit.Id);
-        //return Task.CompletedTask;
+        return service.Cleanup();
     }
 }
 
 public class CleanupDiagramService
 {
-    public Editor? Editor { get; set; }
+    private Func<Task>? _cleanupAction;
+
+    public void RegisterCleanup(Func<Task> cleanupAction) => _cleanupAction = cleanupAction;
+
+    public void UnregisterCleanup() => _cleanupAction = null;
 
     public async Task Cleanup()
     {
-        if (Editor != null)
-            await Editor.ClearDiagram();
+        if (_cleanupAction != null)
+            await _cleanupAction();
     }
 }

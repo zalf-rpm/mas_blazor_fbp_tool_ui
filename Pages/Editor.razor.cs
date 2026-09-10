@@ -21,6 +21,7 @@ using Blazor.Diagrams.Options;
 using BlazorDrawFBP.Behaviors;
 using BlazorDrawFBP.Controls;
 using BlazorDrawFBP.Models;
+using BlazorDrawFBP.Services;
 using Capnp.Rpc;
 using Mas.Infrastructure.BlazorComponents;
 using Mas.Infrastructure.Common;
@@ -38,7 +39,7 @@ using Restorer = Mas.Infrastructure.Common.Restorer;
 
 namespace BlazorDrawFBP.Pages;
 
-public partial class Editor
+public partial class Editor : IFbpRuntimeService, IAsyncDisposable
 {
     private const string NoRegistryServiceId = "no_service";
     private const string LoadFlowInputId = "load-flow-input";
@@ -127,7 +128,7 @@ public partial class Editor
         return $"background-color: {background}; color: {foreground};";
     }
 
-    private (string Background, string Foreground) GetComponentServiceColors(string serviceId)
+    public (string Background, string Foreground) GetComponentServiceColors(string serviceId)
     {
         var index = 0;
         foreach (var key in RegistryServiceIdToPetNameAndSturdyRef.Keys)
@@ -486,7 +487,7 @@ public partial class Editor
 
     protected override void OnInitialized()
     {
-        CleanupService.Editor = this;
+        CleanupService.RegisterCleanup(ClearDiagram);
 
         var options = new BlazorDiagramOptions
         {
@@ -916,7 +917,11 @@ public partial class Editor
 
     private void AddNode(double x, double y)
     {
-        var node = new CapnpFbpComponentModel(new Point(x, y));
+        var node = new CapnpFbpComponentModel(new Point(x, y))
+        {
+            RuntimeService = this,
+            Diagram = Diagram,
+        };
         Diagram.Nodes.Add(node);
     }
 
@@ -1720,6 +1725,12 @@ public partial class Editor
         Diagram.Refresh();
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        CleanupService.UnregisterCleanup();
+        await ClearDiagram();
+    }
+
     private async Task ExecuteNode(Model node)
     {
         switch (node)
@@ -1979,7 +1990,8 @@ public partial class Editor
                             new Point(position.X, position.Y)
                         )
                         {
-                            Editor = this,
+                            RuntimeService = this,
+                            Diagram = Diagram,
                             ComponentId = componentId,
                             ComponentServiceId = componentServiceId,
                             ComponentName = unavailableService
@@ -2026,7 +2038,8 @@ public partial class Editor
                             new Point(position.X, position.Y)
                         )
                         {
-                            Editor = this,
+                            RuntimeService = this,
+                            Diagram = Diagram,
                             ComponentId = componentId,
                             ComponentServiceId = componentServiceId,
                             ComponentName = unavailableService
@@ -2122,7 +2135,8 @@ public partial class Editor
                 var compId = component.Info.Id;
                 var node = new CapnpFbpIipComponentModel(new Point(position.X, position.Y))
                 {
-                    Editor = this,
+                    RuntimeService = this,
+                    Diagram = Diagram,
                     ComponentId = compId,
                     ShortDescription = initNode?["shortDescription"]?.ToString() ?? "",
                     Content = initNode?["content"]?.ToString() ?? "",
@@ -2154,7 +2168,8 @@ public partial class Editor
                     new Point(position.X, position.Y)
                 )
                 {
-                    Editor = this,
+                    RuntimeService = this,
+                    Diagram = Diagram,
                     ComponentId = componentId,
                     ComponentName = component.Info.Name ?? componentId,
                     ProcessName =

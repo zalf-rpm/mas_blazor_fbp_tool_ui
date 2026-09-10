@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
-using BlazorDrawFBP.Pages;
+using BlazorDrawFBP.Services;
 using Capnp;
 using Capnp.Rpc;
 using Mas.Infrastructure.Common;
@@ -30,7 +31,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     // public BlazorDispatcher Dispatcher { get; set; }
 
-    public Editor Editor { get; set; } = null!;
+    public IFbpRuntimeService RuntimeService { get; set; } = null!;
+    public BlazorDiagram Diagram { get; set; } = null!;
     public string ComponentId { get; set; } = "";
     public string ComponentName { get; set; } = "";
     public string ProcessName { get; set; } = "";
@@ -74,7 +76,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     public async Task StartProcess(ConnectionManager conMan)
     {
-        if (Editor.CurrentChannelStarterService == null)
+        if (RuntimeService.CurrentChannelStarterService == null)
         {
             SetLifecycleFault(
                 new InvalidOperationException("No channel service connected."),
@@ -128,7 +130,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     );
                     await Shared.Shared.CreateChannel(
                         conMan,
-                        Editor.CurrentChannelStarterService,
+                        RuntimeService.CurrentChannelStarterService,
                         rcplm
                     );
                 }
@@ -325,7 +327,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     {
         await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
             this,
-            Editor.Diagram,
+            Diagram,
             this
         );
         await FreeRemoteChannelsAttachedToPorts();

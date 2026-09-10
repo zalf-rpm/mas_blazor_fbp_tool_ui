@@ -65,7 +65,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     private async Task StartSingleProcessAsync(ConnectionManager conMan)
     {
         if (
-            Editor.CurrentChannelStarterService == null
+            RuntimeService.CurrentChannelStarterService == null
             || RunnableFactory == null
             || LifecycleState
                 is ComponentLifecycleState.Starting
@@ -190,7 +190,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     );
                     await Shared.Shared.CreateChannel(
                         conMan,
-                        Editor.CurrentChannelStarterService,
+                        RuntimeService.CurrentChannelStarterService,
                         rcplm
                     );
                 }
@@ -261,7 +261,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     );
                     await Shared.Shared.CreateChannel(
                         conMan,
-                        Editor.CurrentChannelStarterService,
+                        RuntimeService.CurrentChannelStarterService,
                         _embeddedConfIipOutPort,
                         _embeddedConfigInPort
                     );
@@ -336,7 +336,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 Console.WriteLine(
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: Trying to start port info channel"
                 );
-                var si = await Editor.CurrentChannelStarterService.Start(
+                var si = await RuntimeService.CurrentChannelStarterService.Start(
                     new StartChannelsService.Params { Name = $"port-infos_{ProcessName}" },
                     cancelToken
                 );

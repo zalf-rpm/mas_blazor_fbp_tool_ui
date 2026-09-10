@@ -249,7 +249,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     private async Task StartSingleProcessAsync(ConnectionManager conMan)
     {
         if (
-            Editor.CurrentChannelStarterService == null
+            RuntimeService.CurrentChannelStarterService == null
             || ProcessFactory == null
             || LifecycleState
                 is ComponentLifecycleState.Starting
@@ -313,7 +313,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     );
                     await Shared.Shared.CreateChannel(
                         conMan,
-                        Editor.CurrentChannelStarterService,
+                        RuntimeService.CurrentChannelStarterService,
                         rcplm
                     );
                 }

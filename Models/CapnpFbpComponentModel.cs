@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
-using BlazorDrawFBP.Pages;
+using BlazorDrawFBP.Services;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Fbp;
 
@@ -44,7 +45,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public CapnpFbpComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
-    public Editor Editor { get; set; } = null!;
+    public IFbpRuntimeService RuntimeService { get; set; } = null!;
+    public BlazorDiagram Diagram { get; set; } = null!;
     public string ComponentId { get; set; } = "";
     public string ComponentServiceId { get; set; } = "";
     public string ComponentName { get; set; } = "";
@@ -289,11 +291,11 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
         await RemoveInternalProcLinksAsync();
 
-        if (!IsInternalProcChild && Editor?.Diagram != null)
+        if (!IsInternalProcChild && Diagram != null)
         {
             await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
                 this,
-                Editor.Diagram,
+                Diagram,
                 this
             );
         }
@@ -548,7 +550,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         child.IsInternalProcChild = true;
         child.ProcOwnerNode = this;
         child.ProcDisplayIndex = displayIndex;
-        child.Editor = Editor;
+        child.RuntimeService = RuntimeService;
+        child.Diagram = Diagram;
         child.ComponentId = ComponentId;
         child.ComponentServiceId = ComponentServiceId;
         child.ComponentName = ComponentName;
@@ -977,8 +980,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         foreach (var incomingLink in GetProcChildIncomingLinks(context))
             await Shared.Shared.ConnectLinkToRunningProcessesAsync(incomingLink);
 
-        if (LifecycleState == ComponentLifecycleState.Running && Editor?.ConnectionManager != null)
-            await context.Node.StartProcess(Editor.ConnectionManager);
+        if (LifecycleState == ComponentLifecycleState.Running && RuntimeService?.ConnectionManager != null)
+            await context.Node.StartProcess(RuntimeService.ConnectionManager);
     }
 
     private async Task RemoveLastProcChildIncrementallyAsync()

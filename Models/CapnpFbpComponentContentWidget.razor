@@ -71,9 +71,9 @@
                                 SelectedValue="@Node.ComponentModel.ComponentServiceId"
                                 CheckMark
                                 SelectionMode="SelectionMode.SingleSelection">
-                        @foreach (var (i, p) in Node.ComponentModel.Editor.GetBindableComponentServices(Node.ComponentModel).Select((p, i) => (i, p)))
+                        @foreach (var (i, p) in Node.ComponentModel.RuntimeService.GetBindableComponentServices(Node.ComponentModel).Select((p, i) => (i, p)))
                         {
-                            var style = $"left: 3px; top: {-15 - i * 25}px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(p.Key)}";
+                            var style = $"left: 3px; top: {-15 - i * 25}px; {Node.ComponentModel.RuntimeService.GetComponentServiceBadgeStyle(p.Key)}";
                             <MudChip Class="absolute"
                                      Style="@style"
                                      Color="Color.Default"
@@ -93,14 +93,14 @@
                 else
                 {
                     <MudChip Class="absolute"
-                             Style="@($"left: 3px; top: -15px; {Node.ComponentModel.Editor.GetComponentServiceBadgeStyle(Node.ComponentModel.ComponentServiceId)}")"
+                             Style="@($"left: 3px; top: -15px; {Node.ComponentModel.RuntimeService.GetComponentServiceBadgeStyle(Node.ComponentModel.ComponentServiceId)}")"
                              Color="Color.Default"
                              Disabled="@Node.ComponentModel.IsLifecycleBusy"
                              Label="true"
                              Size="Size.Small"
                              OnClick="() => { _changeComponentServiceId = true; }"
                              T="string">
-                        @Node.ComponentModel.Editor.GetComponentServiceName(Node.ComponentModel.ComponentServiceId)
+                        @Node.ComponentModel.RuntimeService.GetComponentServiceName(Node.ComponentModel.ComponentServiceId)
                     </MudChip>
                 }
             </CardHeaderContent>
@@ -206,7 +206,7 @@
     private async Task SelectComponentServiceAsync(string componentServiceId)
     {
         _changeComponentServiceId = false;
-        await Node.ComponentModel.Editor.SwitchComponentServiceAsync(
+        await Node.ComponentModel.RuntimeService.SwitchComponentServiceAsync(
             Node.ComponentModel,
             componentServiceId
         );

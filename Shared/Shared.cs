@@ -9,7 +9,7 @@ using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
-using BlazorDrawFBP.Pages;
+using BlazorDrawFBP.Services;
 using Capnp;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
@@ -239,8 +239,8 @@ public static class Shared
     }
 
     public static Task ConnectLinkToRunningProcessesAsync(RememberCapnpPortsLinkModel link) =>
-        ResolveEditor(link) is { CurrentChannelStarterService: { } css } editor
-            ? ConnectLinkToRunningProcessesAsync(editor.ConnectionManager, css, link)
+        ResolveRuntimeService(link) is { CurrentChannelStarterService: { } css } runtime
+            ? ConnectLinkToRunningProcessesAsync(runtime.ConnectionManager, css, link)
             : Task.CompletedTask;
 
     public static async Task ConnectLinkToRunningProcessesAsync(
@@ -470,15 +470,15 @@ public static class Shared
             _ => false,
         };
 
-    private static Editor? ResolveEditor(RememberCapnpPortsLinkModel link) =>
-        ResolveEditor(link.OutPortModel.Parent) ?? ResolveEditor(link.InPortModel.Parent);
+    private static IFbpRuntimeService? ResolveRuntimeService(RememberCapnpPortsLinkModel link) =>
+        ResolveRuntimeService(link.OutPortModel.Parent) ?? ResolveRuntimeService(link.InPortModel.Parent);
 
-    private static Editor? ResolveEditor(Model? model) =>
+    private static IFbpRuntimeService? ResolveRuntimeService(Model? model) =>
         model switch
         {
-            CapnpFbpComponentModel component => component.Editor,
-            CapnpFbpViewComponentModel view => view.Editor,
-            CapnpFbpIipComponentModel iip => iip.Editor,
+            CapnpFbpComponentModel component => component.RuntimeService,
+            CapnpFbpViewComponentModel view => view.RuntimeService,
+            CapnpFbpIipComponentModel iip => iip.RuntimeService,
             _ => null,
         };
 
