@@ -63,8 +63,6 @@
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\annotated.json" />
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\pretty.json" />
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\CapnpCompatTest\testdata\short.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.deps.json" />
-    <_ContentIncludedByDefault Remove="capnproto-dotnetcore\chocolatey\deploy\capnpc-csharp.runtimeconfig.json" />
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\annotated.json" />
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\pretty.json" />
     <_ContentIncludedByDefault Remove="capnproto-dotnetcore\MsBuildGenerationTest\capnp\testdata\short.json" />
