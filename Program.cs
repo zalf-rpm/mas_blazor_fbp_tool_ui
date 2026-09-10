@@ -15,6 +15,7 @@ builder.Services.AddBlazoredLocalStorage();
 
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
+builder.Services.AddScoped<IFbpRuntimeService, FbpRuntimeService>();
 
 var app = builder.Build();
 

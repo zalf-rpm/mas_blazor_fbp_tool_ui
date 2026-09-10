@@ -7,6 +7,7 @@
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 @inject CleanupDiagramService CleanupService
+@inject IFbpRuntimeService RuntimeService
 
 @using System.Collections.Immutable
 @using System.Reflection
@@ -238,28 +239,11 @@
     private const int MinSearchChars = 3;
     private const string DefaultCatId = "default";
     private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
-    private bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
-    private bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
-    private bool HasBusyLifecycleNodes =>
-        Diagram?.Nodes.Any(node => node switch
-        {
-            CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
-            CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
-            CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
-            _ => false,
-        }) == true;
-    private bool CanExecuteFlow =>
-        HasConnectedComponentService
-        && HasConnectedChannelService
-        && !HasBusyLifecycleNodes
-        && !_executingFlow;
-    private string ExecuteFlowButtonTitle => !HasConnectedComponentService || !HasConnectedChannelService
-        ? "Connect both a components service and a channel service to execute the flow."
-        : _executingFlow
-            ? "Flow execution is already starting the current graph."
-            : HasBusyLifecycleNodes
-            ? "Wait for current lifecycle actions to finish before executing the flow."
-            : "Execute flow";
+    private bool HasConnectedComponentService => RuntimeService.HasConnectedComponentService;
+    private bool HasConnectedChannelService => RuntimeService.HasConnectedChannelService;
+    private bool HasBusyLifecycleNodes => RuntimeService.HasBusyLifecycleNodes;
+    private bool CanExecuteFlow => RuntimeService.CanExecuteFlow;
+    private string ExecuteFlowButtonTitle => RuntimeService.ExecuteFlowButtonTitle;
 
     private IEnumerable<(string, Component)> catId2Component =>
         CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
