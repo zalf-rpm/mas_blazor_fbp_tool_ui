@@ -36,7 +36,9 @@ public static class CapnpFbpPortColors
             return null;
 
         var linkColors = GetLinkedPortColors(port);
-        return linkColors.Count > 0 ? PrioritizeColors(linkColors) : ResolveLinkedPortFallbackColor(port);
+        return linkColors.Count > 0
+            ? PrioritizeColors(linkColors)
+            : ResolveLinkedPortFallbackColor(port);
     }
 
     public static string ResolveLinkColor(RememberCapnpPortsLinkModel link)
@@ -114,8 +116,7 @@ public static class CapnpFbpPortColors
 
     private static List<string> GetLinkedPortColors(CapnpFbpPortModel port)
     {
-        return port
-            .GetCountedLinksForUi()
+        return port.GetCountedLinksForUi()
             .Select(link => NormalizeColor(link.Color))
             .Where(static color => color != null)
             .Cast<string>()

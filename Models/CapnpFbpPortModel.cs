@@ -117,9 +117,9 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
         if (!outPort.CanAcceptMoreConnections || !inPort.CanAcceptMoreConnections)
             return false;
 
-        return !outPort.Links.OfType<RememberCapnpPortsLinkModel>().Any(link =>
-            ReferenceEquals(link.InPortModel, inPort)
-        );
+        return !outPort
+            .Links.OfType<RememberCapnpPortsLinkModel>()
+            .Any(link => ReferenceEquals(link.InPortModel, inPort));
     }
 
     private static bool TryResolveEndpoints(

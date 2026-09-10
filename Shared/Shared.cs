@@ -240,11 +240,7 @@ public static class Shared
 
     public static Task ConnectLinkToRunningProcessesAsync(RememberCapnpPortsLinkModel link) =>
         ResolveEditor(link) is { CurrentChannelStarterService: { } css } editor
-            ? ConnectLinkToRunningProcessesAsync(
-                editor.ConnectionManager,
-                css,
-                link
-            )
+            ? ConnectLinkToRunningProcessesAsync(editor.ConnectionManager, css, link)
             : Task.CompletedTask;
 
     public static async Task ConnectLinkToRunningProcessesAsync(

@@ -1961,7 +1961,8 @@ public partial class Editor
                 var config = initNode?.GetValue("config");
                 var configStr = (config?.Type ?? JTokenType.Null) switch
                 {
-                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "",
+                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented)
+                        ?? "",
                     JTokenType.String => config?.ToString() ?? "",
                     _ => "",
                 };
@@ -2063,7 +2064,9 @@ public partial class Editor
                         break;
                     }
                     default:
-                        throw new InvalidOperationException($"Unsupported component type: {component.Type}");
+                        throw new InvalidOperationException(
+                            $"Unsupported component type: {component.Type}"
+                        );
                 }
 
                 var controlsContainer = Diagram.Controls.AddFor(node); //, ControlsType.OnHover);

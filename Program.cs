@@ -7,8 +7,7 @@ using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 
 builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
@@ -31,7 +30,10 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 
 // In container environments / reverse-proxy setups (like Kubernetes), TLS termination is handled by the Ingress/Gateway.
 // Only use in-process HTTPS redirection when running outside containers (e.g. local dotnet run with HTTPS dev cert).
-if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER")) || app.Configuration["HTTPS_PORT"] != null)
+if (
+    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"))
+    || app.Configuration["HTTPS_PORT"] != null
+)
 {
     app.UseHttpsRedirection();
 }
@@ -39,7 +41,6 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_C
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<BlazorDrawFBP.App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<BlazorDrawFBP.App>().AddInteractiveServerRenderMode();
 
 app.Run();

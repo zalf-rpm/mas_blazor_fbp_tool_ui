@@ -32,11 +32,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
     public bool ProcessOutConnected { get; private set; }
 
     private static SinglePortAnchor CreatePortAnchor(CapnpFbpPortModel port) =>
-        new(port)
-        {
-            MiddleIfNoMarker = true,
-            UseShapeAndAlignment = false,
-        };
+        new(port) { MiddleIfNoMarker = true, UseShapeAndAlignment = false };
 
     public Task EnsureWriterFromChannelAsync(CancellationToken cancelToken = default)
     {
@@ -54,8 +50,10 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
             {
                 try
                 {
-                    var (writer, writerSturdyRef) =
-                        await Shared.Shared.GetNewWriterFromChannel(InPortModel.Channel, cancelToken);
+                    var (writer, writerSturdyRef) = await Shared.Shared.GetNewWriterFromChannel(
+                        InPortModel.Channel,
+                        cancelToken
+                    );
                     SetWriter(writer, writerSturdyRef);
                     OutPortModel.Parent?.Refresh();
                     OutPortModel.Parent?.RefreshLinks();
@@ -94,9 +92,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
         OutPortModel?.SyncProcessConnectionState();
     }
 
-    public async Task<bool> DisconnectProcessOutPortAsync(
-        CancellationToken cancelToken = default
-    )
+    public async Task<bool> DisconnectProcessOutPortAsync(CancellationToken cancelToken = default)
     {
         var disconnect = ProcessOutDisconnect;
         ProcessOutDisconnect = null;
@@ -112,9 +108,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
         }
         catch (ObjectDisposedException ex)
         {
-            Console.WriteLine(
-                $"Link {Id}: process out disconnect already disposed: {ex.Message}"
-            );
+            Console.WriteLine($"Link {Id}: process out disconnect already disposed: {ex.Message}");
             return false;
         }
         catch (RpcException ex)

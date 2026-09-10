@@ -121,9 +121,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             Value.WHICH.Li32 => value.Li32 == null ? JValue.CreateNull() : new JArray(value.Li32),
             Value.WHICH.Li16 => value.Li16 == null ? JValue.CreateNull() : new JArray(value.Li16),
             Value.WHICH.Li8 => value.Li8 == null ? JValue.CreateNull() : new JArray(value.Li8),
-            Value.WHICH.Lui64 => value.Lui64 == null ? JValue.CreateNull() : new JArray(value.Lui64),
-            Value.WHICH.Lui32 => value.Lui32 == null ? JValue.CreateNull() : new JArray(value.Lui32),
-            Value.WHICH.Lui16 => value.Lui16 == null ? JValue.CreateNull() : new JArray(value.Lui16),
+            Value.WHICH.Lui64 => value.Lui64 == null
+                ? JValue.CreateNull()
+                : new JArray(value.Lui64),
+            Value.WHICH.Lui32 => value.Lui32 == null
+                ? JValue.CreateNull()
+                : new JArray(value.Lui32),
+            Value.WHICH.Lui16 => value.Lui16 == null
+                ? JValue.CreateNull()
+                : new JArray(value.Lui16),
             Value.WHICH.Lui8 => value.Lui8 == null ? JValue.CreateNull() : new JArray(value.Lui8),
             Value.WHICH.Lb => value.Lb == null ? JValue.CreateNull() : new JArray(value.Lb),
             Value.WHICH.Lt => value.Lt == null ? JValue.CreateNull() : new JArray(value.Lt),
@@ -406,21 +412,11 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                 {
                                     var itemVal = t.Type switch
                                     {
-                                        JTokenType.String => new Value
-                                        {
-                                            T = t.Value<string>(),
-                                        },
-                                        JTokenType.Integer => new Value
-                                        {
-                                            I64 = t.Value<long>(),
-                                        },
-                                        JTokenType.Float => new Value
-                                        {
-                                            F64 = t.Value<double>(),
-                                        },
+                                        JTokenType.String => new Value { T = t.Value<string>() },
+                                        JTokenType.Integer => new Value { I64 = t.Value<long>() },
+                                        JTokenType.Float => new Value { F64 = t.Value<double>() },
                                         JTokenType.Boolean => new Value { B = t.Value<bool>() },
-                                        JTokenType.Array or JTokenType.Object =>
-                                            MakeCommonValue(t),
+                                        JTokenType.Array or JTokenType.Object => MakeCommonValue(t),
                                         _ => new Value { T = t.ToString() },
                                     };
                                     if (itemVal != null)
@@ -439,24 +435,11 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                         continue;
                                     var sndVal = v.Type switch
                                     {
-                                        JTokenType.String => new Value
-                                        {
-                                            T = v.Value<string>(),
-                                        },
-                                        JTokenType.Integer => new Value
-                                        {
-                                            I64 = v.Value<long>(),
-                                        },
-                                        JTokenType.Float => new Value
-                                        {
-                                            F64 = v.Value<double>(),
-                                        },
-                                        JTokenType.Boolean => new Value
-                                        {
-                                            B = v.Value<bool>(),
-                                        },
-                                        JTokenType.Array or JTokenType.Object =>
-                                            MakeCommonValue(v),
+                                        JTokenType.String => new Value { T = v.Value<string>() },
+                                        JTokenType.Integer => new Value { I64 = v.Value<long>() },
+                                        JTokenType.Float => new Value { F64 = v.Value<double>() },
+                                        JTokenType.Boolean => new Value { B = v.Value<bool>() },
+                                        JTokenType.Array or JTokenType.Object => MakeCommonValue(v),
                                         _ => null,
                                     };
                                     if (sndVal == null)

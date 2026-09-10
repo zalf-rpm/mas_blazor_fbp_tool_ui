@@ -27,19 +27,26 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     private string? _lastStyle;
     private bool _updatingDimensions;
 
-    [CascadingParameter] public BlazorDiagram BlazorDiagram { get; set; } = null!;
+    [CascadingParameter]
+    public BlazorDiagram BlazorDiagram { get; set; } = null!;
 
-    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
 
-    [Parameter] public CapnpFbpPortModel Port { get; set; } = null!;
+    [Parameter]
+    public CapnpFbpPortModel Port { get; set; } = null!;
 
-    [Parameter] public string? Class { get; set; }
+    [Parameter]
+    public string? Class { get; set; }
 
-    [Parameter] public string? SocketColor { get; set; }
+    [Parameter]
+    public string? SocketColor { get; set; }
 
-    [Parameter] public string? IconColor { get; set; }
-    
-    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter]
+    public string? IconColor { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
 
     private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
     private string PortLabelText =>
@@ -105,21 +112,39 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
                 + (disabled ? "cursor: not-allowed;" : "")
                 + $"--port-shell-color: {shellColor}; --port-icon-color: {iconColor};"
         );
-        builder.AddAttribute(2, "class",
-            "diagram-port " + EffectiveAlignment.ToString().ToLowerInvariant() + " " +
-            Port.ThePortType.ToString().ToLower() + " " +
-            (Port.ConnectedChannelCount > 0 ? "has-links" : "") + " " +
-            (disabled ? "disabled" : "") + " " +
-            (dashed ? "dashed" : "") + " " +
-            Class);
+        builder.AddAttribute(
+            2,
+            "class",
+            "diagram-port "
+                + EffectiveAlignment.ToString().ToLowerInvariant()
+                + " "
+                + Port.ThePortType.ToString().ToLower()
+                + " "
+                + (Port.ConnectedChannelCount > 0 ? "has-links" : "")
+                + " "
+                + (disabled ? "disabled" : "")
+                + " "
+                + (dashed ? "dashed" : "")
+                + " "
+                + Class
+        );
         builder.AddAttribute(3, "data-port-id", Port.Id);
-        builder.AddAttribute(4, "onpointerdown",
-            EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerDown));
+        builder.AddAttribute(
+            4,
+            "onpointerdown",
+            EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerDown)
+        );
         builder.AddEventStopPropagationAttribute(5, "onpointerdown", true);
-        builder.AddAttribute(6, "onpointerup",
-            EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerUp));
+        builder.AddAttribute(
+            6,
+            "onpointerup",
+            EventCallback.Factory.Create<PointerEventArgs>(this, OnPointerUp)
+        );
         builder.AddEventStopPropagationAttribute(7, "onpointerup", true);
-        builder.AddElementReferenceCapture(8, (Action<ElementReference>)(value => _element = value));
+        builder.AddElementReferenceCapture(
+            8,
+            (Action<ElementReference>)(value => _element = value)
+        );
 
         if (ChildContent != null)
         {
@@ -167,17 +192,24 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     {
         BlazorDiagram.TriggerPointerUp(
             e.PointerType == "mouse" ? Port : FindPortOn(e.ClientX, e.ClientY),
-            EventsExtensions.ToCore(e));
+            EventsExtensions.ToCore(e)
+        );
     }
 
     private PortModel? FindPortOn(double clientX, double clientY)
     {
-        foreach (var portOn in BlazorDiagram.Nodes
-                     .SelectMany((Func<NodeModel, IEnumerable<PortModel>>)(n => n.Ports))
-                     .Union(BlazorDiagram.Groups.SelectMany(
-                         (Func<GroupModel, IEnumerable<PortModel>>)(g => g.Ports))))
+        foreach (
+            var portOn in BlazorDiagram
+                .Nodes.SelectMany((Func<NodeModel, IEnumerable<PortModel>>)(n => n.Ports))
+                .Union(
+                    BlazorDiagram.Groups.SelectMany(
+                        (Func<GroupModel, IEnumerable<PortModel>>)(g => g.Ports)
+                    )
+                )
+        )
         {
-            if (!portOn.Initialized) continue;
+            if (!portOn.Initialized)
+                continue;
             var relativeMousePoint = BlazorDiagram.GetRelativeMousePoint(clientX, clientY);
             if (portOn.GetBounds().ContainsPoint(relativeMousePoint))
                 return portOn;
@@ -215,8 +247,10 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             pan = BlazorDiagram.Pan;
             var boundingClientRect = await JSRuntime.GetBoundingClientRect(_element);
             Port.Size = new Size(boundingClientRect.Width / zoom, boundingClientRect.Height / zoom);
-            Port.Position = new Point((boundingClientRect.Left - BlazorDiagram.Container.Left - pan.X) / zoom,
-                (boundingClientRect.Top - BlazorDiagram.Container.Top - pan.Y) / zoom);
+            Port.Position = new Point(
+                (boundingClientRect.Left - BlazorDiagram.Container.Left - pan.X) / zoom,
+                (boundingClientRect.Top - BlazorDiagram.Container.Top - pan.Y) / zoom
+            );
             Port.Initialized = true;
             _updatingDimensions = false;
             if (_shouldRefreshPort)

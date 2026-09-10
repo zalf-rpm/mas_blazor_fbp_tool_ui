@@ -160,7 +160,9 @@ public static class CapnpFbpPortLayout
             return;
 
         var orderedDescriptors = descriptors
-            .OrderBy(descriptor => Normalize(descriptor.PreferredAvailableOffset, space.AvailableLength))
+            .OrderBy(descriptor =>
+                Normalize(descriptor.PreferredAvailableOffset, space.AvailableLength)
+            )
             .ThenBy(descriptor => descriptor.HomeAvailableOffset)
             .ThenBy(descriptor => descriptor.Port.OrderNo)
             .ThenBy(descriptor => descriptor.Port.ThePortType)
@@ -168,24 +170,22 @@ public static class CapnpFbpPortLayout
             .ToList();
         var cutOffset = FindCutOffset(orderedDescriptors, space.AvailableLength);
         var linearizedDescriptors = orderedDescriptors
-            .Select(
-                descriptor =>
-                {
-                    var homeLinearOffset = Normalize(
-                        descriptor.HomeAvailableOffset - cutOffset,
-                        space.AvailableLength
-                    );
-                    var preferredLinearOffset = Normalize(
-                        descriptor.PreferredAvailableOffset - cutOffset,
-                        space.AvailableLength
-                    );
-                    return new LinearizedPortDescriptor(
-                        descriptor.Port,
-                        homeLinearOffset,
-                        preferredLinearOffset
-                    );
-                }
-            )
+            .Select(descriptor =>
+            {
+                var homeLinearOffset = Normalize(
+                    descriptor.HomeAvailableOffset - cutOffset,
+                    space.AvailableLength
+                );
+                var preferredLinearOffset = Normalize(
+                    descriptor.PreferredAvailableOffset - cutOffset,
+                    space.AvailableLength
+                );
+                return new LinearizedPortDescriptor(
+                    descriptor.Port,
+                    homeLinearOffset,
+                    preferredLinearOffset
+                );
+            })
             .OrderBy(descriptor => descriptor.PreferredLinearOffset)
             .ThenBy(descriptor => descriptor.HomeLinearOffset)
             .ThenBy(descriptor => descriptor.Port.OrderNo)
@@ -286,9 +286,10 @@ public static class CapnpFbpPortLayout
                 var lastIndex = means.Count - 1;
                 var mergedWeight = weights[lastIndex - 1] + weights[lastIndex];
                 var mergedMean =
-                    ((means[lastIndex - 1] * weights[lastIndex - 1])
-                        + (means[lastIndex] * weights[lastIndex]))
-                    / mergedWeight;
+                    (
+                        (means[lastIndex - 1] * weights[lastIndex - 1])
+                        + (means[lastIndex] * weights[lastIndex])
+                    ) / mergedWeight;
 
                 ends[lastIndex - 1] = ends[lastIndex];
                 weights[lastIndex - 1] = mergedWeight;
@@ -529,10 +530,7 @@ public static class CapnpFbpPortLayout
         double nodeHeight
     )
     {
-        var normalizedOffset = Normalize(
-            physicalPerimeterOffset,
-            2d * (nodeWidth + nodeHeight)
-        );
+        var normalizedOffset = Normalize(physicalPerimeterOffset, 2d * (nodeWidth + nodeHeight));
 
         if (normalizedOffset < nodeWidth)
             return new PortPlacement(PortAlignment.Top, normalizedOffset);
@@ -657,7 +655,8 @@ public static class CapnpFbpPortLayout
         if (node is not CapnpFbpComponentModel component || component.Editor == null)
             return false;
 
-        var serviceName = component.Editor.GetComponentServiceName(component.ComponentServiceId) ?? "";
+        var serviceName =
+            component.Editor.GetComponentServiceName(component.ComponentServiceId) ?? "";
         var badgeWidth = Math.Clamp(
             ServiceBadgeBaseWidthPx + (serviceName.Length * ServiceBadgeCharacterWidthPx),
             ServiceBadgeMinWidthPx,
@@ -688,9 +687,17 @@ public static class CapnpFbpPortLayout
         AddInterval(intervals, nodeWidth + nodeHeight - verticalKeepOut, nodeWidth + nodeHeight);
 
         AddInterval(intervals, nodeWidth + nodeHeight, nodeWidth + nodeHeight + horizontalKeepOut);
-        AddInterval(intervals, (2d * nodeWidth) + nodeHeight - horizontalKeepOut, (2d * nodeWidth) + nodeHeight);
+        AddInterval(
+            intervals,
+            (2d * nodeWidth) + nodeHeight - horizontalKeepOut,
+            (2d * nodeWidth) + nodeHeight
+        );
 
-        AddInterval(intervals, (2d * nodeWidth) + nodeHeight, (2d * nodeWidth) + nodeHeight + verticalKeepOut);
+        AddInterval(
+            intervals,
+            (2d * nodeWidth) + nodeHeight,
+            (2d * nodeWidth) + nodeHeight + verticalKeepOut
+        );
         AddInterval(
             intervals,
             (2d * (nodeWidth + nodeHeight)) - verticalKeepOut,
@@ -738,7 +745,10 @@ public static class CapnpFbpPortLayout
         public bool Contains(double offset) => offset >= Start && offset <= End;
     }
 
-    private sealed class PerimeterSpace(double physicalLength, IReadOnlyList<PerimeterInterval> intervals)
+    private sealed class PerimeterSpace(
+        double physicalLength,
+        IReadOnlyList<PerimeterInterval> intervals
+    )
     {
         private readonly List<PerimeterInterval> _intervals = MergeIntervals(intervals);
 
@@ -750,8 +760,8 @@ public static class CapnpFbpPortLayout
         public double ToAvailable(double physicalOffset, double referenceAvailableOffset)
         {
             var normalizedPhysicalOffset = Normalize(physicalOffset, PhysicalLength);
-            var containingInterval = _intervals.FirstOrDefault(
-                interval => interval.Contains(normalizedPhysicalOffset)
+            var containingInterval = _intervals.FirstOrDefault(interval =>
+                interval.Contains(normalizedPhysicalOffset)
             );
 
             if (containingInterval.Length <= IntersectionTolerance)
@@ -763,7 +773,8 @@ public static class CapnpFbpPortLayout
                     : PhysicalToAvailable(containingInterval.Start);
             var afterAvailableOffset = PhysicalToAvailable(containingInterval.End);
 
-            return Math.Abs(beforeAvailableOffset - referenceAvailableOffset)
+            return
+                Math.Abs(beforeAvailableOffset - referenceAvailableOffset)
                 <= Math.Abs(afterAvailableOffset - referenceAvailableOffset)
                 ? beforeAvailableOffset
                 : afterAvailableOffset;

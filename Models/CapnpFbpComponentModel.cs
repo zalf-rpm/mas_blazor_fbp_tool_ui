@@ -73,7 +73,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public string ConfigString { get; set; } = "";
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public bool ProcessStarted { get; protected set; }
-    public ComponentLifecycleState LifecycleState { get; private set; } = ComponentLifecycleState.Idle;
+    public ComponentLifecycleState LifecycleState { get; private set; } =
+        ComponentLifecycleState.Idle;
     public string? LifecycleError { get; private set; }
     public bool IsInternalProcChild { get; protected set; }
     public CapnpFbpComponentModel? ProcOwnerNode { get; protected set; }
@@ -102,9 +103,14 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     }
 
     public bool CanStart =>
-        !CanStop && !IsLifecycleBusy && EnumerateProcNodes().Any(node =>
-            node.LifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed
-        );
+        !CanStop
+        && !IsLifecycleBusy
+        && EnumerateProcNodes()
+            .Any(node =>
+                node.LifecycleState
+                    is ComponentLifecycleState.Idle
+                        or ComponentLifecycleState.Failed
+            );
 
     public bool CanStop =>
         EnumerateProcNodes().Any(node => node.LifecycleState == ComponentLifecycleState.Running);
@@ -117,7 +123,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public string? DisplayLifecycleError => ResolveDisplayLifecycleError();
     public string DisplayLifecycleLabel => ResolveDisplayLifecycleLabel();
     public bool AnyProcRuntimeAttached =>
-        RemoteProcessAttached() || _procChildContexts.Any(context => context.Node.AnyProcRuntimeAttached);
+        RemoteProcessAttached()
+        || _procChildContexts.Any(context => context.Node.AnyProcRuntimeAttached);
 
     public bool IsProcMultiplicationEligible =>
         !IsInternalProcChild
@@ -131,6 +138,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     protected virtual bool SupportsProcMultiplication => false;
 
     public virtual bool RemoteProcessAttached() => false;
+
     public virtual bool CanEditCommandLine() => false;
 
     public virtual async Task StartProcess(ConnectionManager conMan)
@@ -251,7 +259,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         }
     }
 
-    protected virtual void ApplyComponentServiceBinding(Component component, string componentServiceId)
+    protected virtual void ApplyComponentServiceBinding(
+        Component component,
+        string componentServiceId
+    )
     {
         var componentId = component.Info?.Id;
         if (!string.IsNullOrWhiteSpace(componentId))
@@ -400,8 +411,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
         var incomingLinks = GetVisibleIncomingProcLinks();
         var outgoingLinks = GetVisibleOutgoingProcLinks();
-        var desiredChildCount =
-            EvaluateProcMultiplicationEligibility(incomingLinks) ? Math.Max(0, InParallelCount - 1) : 0;
+        var desiredChildCount = EvaluateProcMultiplicationEligibility(incomingLinks)
+            ? Math.Max(0, InParallelCount - 1)
+            : 0;
 
         for (var childOffset = 0; childOffset < desiredChildCount; childOffset++)
         {
@@ -657,14 +669,18 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         Shared
             .Shared.AttachedLinks(this)
             .OfType<RememberCapnpPortsLinkModel>()
-            .Where(link => !link.IsInternalProcLink && ReferenceEquals(link.InPortModel.Parent, this))
+            .Where(link =>
+                !link.IsInternalProcLink && ReferenceEquals(link.InPortModel.Parent, this)
+            )
             .ToList();
 
     private IReadOnlyList<RememberCapnpPortsLinkModel> GetVisibleOutgoingProcLinks() =>
         Shared
             .Shared.AttachedLinks(this)
             .OfType<RememberCapnpPortsLinkModel>()
-            .Where(link => !link.IsInternalProcLink && ReferenceEquals(link.OutPortModel.Parent, this))
+            .Where(link =>
+                !link.IsInternalProcLink && ReferenceEquals(link.OutPortModel.Parent, this)
+            )
             .ToList();
 
     private static bool EvaluateProcMultiplicationEligibility(
@@ -681,16 +697,22 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         );
 
     private bool HasProcLifecycleTransitionInProgress() =>
-        EnumerateProcNodes().Any(node =>
-            node.LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
-        );
+        EnumerateProcNodes()
+            .Any(node =>
+                node.LifecycleState
+                    is ComponentLifecycleState.Starting
+                        or ComponentLifecycleState.Stopping
+            );
 
     private ComponentLifecycleState? ResolveProcAdjustmentStateForCountChange(int targetCount)
     {
         if (targetCount > _inParallelCount && LifecycleState == ComponentLifecycleState.Running)
             return ComponentLifecycleState.Starting;
 
-        if (targetCount < _inParallelCount && _procChildContexts.LastOrDefault()?.Node.CanStop == true)
+        if (
+            targetCount < _inParallelCount
+            && _procChildContexts.LastOrDefault()?.Node.CanStop == true
+        )
             return ComponentLifecycleState.Stopping;
 
         return null;
@@ -737,7 +759,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
         foreach (var child in ProcChildComponents)
         {
-            foreach (var link in Shared.Shared.AttachedLinks(child).OfType<RememberCapnpPortsLinkModel>())
+            foreach (
+                var link in Shared.Shared.AttachedLinks(child).OfType<RememberCapnpPortsLinkModel>()
+            )
             {
                 if (
                     link.OutPortModel.Parent is Model source
@@ -761,14 +785,19 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return nodes;
     }
 
-    private static T? FindMatchingPort<T>(CapnpFbpComponentModel child, CapnpFbpPortModel sourcePort)
+    private static T? FindMatchingPort<T>(
+        CapnpFbpComponentModel child,
+        CapnpFbpPortModel sourcePort
+    )
         where T : CapnpFbpPortModel
     {
-        return child.Ports.OfType<T>().FirstOrDefault(port =>
-            port.OrderNo == sourcePort.OrderNo
-            && port.ThePortType == sourcePort.ThePortType
-            && string.Equals(port.Name, sourcePort.Name, StringComparison.Ordinal)
-        );
+        return child
+            .Ports.OfType<T>()
+            .FirstOrDefault(port =>
+                port.OrderNo == sourcePort.OrderNo
+                && port.ThePortType == sourcePort.ThePortType
+                && string.Equals(port.Name, sourcePort.Name, StringComparison.Ordinal)
+            );
     }
 
     private IEnumerable<CapnpFbpComponentModel> EnumerateProcNodes()
@@ -884,8 +913,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             : Math.Max(
                 ProcRowMinHeightPx,
                 (2d * ProcRowVerticalPaddingPx)
-                + CapnpFbpPortLayout.PortSizePx
-                + ((maxVisiblePorts - 1) * ProcRowPortSpacingPx)
+                    + CapnpFbpPortLayout.PortSizePx
+                    + ((maxVisiblePorts - 1) * ProcRowPortSpacingPx)
             );
     }
 
@@ -915,8 +944,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         CapnpFbpPortModel.PortType type
     )
     {
-        return procNode.Ports
-            .OfType<CapnpFbpPortModel>()
+        return procNode
+            .Ports.OfType<CapnpFbpPortModel>()
             .Count(port => port.ThePortType == type && port.GetCountedLinksForUi().Any());
     }
 
@@ -924,10 +953,11 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         node switch
         {
             CapnpFbpComponentModel component => component.DisplayLifecycleState
-                    is not ComponentLifecycleState.Idle
+                is not ComponentLifecycleState.Idle
                 || component.AnyProcRuntimeAttached,
-            CapnpFbpViewComponentModel view =>
-                view.LifecycleState is not ComponentLifecycleState.Idle || view.ProcessStarted,
+            CapnpFbpViewComponentModel view => view.LifecycleState
+                is not ComponentLifecycleState.Idle
+                || view.ProcessStarted,
             CapnpFbpIipComponentModel iip => iip.LifecycleState is not ComponentLifecycleState.Idle,
             _ => false,
         };
@@ -992,7 +1022,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         }
 
         if (showStoppingState)
-            await RunWithProcAdjustmentStateAsync(ComponentLifecycleState.Stopping, RemoveChildCoreAsync);
+            await RunWithProcAdjustmentStateAsync(
+                ComponentLifecycleState.Stopping,
+                RemoveChildCoreAsync
+            );
         else
             await RemoveChildCoreAsync();
     }
@@ -1000,15 +1033,15 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     private static List<RememberCapnpPortsLinkModel> GetProcChildIncomingLinks(
         ProcChildContext context
     ) =>
-        context.Links
-            .Where(link => ReferenceEquals(link.InPortModel.Parent, context.Node))
+        context
+            .Links.Where(link => ReferenceEquals(link.InPortModel.Parent, context.Node))
             .ToList();
 
     private static List<RememberCapnpPortsLinkModel> GetProcChildOutgoingLinks(
         ProcChildContext context
     ) =>
-        context.Links
-            .Where(link => ReferenceEquals(link.OutPortModel.Parent, context.Node))
+        context
+            .Links.Where(link => ReferenceEquals(link.OutPortModel.Parent, context.Node))
             .ToList();
 
     private static void RefreshInternalProcLinkRemoval(RememberCapnpPortsLinkModel link)

@@ -58,10 +58,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             RefreshAttachedChannelLinks();
     }
 
-    public async Task SetChannelBufferSizeAsync(
-        ulong size,
-        CancellationToken cancelToken = default
-    )
+    public async Task SetChannelBufferSizeAsync(ulong size, CancellationToken cancelToken = default)
     {
         if (Channel == null)
             throw new InvalidOperationException($"No channel connected to in port '{Name}'.");
@@ -210,7 +207,10 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
 
         foreach (var link in Shared.Shared.AttachedLinks(Parent))
         {
-            if (link is RememberCapnpPortsLinkModel rcplm && ReferenceEquals(rcplm.InPortModel, this))
+            if (
+                link is RememberCapnpPortsLinkModel rcplm
+                && ReferenceEquals(rcplm.InPortModel, this)
+            )
             {
                 if (Channel == null)
                 {

@@ -44,8 +44,9 @@ public class AddPortControl : ExecutableControl
             .Ports.Where(p => p is CapnpFbpPortModel cp && cp.ThePortType == PortType)
             .OrderBy(p => p is CapnpFbpPortModel cp ? cp.OrderNo : 0)
             .ToList();
-        var newOrderNo =
-            ports.LastOrDefault() is CapnpFbpPortModel lastPort ? lastPort.OrderNo + 1 : 0;
+        var newOrderNo = ports.LastOrDefault() is CapnpFbpPortModel lastPort
+            ? lastPort.OrderNo + 1
+            : 0;
         CreateAndAddPort(NodeModel, PortType, newOrderNo);
         NodeModel.QueueProcStructureSync();
         NodeModel.RefreshAll();
@@ -63,25 +64,29 @@ public class AddPortControl : ExecutableControl
     {
         var alignment =
             portType == CapnpFbpPortModel.PortType.In ? PortAlignment.Left : PortAlignment.Right;
-        CapnpFbpPortModel? port = portType switch {
-            CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment) {
+        CapnpFbpPortModel? port = portType switch
+        {
+            CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment)
+            {
                 Name = name ?? "IN",
                 ContentType = contentType ?? "?",
                 Description = description ?? "",
                 OrderNo = orderNo,
                 IsArrayPort = isArrayPort,
             },
-            CapnpFbpPortModel.PortType.Out => new CapnpFbpOutPortModel(node, alignment) {
+            CapnpFbpPortModel.PortType.Out => new CapnpFbpOutPortModel(node, alignment)
+            {
                 Name = name ?? "OUT",
                 ContentType = contentType ?? "?",
                 Description = description ?? "",
                 OrderNo = orderNo,
                 IsArrayPort = isArrayPort,
             },
-            _ => null
+            _ => null,
         };
 
-        if (port == null) return port;
+        if (port == null)
+            return port;
         node.AddPort(port);
         CapnpFbpPortLayout.Apply(node, refreshPorts: false);
         node.RefreshAll();

@@ -41,19 +41,23 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     public bool CanStop => false;
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
-    public ComponentLifecycleState DisplayLifecycleState => LifecycleState switch
-    {
-        ComponentLifecycleState.Failed => ComponentLifecycleState.Failed,
-        ComponentLifecycleState.Starting => ComponentLifecycleState.Starting,
-        _ => IsConnectedToChannel ? ComponentLifecycleState.Running : ComponentLifecycleState.Idle,
-    };
+    public ComponentLifecycleState DisplayLifecycleState =>
+        LifecycleState switch
+        {
+            ComponentLifecycleState.Failed => ComponentLifecycleState.Failed,
+            ComponentLifecycleState.Starting => ComponentLifecycleState.Starting,
+            _ => IsConnectedToChannel
+                ? ComponentLifecycleState.Running
+                : ComponentLifecycleState.Idle,
+        };
     public string LifecycleLabel => DisplayLifecycleState.ToString();
 
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _iipTask;
 
     private bool IsConnectedToChannel =>
-        Shared.Shared.AttachedLinks(this)
+        Shared
+            .Shared.AttachedLinks(this)
             .OfType<RememberCapnpPortsLinkModel>()
             .Any(link =>
                 link.OutPortModel.Parent == this
@@ -88,8 +92,8 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
             var cancelToken = _cancellationTokenSource.Token;
 
             Debug.Assert(Shared.Shared.AttachedLinkCount(this) < 2);
-            var iipLink = Shared.Shared
-                .AttachedLinks(this)
+            var iipLink = Shared
+                .Shared.AttachedLinks(this)
                 .OfType<RememberCapnpPortsLinkModel>()
                 .FirstOrDefault(link => link.OutPortModel.Parent == this);
 

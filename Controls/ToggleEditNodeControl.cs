@@ -18,11 +18,9 @@ public class ToggleEditNodeControl : ExecutableControl
     private readonly IPositionProvider _positionProvider;
 
     public CapnpFbpComponentModel NodeModel { get; set; } = null!;
-    
+
     public ToggleEditNodeControl(double x, double y, double offsetX = 0.0, double offsetY = 0.0)
-        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY))
-    {
-    }
+        : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY)) { }
 
     public ToggleEditNodeControl(IPositionProvider positionProvider)
     {
