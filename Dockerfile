@@ -16,7 +16,7 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 COPY . .
 
 RUN dotnet restore ./BlazorDrawFBP.csproj --locked-mode
-RUN dotnet publish ./BlazorDrawFBP.csproj -f net10.0 -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish ./BlazorDrawFBP.csproj -f net10.0 -c Release -o /app/publish /p:UseAppHost=false /p:EnableSourceControlManagerQueries=false /p:EnableSourceLink=false
 
 FROM base AS prod
 WORKDIR /app
