@@ -15,7 +15,6 @@
 @using BlazorDrawFBP.Models
 @using Newtonsoft.Json.Linq
 @using MudBlazor
-@using System.Timers
 @using BlazorDrawFBP.Services
 @using Capnp.Rpc
 @using Mas.Infrastructure.BlazorComponents
@@ -37,13 +36,13 @@
             <MudButton StartIcon="@Icons.Material.Filled.Add"
                        Variant="@Variant.Filled"
                        Color="@Color.Inherit"
-                       @onclick="AddComponentServiceSturdyRef">
+                       OnClick="@AddComponentServiceSturdyRef">
                 Components
             </MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Add"
                        Variant="@Variant.Filled"
                        Color="@Color.Inherit"
-                       @onclick="AddChannelServiceSturdyRef">
+                       OnClick="@AddChannelServiceSturdyRef">
                 Channels
             </MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Settings"
@@ -93,7 +92,8 @@
                         var isExpanded = IsCategoryExpanded(catId);
                         var categoryMatchesSearch = CategoryMatchesSearch(catId);
 
-                        <MudNavGroup Expanded="@isExpanded"
+                        <MudNavGroup @key="catId"
+                                     Expanded="@isExpanded"
                                      ExpandedChanged="@((bool expanded) => SetCategoryExpanded(catId, expanded))"
                                      ExpandIcon="@Icons.Material.Filled.ExpandMore"
                                      HeaderClass="rounded pa-1"
@@ -145,11 +145,13 @@
 
                                         if (string.IsNullOrEmpty(comp.Info.Description))
                                         {
-                                            @componentItem
+                                            <div @key="compId" class="mud-width-full">
+                                                @componentItem
+                                            </div>
                                         }
                                         else
                                         {
-                                            <MudTooltip>
+                                            <MudTooltip @key="compId">
                                                 <ChildContent>
                                                     @componentItem
                                                 </ChildContent>
@@ -187,13 +189,13 @@
                     <MudButton StartIcon="@Icons.Material.Filled.Download"
                                Variant="@Variant.Filled"
                                Color="@Color.Primary"
-                               @onclick="() => SaveFlow(false)">
+                               OnClick="() => SaveFlow(false)">
                         Save Flow
                     </MudButton>
                     <MudButton StartIcon="@Icons.Material.Filled.Download"
                                Variant="@Variant.Filled"
                                Color="@Color.Primary"
-                               @onclick="() => SaveFlow(true)">
+                               OnClick="() => SaveFlow(true)">
                         Export as Mermaid Flow
                     </MudButton>
                     <MudButton
@@ -209,7 +211,7 @@
                                 Color="@Color.Success"
                                 Disabled="@(!CanExecuteFlow)"
                                 title="@ExecuteFlowButtonTitle"
-                                @onclick="@ExecuteFlow">
+                                OnClick="@ExecuteFlow">
                         Execute flow
                     </MudButton>
                 </MudStack>
@@ -230,7 +232,7 @@
 </div>
 
 @code {
-    private Timer? ClearButtonTimer { get; set; }
+    private CancellationTokenSource? _clearButtonCts;
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
     private int _loadFlowInputVersion;
@@ -336,28 +338,34 @@
     {
         if (ClearButtonDisabled)
         {
-            if (ClearButtonTimer == null)
-            {
-                //Console.WriteLine("Creating new timer");
-                ClearButtonTimer = new Timer(2000) { AutoReset = false };
-                ClearButtonTimer.Elapsed += ClearButtonTimerElapsed;
-            }
-
-            ClearButtonTimer.Start();
             ClearButtonDisabled = false;
+            _clearButtonCts?.Cancel();
+            _clearButtonCts?.Dispose();
+            _clearButtonCts = new CancellationTokenSource();
+            var token = _clearButtonCts.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(2000, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        ClearButtonDisabled = true;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                catch (OperationCanceledException) { }
+            });
         }
         else
         {
-            await ClearDiagram();
+            _clearButtonCts?.Cancel();
+            _clearButtonCts?.Dispose();
+            _clearButtonCts = null;
             ClearButtonDisabled = true;
+            await ClearDiagram();
         }
-    }
-
-    private void ClearButtonTimerElapsed(object? sender, ElapsedEventArgs e)
-    {
-        //Console.WriteLine("Timer elapsed");
-        ClearButtonDisabled = true;
-        InvokeAsync(StateHasChanged);
     }
 
     private async Task AddComponentServiceSturdyRef()

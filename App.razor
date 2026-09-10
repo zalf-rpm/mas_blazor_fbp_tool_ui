@@ -23,10 +23,6 @@
     <Routes @rendermode="NoPrerenderServer" />
     <ReconnectModal />
 
-    @if (!string.IsNullOrWhiteSpace(GoogleMapsApiKey))
-    {
-        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=@GoogleMapsApiKey&v=3&loading=async&callback=Function.prototype"></script>
-    }
     <script src="@Assets["js/JSInterop.min.js"]"></script>
     <script src="@Assets["js/SaveAsBase64.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
@@ -37,5 +33,4 @@
 
 @code {
     private static readonly IComponentRenderMode NoPrerenderServer = new InteractiveServerRenderMode(prerender: false);
-    private string GoogleMapsApiKey => Environment.GetEnvironmentVariable("GOOGLE_MAPS_API_KEY") ?? "";
 }

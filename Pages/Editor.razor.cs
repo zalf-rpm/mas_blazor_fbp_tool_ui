@@ -1327,6 +1327,9 @@ public partial class Editor : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _clearButtonCts?.Cancel();
+        _clearButtonCts?.Dispose();
+        _clearButtonCts = null;
         RuntimeService.StateChanged -= OnRuntimeStateChanged;
         CleanupService.UnregisterCleanup();
         await RuntimeService.ClearDiagramAsync();

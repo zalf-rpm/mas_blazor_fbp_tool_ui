@@ -48,7 +48,7 @@
                         <MudSelectItem Value="@((true, StructuredText.Type.unstructured))">
                             as plain text
                         </MudSelectItem>
-                        @foreach (Mas.Schema.Common.StructuredText.Type ct in Enum.GetValues(typeof(Mas.Schema.Common.StructuredText.Type))) {
+                        @foreach (var ct in Enum.GetValues<Mas.Schema.Common.StructuredText.Type>()) {
                             <MudSelectItem Value="@((false, ct))">@(Shared.FormatStructuredTextType(ct))</MudSelectItem>
                         }
                     </MudSelect>
@@ -124,7 +124,6 @@
     private async Task SendIip()
     {
         await Node.SendIip(ConMan);
-        StateHasChanged();
     }
 
     private async Task ShowDetails(MouseEventArgs e)
@@ -138,6 +137,5 @@
         var result = await dialog.Result;
         if (result == null || result.Canceled) return;
         Node.Content = result.Data as string ?? "";
-        StateHasChanged();
     }
 }

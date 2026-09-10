@@ -123,11 +123,10 @@
         var parameters = new DialogParameters
         {
             ["Content"] = Node.ViewContent,
-            ["EnableZoom"] = () => { Node.Diagram.Options.Zoom.Enabled = true; },
-            ["DisableZoom"] = () => { Node.Diagram.Options.Zoom.Enabled = false; },
+            ["EnableZoom"] = EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = true; }),
+            ["DisableZoom"] = EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = false; }),
         };
 
         await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters, options);
-        StateHasChanged();
     }
 }
