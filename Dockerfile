@@ -27,6 +27,5 @@ ENTRYPOINT ["dotnet", "BlazorDrawFBP.dll"]
 FROM build AS dev
 WORKDIR /src
 ENV ASPNETCORE_ENVIRONMENT=Development \
-    ASPNETCORE_URLS=http://+:8080 \
-    Logging__LogLevel__Default=Debug
+    ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "watch", "--project", "BlazorDrawFBP.csproj", "run", "--framework", "net10.0", "--no-launch-profile", "--urls", "http://0.0.0.0:8080"]
