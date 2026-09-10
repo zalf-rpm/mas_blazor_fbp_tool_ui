@@ -16,7 +16,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
     public const uint DefaultChannelStatsUpdateIntervalInMs = 1000;
 
     public CapnpFbpInPortModel(
-        NodeModel parent,
+        NodeModel? parent,
         PortAlignment alignment = PortAlignment.Bottom,
         Point? position = null,
         Size? size = null

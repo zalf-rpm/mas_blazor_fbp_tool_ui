@@ -79,8 +79,8 @@ public partial class Editor
     private readonly Dictionary<(string, string), Component> ServiceIdAndComponentId2Component =
         new();
 
-    private Component _draggedComponent;
-    private string _draggedComponentServiceId;
+    private Component? _draggedComponent;
+    private string? _draggedComponentServiceId;
     private bool _executingFlow;
     private bool _loadingFlow;
     public BlazorDiagram Diagram { get; set; } = null!;
@@ -107,10 +107,8 @@ public partial class Editor
 
     public ConnectionManager ConnectionManager => ConMan;
 
-    public IStartChannelsService CurrentChannelStarterService =>
-        ServiceId2ChannelStarterServices
-            .FirstOrDefault(new KeyValuePair<string, IStartChannelsService>("none", null))
-            .Value;
+    public IStartChannelsService? CurrentChannelStarterService =>
+        ServiceId2ChannelStarterServices.Values.FirstOrDefault();
 
     public string GetComponentServiceName(string serviceId) =>
         RegistryServiceIdToPetNameAndSturdyRef
@@ -727,11 +725,14 @@ public partial class Editor
             Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
             if (l is RememberCapnpPortsLinkModel rememberedLink)
             {
-                await Shared.Shared.ConnectLinkToRunningProcessesAsync(
-                    ConMan,
-                    CurrentChannelStarterService,
-                    rememberedLink
-                );
+                if (CurrentChannelStarterService is { } css)
+                {
+                    await Shared.Shared.ConnectLinkToRunningProcessesAsync(
+                        ConMan,
+                        css,
+                        rememberedLink
+                    );
+                }
                 RefreshPortLayout(l);
                 QueueProcStructureSyncForLink(rememberedLink);
                 return;
@@ -1925,7 +1926,7 @@ public partial class Editor
     private NodeModel AddFbpNode(
         Point position,
         Component component,
-        JObject initNode = null,
+        JObject? initNode = null,
         string cmd = ""
     )
     {

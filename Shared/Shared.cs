@@ -97,7 +97,7 @@ public static class Shared
         IStartChannelsService css,
         CapnpFbpOutPortModel outPort,
         CapnpFbpInPortModel inPort,
-        RememberCapnpPortsLinkModel link
+        RememberCapnpPortsLinkModel? link
     )
     {
         if (css == null)
@@ -239,10 +239,10 @@ public static class Shared
     }
 
     public static Task ConnectLinkToRunningProcessesAsync(RememberCapnpPortsLinkModel link) =>
-        ResolveEditor(link) is { } editor
+        ResolveEditor(link) is { CurrentChannelStarterService: { } css } editor
             ? ConnectLinkToRunningProcessesAsync(
                 editor.ConnectionManager,
-                editor.CurrentChannelStarterService,
+                css,
                 link
             )
             : Task.CompletedTask;
@@ -450,7 +450,7 @@ public static class Shared
     public static Task RemoveAttachedLinksAndCleanupAsync(
         NodeModel node,
         Diagram diagram,
-        Model excludedNode = null
+        Model? excludedNode = null
     ) => RemoveAttachedLinksAndCleanupAsync(AttachedLinks(node).ToList(), diagram, excludedNode);
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
@@ -567,12 +567,12 @@ public static class Shared
     public static async Task RestoreDefaultPortVisibilityOfAttachedComponent(
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
-        Model excludedNode = null
+        Model? excludedNode = null
     ) => await RemoveAttachedLinksAndCleanupAsync(links, diagram, excludedNode);
 
     public static Task RestoreDefaultPortVisibilityOfAttachedComponent(
         NodeModel node,
         Diagram diagram,
-        Model excludedNode = null
+        Model? excludedNode = null
     ) => RemoveAttachedLinksAndCleanupAsync(AttachedLinks(node).ToList(), diagram, excludedNode);
 }

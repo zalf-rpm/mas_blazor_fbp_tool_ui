@@ -20,7 +20,7 @@ public class AddPortControl : ExecutableControl
 
     public CapnpFbpPortModel.PortType PortType { get; set; } = CapnpFbpPortModel.PortType.In;
 
-    public CapnpFbpComponentModel NodeModel { get; set; } = null;
+    public CapnpFbpComponentModel? NodeModel { get; set; }
 
     public AddPortControl(double x, double y, double offsetX = 0.0, double offsetY = 0.0)
         : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY)) { }
@@ -55,9 +55,9 @@ public class AddPortControl : ExecutableControl
         NodeModel node,
         CapnpFbpPortModel.PortType portType,
         int orderNo,
-        string name = null,
-        string contentType = null,
-        string description = null,
+        string? name = null,
+        string? contentType = null,
+        string? description = null,
         bool isArrayPort = false
     )
     {

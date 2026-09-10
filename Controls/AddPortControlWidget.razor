@@ -1,7 +1,7 @@
 @using Blazor.Diagrams.Core.Models.Base;
 
 <div>
-    @if (Control.NodeModel.Editable)
+    @if (Control.NodeModel?.Editable == true)
     {
         <MudFab Size="Size.Small"
                 Color="Color.Success"

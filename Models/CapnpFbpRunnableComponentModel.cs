@@ -105,7 +105,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 
             async Task CollectPortSrs(
                 CapnpFbpPortModel port,
-                RememberCapnpPortsLinkModel link = null
+                RememberCapnpPortsLinkModel? link = null
             )
             {
                 Console.WriteLine(

@@ -19,13 +19,13 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 {
-    private CancellationTokenSource _cancellationTokenSource;
+    private CancellationTokenSource? _cancellationTokenSource;
     private MarkupString _viewContent;
 
-    public CapnpFbpViewComponentModel(Point position = null)
+    public CapnpFbpViewComponentModel(Point? position = null)
         : base(position) { }
 
-    public CapnpFbpViewComponentModel(string id, Point position = null)
+    public CapnpFbpViewComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
     // public BlazorDispatcher Dispatcher { get; set; }
@@ -366,7 +366,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     private void SetLifecycleState(
         ComponentLifecycleState state,
-        string error = null,
+        string? error = null,
         bool refresh = false
     )
     {

@@ -27,13 +27,13 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     }
 
     public CapnpFbpPortModel(
-        NodeModel parent,
+        NodeModel? parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
         Point? position = null,
         Size? size = null
     )
-        : base(parent, alignment, position, size)
+        : base(parent!, alignment, position, size)
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();
@@ -42,13 +42,13 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public CapnpFbpPortModel(
         string id,
-        NodeModel parent,
+        NodeModel? parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
         Point? position = null,
         Size? size = null
     )
-        : base(id, parent, alignment, position, size)
+        : base(id, parent!, alignment, position, size)
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();
@@ -92,7 +92,7 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
         return CanConnect(this, otherPort);
     }
 
-    public void SyncVisibility(BaseLinkModel ignoredLink = null)
+    public void SyncVisibility(BaseLinkModel? ignoredLink = null)
     {
         var remainingConnections = GetCountedLinksForUi()
             .Count(link => !ReferenceEquals(link, ignoredLink));
@@ -104,17 +104,33 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
                 : VisibilityState.Hidden,
             PortType.In => IsArrayPort || remainingConnections == 0
                 ? VisibilityState.Visible
-                : VisibilityState.Dashed,
+                : VisibilityState.Hidden,
             _ => VisibilityState.Visible,
         };
     }
 
-    public static bool CanConnect(CapnpFbpPortModel firstPort, CapnpFbpPortModel secondPort)
+    private static bool CanConnect(CapnpFbpPortModel firstPort, CapnpFbpPortModel secondPort)
     {
-        if (!TryResolveEndpoints(firstPort, secondPort, out var outPort, out var inPort))
+        if (firstPort == null || secondPort == null)
             return false;
 
-        if (!outPort.CanAcceptMoreConnections || !inPort.CanAcceptMoreConnections)
+        if (firstPort.ThePortType == secondPort.ThePortType)
+            return false;
+
+        if (
+            !TryResolveEndpoints(
+                firstPort,
+                secondPort,
+                out var outPort,
+                out var inPort
+            )
+        )
+            return false;
+
+        if (!outPort.IsArrayPort && outPort.Links.Count > 0)
+            return false;
+
+        if (!inPort.IsArrayPort && inPort.Links.Count > 0)
             return false;
 
         return !outPort.Links.OfType<RememberCapnpPortsLinkModel>().Any(link =>
@@ -125,8 +141,8 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     private static bool TryResolveEndpoints(
         CapnpFbpPortModel firstPort,
         CapnpFbpPortModel secondPort,
-        out CapnpFbpOutPortModel outPort,
-        out CapnpFbpInPortModel inPort
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out CapnpFbpOutPortModel? outPort,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out CapnpFbpInPortModel? inPort
     )
     {
         switch (firstPort, secondPort)

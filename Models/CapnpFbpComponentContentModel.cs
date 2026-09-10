@@ -7,7 +7,7 @@ using Blazor.Diagrams.Core.Models;
 
 public class CapnpFbpComponentContentModel : NodeModel
 {
-    public CapnpFbpComponentContentModel(Point position = null)
+    public CapnpFbpComponentContentModel(Point? position = null)
         : base(position) { }
 
     public string Label { get; set; }

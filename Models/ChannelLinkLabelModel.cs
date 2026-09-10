@@ -34,7 +34,7 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
         RememberCapnpPortsLinkModel parent,
         string content,
         double? distance = null,
-        Point offset = null
+        Point? offset = null
     )
         : base(parent, content, distance, offset)
     {

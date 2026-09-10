@@ -13,19 +13,19 @@ namespace BlazorDrawFBP.Models;
 public class CapnpFbpOutPortModel : CapnpFbpPortModel
 {
     public CapnpFbpOutPortModel(
-        NodeModel parent,
+        NodeModel? parent,
         PortAlignment alignment = PortAlignment.Bottom,
-        Point position = null,
-        Size size = null
+        Point? position = null,
+        Size? size = null
     )
         : base(parent, PortType.Out, alignment, position, size) { }
 
     public CapnpFbpOutPortModel(
         string id,
-        NodeModel parent,
+        NodeModel? parent,
         PortAlignment alignment = PortAlignment.Bottom,
-        Point position = null,
-        Size size = null
+        Point? position = null,
+        Size? size = null
     )
         : base(id, parent, PortType.Out, alignment, position, size) { }
 

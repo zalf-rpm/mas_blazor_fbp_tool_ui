@@ -18,7 +18,7 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 {
-    public CapnpFbpIipComponentModel(Point position = null)
+    public CapnpFbpIipComponentModel(Point? position = null)
         : base(position) { }
 
     // public BlazorDispatcher Dispatcher { get; set; }
@@ -49,8 +49,8 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
     };
     public string LifecycleLabel => DisplayLifecycleState.ToString();
 
-    private CancellationTokenSource _cancellationTokenSource;
-    private Task _iipTask;
+    private CancellationTokenSource? _cancellationTokenSource;
+    private Task? _iipTask;
 
     private bool IsConnectedToChannel =>
         Shared.Shared.AttachedLinks(this)
@@ -222,7 +222,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 
     private void SetLifecycleState(
         ComponentLifecycleState state,
-        string error = null,
+        string? error = null,
         bool refresh = false
     )
     {
