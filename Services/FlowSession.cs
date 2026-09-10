@@ -1,9 +1,11 @@
 namespace BlazorDrawFBP.Services;
 
 using System;
+using System.Threading.Tasks;
+using Blazor.Diagrams;
 using Newtonsoft.Json.Linq;
 
-public class FlowSession
+public class FlowSession : IAsyncDisposable
 {
     public Guid Id { get; init; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
@@ -13,6 +15,7 @@ public class FlowSession
 
     public JObject? FlowDocument { get; set; }
     public IFbpRuntimeService RuntimeService { get; set; } = null!;
+    public BlazorDiagram? Diagram { get; set; }
 
     public bool IsDetached => DetachedAt != null;
 
@@ -28,5 +31,17 @@ public class FlowSession
     {
         DetachedAt = DateTime.UtcNow;
         Touch();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (RuntimeService is IAsyncDisposable disposable)
+        {
+            await disposable.DisposeAsync();
+        }
+        else
+        {
+            await RuntimeService.ClearDiagramAsync();
+        }
     }
 }

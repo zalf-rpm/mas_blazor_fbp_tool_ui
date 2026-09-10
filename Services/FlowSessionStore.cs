@@ -19,7 +19,7 @@ public class FlowSessionStore : IFlowSessionStore
             flowId,
             id =>
             {
-                var runtime = runtimeFactory?.Invoke() ?? new FbpRuntimeService(new ConnectionManager());
+                var runtime = runtimeFactory?.Invoke() ?? CreateDefaultRuntime();
                 return new FlowSession
                 {
                     Id = id,
@@ -32,6 +32,16 @@ public class FlowSessionStore : IFlowSessionStore
                 return existing;
             }
         );
+    }
+
+    public static IFbpRuntimeService CreateDefaultRuntime()
+    {
+        var conMan = new ConnectionManager();
+        var restorer = new Restorer { TcpHost = ConnectionManager.GetLocalIPAddress() };
+        conMan.Restorer = restorer;
+        conMan.Bind(System.Net.IPAddress.Any, 0, restorer);
+        restorer.TcpPort = conMan.Port;
+        return new FbpRuntimeService(conMan);
     }
 
     public bool TryGetSession(Guid flowId, [NotNullWhen(true)] out FlowSession? session) =>

@@ -49,6 +49,7 @@ public partial class Editor : IAsyncDisposable
 
     public FlowSession? CurrentSession { get; private set; }
     public IFbpRuntimeService RuntimeService => CurrentSession?.RuntimeService ?? InjectedRuntimeService;
+    public ConnectionManager ConMan => CurrentSession?.RuntimeService.ConnectionManager ?? InjectedConMan;
 
     private CancellationTokenSource? _snapshotDebounceCts;
 
@@ -243,15 +244,27 @@ public partial class Editor : IAsyncDisposable
         };
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
         if (!FlowId.HasValue)
         {
             FlowId = Guid.NewGuid();
             NavigationManager.NavigateTo($"/flow/{FlowId.Value}", replace: true);
+            return;
         }
 
-        CurrentSession = SessionStore.GetOrCreateSession(FlowId.Value, () => InjectedRuntimeService);
+        if (CurrentSession != null && CurrentSession.Id == FlowId.Value)
+        {
+            return;
+        }
+
+        if (CurrentSession != null)
+        {
+            CurrentSession.RuntimeService.StateChanged -= OnRuntimeStateChanged;
+            SessionStore.MarkDetached(CurrentSession.Id);
+        }
+
+        CurrentSession = SessionStore.GetOrCreateSession(FlowId.Value);
         SessionStore.MarkAttached(FlowId.Value);
         CleanupService.RegisterCleanup(() =>
         {
@@ -261,8 +274,28 @@ public partial class Editor : IAsyncDisposable
             }
             return Task.CompletedTask;
         });
-        RuntimeService.StateChanged += OnRuntimeStateChanged;
+        CurrentSession.RuntimeService.StateChanged += OnRuntimeStateChanged;
 
+        if (CurrentSession.Diagram == null)
+        {
+            CurrentSession.Diagram = CreateConfiguredDiagram(CurrentSession.RuntimeService);
+            Diagram = CurrentSession.Diagram;
+            if (CurrentSession.FlowDocument != null)
+            {
+                await LoadFlowFromJsonAsync(CurrentSession.FlowDocument);
+            }
+        }
+        else
+        {
+            Diagram = CurrentSession.Diagram;
+            CurrentSession.RuntimeService.Diagram = Diagram;
+        }
+
+        StateHasChanged();
+    }
+
+    private BlazorDiagram CreateConfiguredDiagram(IFbpRuntimeService runtime)
+    {
         var options = new BlazorDiagramOptions
         {
             AllowMultiSelection = true,
@@ -304,44 +337,40 @@ public partial class Editor : IAsyncDisposable
             Groups = { Enabled = true },
         };
 
-        Diagram = new BlazorDiagram(options);
-        RuntimeService.Diagram = Diagram;
-        var ksb = Diagram.GetBehavior<KeyboardShortcutsBehavior>();
+        var diagram = new BlazorDiagram(options);
+        runtime.Diagram = diagram;
+        var ksb = diagram.GetBehavior<KeyboardShortcutsBehavior>();
         ksb?.RemoveShortcut("Delete", false, false, false);
         ksb?.SetShortcut("Delete", false, true, false, KeyboardShortcutsDefaults.DeleteSelection);
 
         if (File.Exists("Data/default_components.json"))
-            RuntimeService.InitDefaultComponents(File.ReadAllText("Data/default_components.json"));
+            runtime.InitDefaultComponents(File.ReadAllText("Data/default_components.json"));
 
-        Diagram.RegisterComponent<CapnpFbpRunnableComponentModel, CapnpFbpComponentWidget>();
-        Diagram.RegisterComponent<CapnpFbpProcessComponentModel, CapnpFbpComponentWidget>();
-        // Diagram.RegisterComponent<CapnpFbpComponentContentModel, CapnpFbpComponentContentWidget>();
-        Diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
-        Diagram.RegisterComponent<CapnpFbpIipComponentModel, CapnpFbpIipComponentWidget>();
-        Diagram.RegisterComponent<UpdatePortNameNode, UpdatePortNameNodeWidget>();
-        Diagram.RegisterComponent<PortOptionsNode, PortOptionsNodeWidget>();
-        Diagram.RegisterComponent<NodeInformationControl, NodeInformationControlWidget>();
-        Diagram.RegisterComponent<LinkInformationControl, LinkInformationControlWidget>();
-        Diagram.RegisterComponent<AddPortControl, AddPortControlWidget>();
-        Diagram.RegisterComponent<ToggleEditNodeControl, ToggleEditNodeControlWidget>();
-        Diagram.RegisterComponent<RemoveProcessControl, RemoveProcessControlWidget>();
-        Diagram.RegisterComponent<RemoveLinkControl, RemoveLinkControlWidget>();
-        Diagram.RegisterComponent<LinkModel, FbpLinkWidget>(true);
-        Diagram.RegisterComponent<ChannelLinkLabelModel, ChannelLinkLabelWidget>();
-        RegisterEvents();
+        diagram.RegisterComponent<CapnpFbpRunnableComponentModel, CapnpFbpComponentWidget>();
+        diagram.RegisterComponent<CapnpFbpProcessComponentModel, CapnpFbpComponentWidget>();
+        diagram.RegisterComponent<CapnpFbpViewComponentModel, CapnpFbpViewComponentWidget>();
+        diagram.RegisterComponent<CapnpFbpIipComponentModel, CapnpFbpIipComponentWidget>();
+        diagram.RegisterComponent<UpdatePortNameNode, UpdatePortNameNodeWidget>();
+        diagram.RegisterComponent<PortOptionsNode, PortOptionsNodeWidget>();
+        diagram.RegisterComponent<NodeInformationControl, NodeInformationControlWidget>();
+        diagram.RegisterComponent<LinkInformationControl, LinkInformationControlWidget>();
+        diagram.RegisterComponent<AddPortControl, AddPortControlWidget>();
+        diagram.RegisterComponent<ToggleEditNodeControl, ToggleEditNodeControlWidget>();
+        diagram.RegisterComponent<RemoveProcessControl, RemoveProcessControlWidget>();
+        diagram.RegisterComponent<RemoveLinkControl, RemoveLinkControlWidget>();
+        diagram.RegisterComponent<LinkModel, FbpLinkWidget>(true);
+        diagram.RegisterComponent<ChannelLinkLabelModel, ChannelLinkLabelWidget>();
+        RegisterDiagramEvents(diagram);
 
-        //var oldDragNewLinkBehavior = Diagram.GetBehavior<DragNewLinkBehavior>()!;
-        Diagram.UnregisterBehavior<DragNewLinkBehavior>();
-        Diagram.RegisterBehavior(new FbpDragNewLinkBehavior(Diagram));
+        diagram.UnregisterBehavior<DragNewLinkBehavior>();
+        diagram.RegisterBehavior(new FbpDragNewLinkBehavior(diagram));
 
-        ConMan.Restorer = _restorer;
-        ConMan.Bind(IPAddress.Any, 0, _restorer);
-        _restorer.TcpPort = ConMan.Port;
+        diagram.Nodes.Added += OnDiagramStructureChanged;
+        diagram.Nodes.Removed += OnDiagramStructureChanged;
+        diagram.Links.Added += OnDiagramStructureChanged;
+        diagram.Links.Removed += OnDiagramStructureChanged;
 
-        Diagram.Nodes.Added += OnDiagramStructureChanged;
-        Diagram.Nodes.Removed += OnDiagramStructureChanged;
-        Diagram.Links.Added += OnDiagramStructureChanged;
-        Diagram.Links.Removed += OnDiagramStructureChanged;
+        return diagram;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -362,14 +391,6 @@ public partial class Editor : IAsyncDisposable
                 await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
 
         StateHasChanged();
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (CurrentSession?.FlowDocument != null)
-        {
-            await LoadFlowFromJsonAsync(CurrentSession.FlowDocument);
-        }
     }
 
     private void CreateChannel(CapnpFbpOutPortModel outPort, CapnpFbpInPortModel inPort)
@@ -456,26 +477,26 @@ public partial class Editor : IAsyncDisposable
         ScheduleSessionSnapshot();
     }
 
-    private void RegisterEvents()
+    private void RegisterDiagramEvents(BlazorDiagram diagram)
     {
-        // Diagram.Changed += () =>
+        // diagram.Changed += () =>
         // {
         //     events.Add("Changed");
         //     StateHasChanged();
         // };
 
-        // Diagram.Nodes.Added += (n) => events.Add($"NodesAdded, NodeId={n.Id}");
-        // Diagram.Nodes.Removed += (n) => events.Add($"NodesRemoved, NodeId={n.Id}");
+        // diagram.Nodes.Added += (n) => events.Add($"NodesAdded, NodeId={n.Id}");
+        // diagram.Nodes.Removed += (n) => events.Add($"NodesRemoved, NodeId={n.Id}");
 
-        // Diagram.SelectionChanged += (m) =>
+        // diagram.SelectionChanged += (m) =>
         // {
         //     events.Add($"SelectionChanged, Id={m.Id}, Type={m.GetType().Name}, Selected={m.Selected}");
         //     StateHasChanged();
         // };
 
-        Diagram.Links.Added += async l =>
+        diagram.Links.Added += async l =>
         {
-            Diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
+            diagram.Controls.AddFor(l).Add(new RemoveLinkControl(0.5, 0.5));
             if (l is RememberCapnpPortsLinkModel rememberedLink)
             {
                 if (CurrentChannelStarterService is { } css)
@@ -507,8 +528,8 @@ public partial class Editor : IAsyncDisposable
                         if (sourceInPort.Channel != null)
                             _ = nl.EnsureWriterFromChannelAsync();
                         nl.Labels.Add(cllm);
-                        Diagram.Links.Add(nl);
-                        Diagram.Links.Remove(l);
+                        diagram.Links.Add(nl);
+                        diagram.Links.Remove(l);
                         outPort.SyncVisibility();
                         sourceInPort.SyncVisibility();
                         sourceInPort.Refresh();
@@ -531,8 +552,8 @@ public partial class Editor : IAsyncDisposable
                         if (inPort.Channel != null)
                             _ = nl.EnsureWriterFromChannelAsync();
                         nl.Labels.Add(cllm);
-                        Diagram.Links.Add(nl);
-                        Diagram.Links.Remove(l);
+                        diagram.Links.Add(nl);
+                        diagram.Links.Remove(l);
                         sourceOutPort.SyncVisibility();
                         inPort.SyncVisibility();
                         sourceOutPort.Refresh();
@@ -547,44 +568,44 @@ public partial class Editor : IAsyncDisposable
             // events.Add($"Links.Added, LinkId={l.Id}");
         };
 
-        Diagram.Links.Removed += l =>
+        diagram.Links.Removed += l =>
         {
             QueueProcStructureSyncForLink(l);
         };
 
-        // Diagram.Links.Removed += (l) => events.Add($"Links.Removed, LinkId={l.Id}");
+        // diagram.Links.Removed += (l) => events.Add($"Links.Removed, LinkId={l.Id}");
 
-        // Diagram.PointerDown += (m, e) =>
+        // diagram.PointerDown += (m, e) =>
         // {
         //     //Console.WriteLine($"MouseDown, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
         //     events.Add($"MouseDown, Type={m?.GetType().Name}, ModelId={m?.Id}");
         //     StateHasChanged();
         // };
 
-        // Diagram.PointerUp += (m, e) =>
+        // diagram.PointerUp += (m, e) =>
         // {
         //     events.Add($"MouseUp, Type={m?.GetType().Name}, ModelId={m?.Id}");
         //     StateHasChanged();
         // };
 
-        // Diagram.PointerEnter += (m, e) =>
+        // diagram.PointerEnter += (m, e) =>
         // {
         //     //Console.WriteLine($"TouchStart, Type={m?.GetType().Name}, ModelId={m?.Id}, Position=({e.ClientX}/{e.ClientY}");
         //     events.Add($"TouchStart, Type={m?.GetType().Name}, ModelId={m?.Id}");
         //     StateHasChanged();
         // };
 
-        // Diagram.PointerLeave += (m, e) =>
+        // diagram.PointerLeave += (m, e) =>
         // {
         //     events.Add($"TouchEnd, Type={m?.GetType().Name}, ModelId={m?.Id}");
         //     StateHasChanged();
         // };
 
-        Diagram.PointerClick += (m, e) =>
+        diagram.PointerClick += (m, e) =>
         {
             if (m is CapnpFbpPortModel port)
             {
-                var relativePt = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
+                var relativePt = diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
                 var ct =
                     port.ThePortType == CapnpFbpPortModel.PortType.In
                         ? "expects [content type]"
@@ -597,9 +618,9 @@ public partial class Editor : IAsyncDisposable
                     DescriptionLabel = $"Description",
                     PortModel = port,
                     NodeModel = port.Parent,
-                    Container = Diagram,
+                    Container = diagram,
                 };
-                Diagram.Nodes.Add(node);
+                diagram.Nodes.Add(node);
             }
             // else if (m is CapnpFbpComponentModel compModel)
             // {

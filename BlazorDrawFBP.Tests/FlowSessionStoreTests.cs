@@ -129,4 +129,31 @@ public class FlowSessionStoreTests
         Assert.IsFalse(detachedSession.IsDetached);
         Assert.IsNull(detachedSession.DetachedAt);
     }
+
+    [TestMethod]
+    public void FlowSession_Diagram_PreservedAcrossReconnect()
+    {
+        var flowId = Guid.NewGuid();
+        var session = _store.GetOrCreateSession(flowId);
+        var diagram = new Blazor.Diagrams.BlazorDiagram();
+        session.Diagram = diagram;
+
+        // Simulate reconnecting to existing session
+        var reconnected = _store.GetOrCreateSession(flowId);
+
+        Assert.AreSame(session, reconnected);
+        Assert.AreSame(diagram, reconnected.Diagram);
+    }
+
+    [TestMethod]
+    public async System.Threading.Tasks.Task FlowSession_DisposeAsync_CleansUpRuntimeService()
+    {
+        var flowId = Guid.NewGuid();
+        var session = _store.GetOrCreateSession(flowId);
+        Assert.IsNotNull(session.RuntimeService);
+
+        await session.DisposeAsync();
+        // Disposed cleanly without error
+    }
 }
+
