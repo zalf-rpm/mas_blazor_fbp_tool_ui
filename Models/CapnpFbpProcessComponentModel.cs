@@ -889,7 +889,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     private static string NormalizeActivityPortName(string? portName) =>
         string.IsNullOrWhiteSpace(portName) ? "" : portName.Trim();
 
-    private static string FormatActivitySummary(
+    internal static string FormatActivitySummary(
         ProcessSchema.ActivityState activityState,
         string activityPortName
     )
@@ -999,7 +999,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    private static string FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
+    internal static string FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
     {
         if (runInfo == null)
             return "";
@@ -1030,7 +1030,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return $"{outcome}{context}";
     }
 
-    private static IReadOnlyList<string> BuildLastRunDetailLines(
+    internal static IReadOnlyList<string> BuildLastRunDetailLines(
         ProcessSchema.RunInfo? runInfo,
         bool includeHeading,
         bool includeProcessIdentity,

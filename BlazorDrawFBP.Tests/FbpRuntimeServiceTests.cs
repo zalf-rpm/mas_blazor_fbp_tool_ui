@@ -140,4 +140,90 @@ public class FbpRuntimeServiceTests
         Assert.AreSame(targetNode, order[0]);
         Assert.AreSame(sourceNode, order[1]);
     }
+
+    [TestMethod]
+    public void GetFlowStartupOrder_ThreeLayerPipeline_SortsConsumersFirst()
+    {
+        var node1 = new CapnpFbpRunnableComponentModel("node1", new Point(0, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ProcessName = "Producer"
+        };
+        var node2 = new CapnpFbpRunnableComponentModel("node2", new Point(100, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ProcessName = "Transformer"
+        };
+        var node3 = new CapnpFbpRunnableComponentModel("node3", new Point(200, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ProcessName = "Consumer"
+        };
+
+        var out1 = new CapnpFbpOutPortModel(node1, PortAlignment.Right);
+        var in2 = new CapnpFbpInPortModel(node2, PortAlignment.Left);
+        var out2 = new CapnpFbpOutPortModel(node2, PortAlignment.Right);
+        var in3 = new CapnpFbpInPortModel(node3, PortAlignment.Left);
+
+        node1.AddPort(out1);
+        node2.AddPort(in2);
+        node2.AddPort(out2);
+        node3.AddPort(in3);
+
+        _diagram.Nodes.Add(node1);
+        _diagram.Nodes.Add(node2);
+        _diagram.Nodes.Add(node3);
+
+        _diagram.Links.Add(new RememberCapnpPortsLinkModel(out1, in2));
+        _diagram.Links.Add(new RememberCapnpPortsLinkModel(out2, in3));
+
+        var order = _runtimeService.GetFlowStartupOrder();
+
+        Assert.AreEqual(3, order.Count);
+        Assert.AreSame(node3, order[0]); // Consumer
+        Assert.AreSame(node2, order[1]); // Transformer
+        Assert.AreSame(node1, order[2]); // Producer
+    }
+
+    [TestMethod]
+    public void GetFlowStartupOrder_CyclicFlow_ReturnsAllNodesWithoutHanging()
+    {
+        var nodeA = new CapnpFbpRunnableComponentModel("nodeA", new Point(0, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ProcessName = "NodeA"
+        };
+        var nodeB = new CapnpFbpRunnableComponentModel("nodeB", new Point(100, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ProcessName = "NodeB"
+        };
+
+        var outA = new CapnpFbpOutPortModel(nodeA, PortAlignment.Right);
+        var inB = new CapnpFbpInPortModel(nodeB, PortAlignment.Left);
+        var outB = new CapnpFbpOutPortModel(nodeB, PortAlignment.Right);
+        var inA = new CapnpFbpInPortModel(nodeA, PortAlignment.Left);
+
+        nodeA.AddPort(outA);
+        nodeA.AddPort(inA);
+        nodeB.AddPort(outB);
+        nodeB.AddPort(inB);
+
+        _diagram.Nodes.Add(nodeA);
+        _diagram.Nodes.Add(nodeB);
+
+        _diagram.Links.Add(new RememberCapnpPortsLinkModel(outA, inB));
+        _diagram.Links.Add(new RememberCapnpPortsLinkModel(outB, inA));
+
+        var order = _runtimeService.GetFlowStartupOrder();
+
+        Assert.AreEqual(2, order.Count);
+        Assert.IsTrue(order.Contains(nodeA));
+        Assert.IsTrue(order.Contains(nodeB));
+    }
 }

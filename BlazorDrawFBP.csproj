@@ -100,6 +100,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="BlazorDrawFBP.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="capnproto-dotnetcore\Capnp.Net.Runtime\Capnp.Net.Runtime.csproj" />
     <ProjectReference Include="mas_blazor_components\BlazorComponents.csproj" />
     <ProjectReference Include="mas_capnproto_schemas\gen\csharp\zalfmas_capnpschemas.csproj" />
