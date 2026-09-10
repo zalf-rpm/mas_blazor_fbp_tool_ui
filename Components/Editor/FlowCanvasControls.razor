@@ -1,0 +1,69 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+<div class="d-inline-block absolute"
+     style="top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
+    <MudStack Row="true" Spacing="1" Class="flex-wrap">
+        <InputFile @key="LoadFlowInputVersion"
+                   id="@LoadFlowInputId"
+                   class="d-none"
+                   OnChange="OnLoadFlowSelected" />
+        <MudButton StartIcon="@Icons.Material.Filled.Upload"
+                   HtmlTag="label"
+                   for="@LoadFlowInputId"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary">
+            Load Flow
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   OnClick="() => OnSaveFlow.InvokeAsync(false)">
+            Save Flow
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Primary"
+                   OnClick="() => OnSaveFlow.InvokeAsync(true)">
+            Export as Mermaid Flow
+        </MudButton>
+        <MudButton
+            StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
+            Variant="@Variant.Filled"
+            Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
+            OnClick="OnClearButtonClicked">
+            @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.StopCircle"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Error"
+                   Disabled="@(!CanTerminateSession)"
+                   title="Terminate all running processes and purge flow session"
+                   OnClick="OnTerminateSession">
+            Terminate Session
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Success"
+                   Disabled="@(!CanExecuteFlow)"
+                   title="@ExecuteFlowButtonTitle"
+                   OnClick="OnExecuteFlow">
+            Execute flow
+        </MudButton>
+    </MudStack>
+</div>
+
+@code {
+    [Parameter] public string LoadFlowInputId { get; set; } = "load-flow-input";
+    [Parameter] public int LoadFlowInputVersion { get; set; }
+    [Parameter] public bool ClearButtonDisabled { get; set; } = true;
+    [Parameter] public bool CanTerminateSession { get; set; }
+    [Parameter] public bool CanExecuteFlow { get; set; }
+    [Parameter] public string ExecuteFlowButtonTitle { get; set; } = "Execute flow";
+
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnLoadFlowSelected { get; set; }
+    [Parameter] public EventCallback<bool> OnSaveFlow { get; set; }
+    [Parameter] public EventCallback OnClearButtonClicked { get; set; }
+    [Parameter] public EventCallback OnTerminateSession { get; set; }
+    [Parameter] public EventCallback OnExecuteFlow { get; set; }
+}

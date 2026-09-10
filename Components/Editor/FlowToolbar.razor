@@ -1,0 +1,68 @@
+@using MudBlazor
+
+<MudPaper Outlined="true" Class="pa-1 d-flex align-center">
+    <MudIconButton Icon="@(ComponentListVisible ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
+                   Color="Color.Inherit"
+                   Edge="Edge.Start"
+                   title="@(ComponentListVisible ? "Hide components" : "Show components")"
+                   OnClick="@OnToggleComponentList"/>
+    <MudImage Class="ml-1 mr-1" Src="img/ocapi_just_logo.png" Height="45"/>
+    <MudText Typo="Typo.h4">OCAPI-Flow Tool</MudText>
+    @if (FlowId.HasValue)
+    {
+        <MudTooltip Text="Click to copy flow URL">
+            <MudChip T="string"
+                     Icon="@Icons.Material.Filled.Share"
+                     Variant="Variant.Outlined"
+                     Color="Color.Primary"
+                     Size="Size.Small"
+                     Class="ml-3 cursor-pointer"
+                     OnClick="@OnCopyFlowUrl">
+                Flow: @ShortFlowId
+            </MudChip>
+        </MudTooltip>
+    }
+    <MudButton StartIcon="@Icons.Material.Filled.Add"
+               Variant="Variant.Outlined"
+               Color="Color.Primary"
+               Size="Size.Small"
+               Class="ml-2"
+               OnClick="@OnCreateNewFlow">
+        New Flow
+    </MudButton>
+    <MudSpacer/>
+    <MudButtonGroup>
+        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Inherit"
+                   OnClick="@OnAddComponentService">
+            Components
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                   Variant="@Variant.Filled"
+                   Color="@Color.Inherit"
+                   OnClick="@OnAddChannelService">
+            Channels
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Settings"
+                   Color="Color.Inherit"
+                   Variant="Variant.Filled"
+                   OnClick="@OnShowSturdyRefDialog">
+            Edit SturdyRefs
+        </MudButton>
+    </MudButtonGroup>
+    <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
+</MudPaper>
+
+@code {
+    [Parameter] public bool ComponentListVisible { get; set; } = true;
+    [Parameter] public Guid? FlowId { get; set; }
+    [Parameter] public string ShortFlowId { get; set; } = "";
+
+    [Parameter] public EventCallback OnToggleComponentList { get; set; }
+    [Parameter] public EventCallback OnCopyFlowUrl { get; set; }
+    [Parameter] public EventCallback OnCreateNewFlow { get; set; }
+    [Parameter] public EventCallback OnAddComponentService { get; set; }
+    [Parameter] public EventCallback OnAddChannelService { get; set; }
+    [Parameter] public EventCallback OnShowSturdyRefDialog { get; set; }
+}

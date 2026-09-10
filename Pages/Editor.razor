@@ -13,14 +13,16 @@
 @inject IFlowSessionStore SessionStore
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject IFlowDocumentService FlowDocumentService
+@inject IFbpDiagramFactory DiagramFactory
+@inject IFbpNodeFactory NodeFactory
 
-@using System.Collections.Immutable
 @using System.Reflection
 @using Blazor.Diagrams.Components.Widgets
+@using BlazorDrawFBP.Components.Editor
 @using BlazorDrawFBP.Models
-@using Newtonsoft.Json.Linq
-@using MudBlazor
 @using BlazorDrawFBP.Services
+@using MudBlazor
 @using Capnp.Rpc
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Schema.Fbp
@@ -28,59 +30,16 @@
 
 <div class="editor-shell mud-background-gray pa-1">
 <MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
-    <MudPaper Outlined="true" Class="pa-1 d-flex align-center">
-        <MudIconButton Icon="@(_componentListVisible ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
-                       Color="Color.Inherit"
-                       Edge="Edge.Start"
-                       title="@(_componentListVisible ? "Hide components" : "Show components")"
-                       OnClick="@ToggleComponentList"/>
-        <MudImage Class="ml-1 mr-1" Src="img/ocapi_just_logo.png" Height="45"/>
-        <MudText Typo="Typo.h4">OCAPI-Flow Tool</MudText>
-        @if (FlowId.HasValue)
-        {
-            <MudTooltip Text="Click to copy flow URL">
-                <MudChip T="string"
-                         Icon="@Icons.Material.Filled.Share"
-                         Variant="Variant.Outlined"
-                         Color="Color.Primary"
-                         Size="Size.Small"
-                         Class="ml-3 cursor-pointer"
-                         OnClick="@CopyFlowUrlToClipboard">
-                    Flow: @ShortFlowId
-                </MudChip>
-            </MudTooltip>
-        }
-        <MudButton StartIcon="@Icons.Material.Filled.Add"
-                   Variant="Variant.Outlined"
-                   Color="Color.Primary"
-                   Size="Size.Small"
-                   Class="ml-2"
-                   OnClick="@CreateNewFlow">
-            New Flow
-        </MudButton>
-        <MudSpacer/>
-        <MudButtonGroup>
-            <MudButton StartIcon="@Icons.Material.Filled.Add"
-                       Variant="@Variant.Filled"
-                       Color="@Color.Inherit"
-                       OnClick="@AddComponentServiceSturdyRef">
-                Components
-            </MudButton>
-            <MudButton StartIcon="@Icons.Material.Filled.Add"
-                       Variant="@Variant.Filled"
-                       Color="@Color.Inherit"
-                       OnClick="@AddChannelServiceSturdyRef">
-                Channels
-            </MudButton>
-            <MudButton StartIcon="@Icons.Material.Filled.Settings"
-                       Color="Color.Inherit"
-                       Variant="Variant.Filled"
-                       OnClick="@ShowSturdyRefDialog">
-                Edit SturdyRefs
-            </MudButton>
-        </MudButtonGroup>
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
-    </MudPaper>
+    <FlowToolbar ComponentListVisible="@_componentListVisible"
+                 FlowId="@FlowId"
+                 ShortFlowId="@ShortFlowId"
+                 OnToggleComponentList="@ToggleComponentList"
+                 OnCopyFlowUrl="@CopyFlowUrlToClipboard"
+                 OnCreateNewFlow="@CreateNewFlow"
+                 OnAddComponentService="@AddComponentServiceSturdyRef"
+                 OnAddChannelService="@AddChannelServiceSturdyRef"
+                 OnShowSturdyRefDialog="@ShowSturdyRefDialog" />
+
     <MudStack Row="true"
               Wrap="Wrap.NoWrap"
               AlignItems="AlignItems.Stretch"
@@ -89,166 +48,26 @@
               Style="min-height: 0;">
         @if (_componentListVisible)
         {
-	            <MudPaper Outlined="true"
-	                      Class="d-flex flex-column flex-shrink-0 overflow-hidden pb-2 gap-1"
-	                      Style="width: 24rem; min-height: 0;">
-                <MudTextField @bind-Value="@_searchText"
-                              Placeholder="Search components"
-                              Variant="Variant.Text"
-                              Margin="Margin.Dense"
-	                              Class="flex-grow-0 mt-0 mb-0 px-2 pt-2"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true"
-                              DebounceInterval="300"
-                              OnDebounceIntervalElapsed="ApplyComponentSearch"
-                              Clearable="true"
-                              OnClearButtonClick="ClearComponentSearch"
-                              ClearIcon="@Icons.Material.Filled.Close"/>
-                <MudNavMenu Dense="true"
-                            Class="components-list d-flex flex-column gap-1 flex-grow-1 overflow-auto">
-	                    @{
-	                        var categoryIds = sortedCatIds
-	                            .Where(CategoryVisibleInComponentList)
-	                            .ToList();
-	                    }
-                    @for (var i = 0; i < categoryIds.Count; i++)
-                    {
-                        var catId = categoryIds[i];
-                        var compIds = CatId2CompServiceIdAndComponentIds[catId];
-                        var isExpanded = IsCategoryExpanded(catId);
-                        var categoryMatchesSearch = CategoryMatchesSearch(catId);
-
-                        <MudNavGroup @key="catId"
-                                     Expanded="@isExpanded"
-                                     ExpandedChanged="@((bool expanded) => SetCategoryExpanded(catId, expanded))"
-                                     ExpandIcon="@Icons.Material.Filled.ExpandMore"
-                                     HeaderClass="rounded pa-1"
-                                     Ripple="false">
-                            <TitleContent>
-                                <MudText Class="ml-n3">@CatId2Info[catId].Name</MudText>
-                            </TitleContent>
-                            <ChildContent>
-                                <MudStack Spacing="1" Class="gap-1 pt-1">
-                                    @foreach (var compId in compIds)
-                                    {
-                                        if (!ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp)) continue;
-                                        if (comp.Type == Component.ComponentType.subflow) continue;
-
-                                        if (SearchActive && !categoryMatchesSearch && !ComponentMatchesSearch(comp))
-                                        {
-                                            continue;
-                                        }
-
-                                        var serviceName = GetComponentServiceName(compId.Item1);
-                                        var serviceHandleStyle = GetComponentServiceHandleStyle(compId.Item1);
-
-                                        RenderFragment componentItem = @<MudPaper Class="component-palette-item cursor-grab d-flex align-center rounded pa-2 gap-2 mud-width-full"
-                                                                                  draggable="true"
-                                                                                  @ondragstart="() => OnNodeDragStart(comp, compId.Item1)"
-                                                                                  @ondragend="OnNodeDragEnd"
-                                                                                  Outlined="true"
-                                                                                  Elevation="0"
-                                                                                  title="@comp.Info.Name"
-                                                                                  role="button"
-                                                                                  tabindex="0">
-                                                                            <span class="component-service-handle d-inline-flex align-center justify-start flex-shrink-0 overflow-hidden rounded pa-1"
-                                                                                  style="@serviceHandleStyle"
-                                                                                  title="@serviceName"
-                                                                                  aria-label="@serviceName"
-                                                                                  tabindex="0">
-                                                                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small"/>
-                                                                                <span class="component-service-handle-label d-inline-flex align-center overflow-hidden mud-typography-caption"
-                                                                                      style="line-height: 1; text-overflow: ellipsis; white-space: nowrap;">
-                                                                                    @serviceName
-                                                                                </span>
-                                                                            </span>
-                                                                            <MudText Typo="Typo.body2"
-                                                                                     Class="overflow-hidden mud-width-full"
-                                                                                     Style="text-align: left; text-overflow: ellipsis; white-space: nowrap;">
-                                                                                @comp.Info.Name
-                                                                            </MudText>
-                                                                        </MudPaper>;
-
-                                        if (string.IsNullOrEmpty(comp.Info.Description))
-                                        {
-                                            <div @key="compId" class="mud-width-full">
-                                                @componentItem
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <MudTooltip @key="compId">
-                                                <ChildContent>
-                                                    @componentItem
-                                                </ChildContent>
-                                                <TooltipContent>
-                                                    <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
-                                                </TooltipContent>
-                                            </MudTooltip>
-                                        }
-                                    }
-                                </MudStack>
-                            </ChildContent>
-                        </MudNavGroup>
-                    }
-                </MudNavMenu>
-            </MudPaper>
+            <ComponentPalette RuntimeService="@RuntimeService"
+                              OnComponentDragStart="@HandleComponentDragStart"
+                              OnComponentDragEnd="@OnNodeDragEnd" />
         }
         <MudPaper Outlined="true"
                   Class="diagram-container flex-grow-1"
                   ondragover="event.preventDefault();"
                   @ondrop="OnNodeDrop">
-            <div class="d-inline-block absolute"
-                 style="top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
-                <MudStack Row="true" Spacing="1" Class="flex-wrap">
-                    <InputFile @key="_loadFlowInputVersion"
-                               id="@LoadFlowInputId"
-                               class="d-none"
-                               OnChange="LoadFlowSelected" />
-                    <MudButton StartIcon="@Icons.Material.Filled.Upload"
-                               HtmlTag="label"
-                               for="@LoadFlowInputId"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Primary">
-                        Load Flow
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.Download"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Primary"
-                               OnClick="() => SaveFlow(false)">
-                        Save Flow
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.Download"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Primary"
-                               OnClick="() => SaveFlow(true)">
-                        Export as Mermaid Flow
-                    </MudButton>
-                    <MudButton
-                        StartIcon="@(ClearButtonDisabled ? Icons.Material.Filled.Delete : Icons.Material.Filled.DeleteForever)"
-                        Variant="@Variant.Filled"
-                        Color="@(ClearButtonDisabled ? Color.Warning : Color.Error)"
-                        OnClick="ClearButtonClicked">
-                        @(ClearButtonDisabled ? "Clear Flow" : "Clear Flow")
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.StopCircle"
-                               Variant="@Variant.Filled"
-                               Color="@Color.Error"
-                               title="Terminate all running processes and purge flow session"
-                               OnClick="@TerminateFlowSessionAsync">
-                        Terminate Session
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.PlayCircle"
-                                Variant="@Variant.Filled"
-                                Color="@Color.Success"
-                                Disabled="@(!CanExecuteFlow)"
-                                title="@ExecuteFlowButtonTitle"
-                                OnClick="@ExecuteFlow">
-                        Execute flow
-                    </MudButton>
-                </MudStack>
-            </div>
+            <FlowCanvasControls LoadFlowInputId="@LoadFlowInputId"
+                                LoadFlowInputVersion="@_loadFlowInputVersion"
+                                ClearButtonDisabled="@ClearButtonDisabled"
+                                CanTerminateSession="@FlowId.HasValue"
+                                CanExecuteFlow="@CanExecuteFlow"
+                                ExecuteFlowButtonTitle="@ExecuteFlowButtonTitle"
+                                OnLoadFlowSelected="@LoadFlowSelected"
+                                OnSaveFlow="@SaveFlow"
+                                OnClearButtonClicked="@ClearButtonClicked"
+                                OnTerminateSession="@TerminateFlowSessionAsync"
+                                OnExecuteFlow="@ExecuteFlow" />
+
             @if (Diagram != null)
             {
                 <CascadingValue Value="Diagram">
@@ -278,103 +97,14 @@
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
     private int _loadFlowInputVersion;
-    private string _searchText = "";
-    private string _query = "";
-    private const int MinSearchChars = 3;
-    private const string DefaultCatId = "default";
-    private Dictionary<string, bool> _expandedPanels = new() { { DefaultCatId, true } };
-    private bool HasConnectedComponentService => RuntimeService.HasConnectedComponentService;
-    private bool HasConnectedChannelService => RuntimeService.HasConnectedChannelService;
-    private bool HasBusyLifecycleNodes => RuntimeService.HasBusyLifecycleNodes;
+
     private bool CanExecuteFlow => RuntimeService.CanExecuteFlow;
     private string ExecuteFlowButtonTitle => RuntimeService.ExecuteFlowButtonTitle;
 
-    private IEnumerable<(string, Component)> catId2Component =>
-        CatId2CompServiceIdAndComponentIds.SelectMany(kv =>
-            kv.Value.Select(compId => (kv.Key, compId))).Select(catIdCompId =>
-            (catIdCompId.Key, ServiceIdAndComponentId2Component[catIdCompId.compId]));
-
-    private IEnumerable<string> sortedCatIds => new List<string> { DefaultCatId }
-        .Concat(CatId2CompServiceIdAndComponentIds.Keys
-            .Where(catId => catId != DefaultCatId)
-            .ToImmutableSortedSet()
-            .AsEnumerable());
-
-    private bool SearchActive => _query.Length >= MinSearchChars;
-
-	    private bool IsCategoryExpanded(string catId) =>
-	        SearchActive
-	            ? CategoryHasMatchingComponent(catId)
-	            : _expandedPanels.GetValueOrDefault(catId, false);
-
-	    private bool CategoryVisibleInComponentList(string catId) =>
-	        CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var compIds) &&
-	        compIds.Any(compId =>
-	            ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp) &&
-	            comp.Type != Component.ComponentType.subflow &&
-	            (!SearchActive || CategoryMatchesSearch(catId) || ComponentMatchesSearch(comp)));
-
-	    private Task ApplyComponentSearch(string searchText)
-	    {
-        _searchText = searchText ?? "";
-        var trimmedSearchText = _searchText.Trim();
-        _query = trimmedSearchText.Length >= MinSearchChars ? trimmedSearchText : "";
-        return Task.CompletedTask;
-    }
-
-    private void ClearComponentSearch()
-    {
-        _searchText = "";
-        _query = "";
-    }
-
-    private bool CategoryHasMatchingComponent(string catId) =>
-        CategoryMatchesSearch(catId) ||
-        CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var compIds) &&
-        compIds.Any(compId =>
-            ServiceIdAndComponentId2Component.TryGetValue(compId, out var comp) &&
-            comp.Type != Component.ComponentType.subflow &&
-            ComponentMatchesSearch(comp));
-
-    private bool CategoryMatchesSearch(string catId)
-    {
-        if (!SearchActive)
-        {
-            return true;
-        }
-
-        if (!CatId2Info.TryGetValue(catId, out var info))
-        {
-            return catId.Contains(_query, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return info.Id.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
-               (info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-               (info.Description?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
-
-    private bool ComponentMatchesSearch(Component comp)
-    {
-        if (!SearchActive)
-        {
-            return true;
-        }
-
-        return (comp.Info.Name?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-               (comp.Info.Description?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
-
     private void ToggleComponentList() => _componentListVisible = !_componentListVisible;
 
-    private void SetCategoryExpanded(string catId, bool expanded)
-    {
-        if (SearchActive)
-        {
-            return;
-        }
-
-        _expandedPanels[catId] = expanded;
-    }
+    private void HandleComponentDragStart((Component Component, string ServiceId) args) =>
+        OnNodeDragStart(args.Component, args.ServiceId);
 
     private async Task ClearButtonClicked()
     {
@@ -383,19 +113,15 @@
             ClearButtonDisabled = false;
             _clearButtonCts?.Cancel();
             _clearButtonCts?.Dispose();
-            _clearButtonCts = new CancellationTokenSource();
-            var token = _clearButtonCts.Token;
-
+            var cts = new CancellationTokenSource();
+            _clearButtonCts = cts;
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(2000, token);
-                    if (!token.IsCancellationRequested)
-                    {
-                        ClearButtonDisabled = true;
-                        await InvokeAsync(StateHasChanged);
-                    }
+                    await Task.Delay(3000, cts.Token);
+                    ClearButtonDisabled = true;
+                    await InvokeAsync(StateHasChanged);
                 }
                 catch (OperationCanceledException) { }
             });
@@ -417,7 +143,7 @@
         var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb }) // && editData == null)
+        if (res is { Data: StoredSrData nb })
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -434,7 +160,7 @@
         var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
         var res = await dia.Result;
-        if (res is { Data: StoredSrData nb }) // && editData == null)
+        if (res is { Data: StoredSrData nb })
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -453,8 +179,20 @@
         parameters.Add("SturdyRef2Services", SturdyRef2Services);
         parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", connectedCallback);
         parameters.Add("DisconnectedFromInterfaceIdAndSturdyRefChanged", disconnectedCallback);
-        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
-        await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
-    }
 
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+        };
+        var dialog = await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>(
+            "Stored Sturdy References",
+            parameters,
+            options
+        );
+        await dialog.Result;
+        SafeStateHasChanged();
+    }
 }

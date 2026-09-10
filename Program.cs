@@ -27,6 +27,9 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
 builder.Services.AddScoped<IFbpRuntimeService, FbpRuntimeService>();
+builder.Services.AddScoped<IFbpNodeFactory, FbpNodeFactory>();
+builder.Services.AddScoped<IFlowDocumentService, FlowDocumentService>();
+builder.Services.AddScoped<IFbpDiagramFactory, FbpDiagramFactory>();
 builder.Services.AddSingleton<IFlowSessionStore, FlowSessionStore>();
 builder.Services.AddHostedService<FlowSessionReaper>();
 
