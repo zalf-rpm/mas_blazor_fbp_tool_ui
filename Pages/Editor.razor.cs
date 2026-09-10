@@ -28,6 +28,7 @@ using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -41,6 +42,9 @@ namespace BlazorDrawFBP.Pages;
 
 public partial class Editor : IAsyncDisposable
 {
+    [Parameter]
+    public Guid? FlowId { get; set; }
+
     private const string NoRegistryServiceId = "no_service";
     private const string LoadFlowInputId = "load-flow-input";
     private const double ZoomToFitMargin = 80;
@@ -568,6 +572,11 @@ public partial class Editor : IAsyncDisposable
         if (s.Length > 1 * 1024 * 1024)
             return; // 1 MB
         var dia = JObject.Parse(await new StreamReader(s).ReadToEndAsync());
+        await LoadFlowFromJsonAsync(dia);
+    }
+
+    public async Task LoadFlowFromJsonAsync(JObject dia)
+    {
         var oldNodeIdToNewNode = new Dictionary<string, NodeModel>();
 
         _loadingFlow = true;
@@ -742,7 +751,14 @@ public partial class Editor : IAsyncDisposable
 
         await SyncProcStructureAsync(Diagram.Nodes.OfType<CapnpFbpComponentModel>());
         Diagram.Refresh();
-        await InvokeAsync(ZoomToFitFlow);
+        try
+        {
+            await InvokeAsync(ZoomToFitFlow);
+        }
+        catch (InvalidOperationException)
+        {
+            ZoomToFitFlow();
+        }
     }
 
     private void ZoomToFitFlow()
@@ -776,7 +792,19 @@ public partial class Editor : IAsyncDisposable
         }
     }
 
-    protected async Task SaveFlow(bool asMermaid)
+    public async Task<JObject> ExportFlowJsonAsync()
+    {
+        var (json, _) = await ExportFlowDocumentAsync(asMermaid: false);
+        return json ?? new JObject();
+    }
+
+    public async Task<string> ExportFlowMermaidAsync()
+    {
+        var (_, mermaid) = await ExportFlowDocumentAsync(asMermaid: true);
+        return mermaid ?? string.Empty;
+    }
+
+    public async Task<(JObject? Json, string? Mermaid)> ExportFlowDocumentAsync(bool asMermaid)
     {
         var dia = asMermaid
             ? null
@@ -1313,13 +1341,18 @@ public partial class Editor : IAsyncDisposable
             }
         }
 
-        //File.WriteAllText("Data/diagram_new.json", dia.ToString());
+        return (dia, asMermaid ? sb.ToString() : null);
+    }
+
+    protected async Task SaveFlow(bool asMermaid)
+    {
+        var (dia, mermaid) = await ExportFlowDocumentAsync(asMermaid);
+        var content = asMermaid ? (mermaid ?? "") : (dia?.ToString() ?? "{}");
+        var ext = asMermaid ? "mmd" : "json";
         await JsRuntime.InvokeVoidAsync(
             "saveAsBase64",
-            "flow." + (asMermaid ? "mmd" : "json"),
-            Convert.ToBase64String(
-                Encoding.UTF8.GetBytes(asMermaid ? sb.ToString() : (dia?.ToString() ?? "{}"))
-            )
+            $"flow.{ext}",
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(content))
         );
     }
 
