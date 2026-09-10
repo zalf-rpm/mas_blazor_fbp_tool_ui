@@ -86,7 +86,7 @@ public partial class Editor
 
     private Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
 
-    public Dictionary<string, (string, string)> RegistryServiceIdToPetNameAndSturdyRef { get; } =
+    public Dictionary<string, (string, string?)> RegistryServiceIdToPetNameAndSturdyRef { get; } =
     [];
 
     private Dictionary<string, IStartChannelsService> ServiceId2ChannelStarterServices { get; } =
@@ -141,7 +141,7 @@ public partial class Editor
         return ComponentServicePalette[0];
     }
 
-    public IReadOnlyList<KeyValuePair<string, (string, string)>> GetBindableComponentServices(
+    public IReadOnlyList<KeyValuePair<string, (string, string?)>> GetBindableComponentServices(
         CapnpFbpComponentModel node
     )
     {

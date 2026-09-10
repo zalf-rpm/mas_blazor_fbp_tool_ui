@@ -46,7 +46,7 @@ public class FbpDragNewLinkBehavior : Behavior
     OngoingLink.RefreshLinks();
   }
 
-  private void OnPointerDown(Model model, MouseEventArgs e)
+  private void OnPointerDown(Model? model, MouseEventArgs e)
   {
     if (e.Button != 0L) return;
     OngoingLink = null;
@@ -60,7 +60,7 @@ public class FbpDragNewLinkBehavior : Behavior
     Diagram.Links.Add(OngoingLink);
   }
 
-  private void OnPointerMove(Model model, MouseEventArgs e)
+  private void OnPointerMove(Model? model, MouseEventArgs e)
   {
     if (OngoingLink == null || model != null) return;
     _targetPositionAnchor.SetPosition(CalculateTargetPosition(e.ClientX, e.ClientY));
@@ -78,7 +78,7 @@ public class FbpDragNewLinkBehavior : Behavior
     OngoingLink.RefreshLinks();
   }
 
-  private void OnPointerUp(Model model, MouseEventArgs e)
+  private void OnPointerUp(Model? model, MouseEventArgs e)
   {
     if (OngoingLink == null) return;
     if (OngoingLink.IsAttached)
