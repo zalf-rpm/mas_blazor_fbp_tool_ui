@@ -2,7 +2,6 @@ using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Shared;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.AspNetCore.DataProtection;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,14 +13,6 @@ builder.Services.AddMudServices();
 
 builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
-
-var dataProtectionKeysFolder = builder.Configuration["DATA_PROTECTION_KEYS_PATH"]
-    ?? builder.Configuration["DataProtection:KeysFolder"];
-if (!string.IsNullOrEmpty(dataProtectionKeysFolder))
-{
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysFolder));
-}
 
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
