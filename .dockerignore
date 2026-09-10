@@ -1,12 +1,13 @@
-# Ignore build outputs and VCS metadata
+# Build outputs and IDE files
 **/bin/
 **/obj/
-.git
-.gitignore
-.gitattributes
-.gitmodules
-.idea
-.vscode
+**/.git/
+**/.git
+**/.gitignore
+**/.gitattributes
+**/.gitmodules
+.idea/
+.vscode/
 Dockerfile
 README.md
 LICENSE
@@ -19,3 +20,36 @@ docker-bake.hcl
 release-please-config.json
 .release-please-manifest.json
 BlazorDrawFBP.slnx
+
+# Virtual environments, package caches, and test artifacts
+**/.pixi/
+**/.pixi
+**/.ruff_cache/
+**/globalPackages/
+**/GeneratedNuGetPackages/
+**/TestResults/
+
+# Unused submodules and development tooling
+tooling/
+
+# Exclude unused capnproto-dotnetcore projects and test suites
+capnproto-dotnetcore/Benchmarking/
+capnproto-dotnetcore/Capnp.Net.Runtime.Tests/
+capnproto-dotnetcore/CapnpC.CSharp.Generator/
+capnproto-dotnetcore/CapnpC.CSharp.Generator.Tests/
+capnproto-dotnetcore/CapnpC.CSharp.MsBuild.Generation/
+capnproto-dotnetcore/CapnpC.CSharp.MsBuild.Generation.Tests/
+capnproto-dotnetcore/CapnpCompatTest/
+capnproto-dotnetcore/MsBuildGenerationTest/
+capnproto-dotnetcore/capnpc-csharp/
+capnproto-dotnetcore/chocolatey/
+capnproto-dotnetcore/install-test/
+capnproto-dotnetcore/scripts/
+
+# Exclude non-C# generated schemas
+mas_capnproto_schemas/.pixi/
+mas_capnproto_schemas/gen/c++/
+mas_capnproto_schemas/gen/go/
+mas_capnproto_schemas/gen/python/
+mas_capnproto_schemas/gen/capnp_offsets/
+mas_capnproto_schemas/zalfmas_capnp_schemas/
