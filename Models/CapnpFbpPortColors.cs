@@ -30,7 +30,7 @@ public static class CapnpFbpPortColors
         return DefaultColor;
     }
 
-    public static string ResolvePortShellColor(CapnpFbpPortModel port)
+    public static string? ResolvePortShellColor(CapnpFbpPortModel port)
     {
         if (port.ConnectedChannelCount == 0)
             return null;

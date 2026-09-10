@@ -204,7 +204,7 @@ public partial class Editor
         };
     }
 
-    private async Task<IStartChannelsService> ConnectToStartChannelsService(
+    private async Task<IStartChannelsService?> ConnectToStartChannelsService(
         ConnectionManager conMan,
         string petName,
         string sturdyRef
@@ -235,7 +235,7 @@ public partial class Editor
         return null;
     }
 
-    private async Task<IRegistry> ConnectToRegistryService(
+    private async Task<IRegistry?> ConnectToRegistryService(
         ConnectionManager conMan,
         string petName,
         string sturdyRef
@@ -429,7 +429,7 @@ public partial class Editor
         }
     }
 
-    private static Component CreateFromJson(JToken jComp)
+    private static Component? CreateFromJson(JToken jComp)
     {
         if (jComp is not JObject comp)
             return null;
@@ -2184,8 +2184,6 @@ public partial class Editor
             default:
                 throw new ArgumentOutOfRangeException();
         }
-
-        return null;
     }
 
     private static void SetDefaultComponentSize(NodeModel node) =>

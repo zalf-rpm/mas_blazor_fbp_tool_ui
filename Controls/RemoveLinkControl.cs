@@ -24,7 +24,7 @@ public class RemoveLinkControl : ExecutableControl
         _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model)
+    public override Point? GetPosition(Model model)
     {
         return _positionProvider.GetPosition(model);
     }

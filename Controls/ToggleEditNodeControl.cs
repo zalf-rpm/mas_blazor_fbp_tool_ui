@@ -29,7 +29,7 @@ public class ToggleEditNodeControl : ExecutableControl
         _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model) => _positionProvider.GetPosition(model);
+    public override Point? GetPosition(Model model) => _positionProvider.GetPosition(model);
 
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {

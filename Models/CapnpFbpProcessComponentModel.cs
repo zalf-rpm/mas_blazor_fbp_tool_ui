@@ -49,7 +49,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     public bool HasLastRunInfo => LastRunInfo != null;
     public ProcessSchema.RunInfo.Outcome LastRunOutcome =>
         LastRunInfo?.TheOutcome ?? ProcessSchema.RunInfo.Outcome.none;
-    public string LastRunSummary => FormatLastRunSummary(LastRunInfo);
+    public string? LastRunSummary => FormatLastRunSummary(LastRunInfo);
     public bool IsProcessingActivity =>
         LifecycleState == ComponentLifecycleState.Running
         && ActivityState == ProcessSchema.ActivityState.processing;
@@ -359,7 +359,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     $"T{Environment.CurrentManagedThreadId} {ProcessName}: sending config on the fly"
                 );
 
-                Value MakeCommonValue(JToken jt)
+                Value? MakeCommonValue(JToken jt)
                 {
                     switch (jt.Type)
                     {
@@ -895,7 +895,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    private static string NormalizeActivityPortName(string portName) =>
+    private static string? NormalizeActivityPortName(string portName) =>
         string.IsNullOrWhiteSpace(portName) ? null : portName.Trim();
 
     private static string FormatActivitySummary(
@@ -939,7 +939,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             includeTraceback
         );
 
-    private async Task<ProcessSchema.RunInfo> RefreshLastRunInfoAsync(
+    private async Task<ProcessSchema.RunInfo?> RefreshLastRunInfoAsync(
         CancellationToken cancelToken = default
     )
     {
@@ -947,7 +947,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return LastRunInfo;
     }
 
-    private async Task<ProcessSchema.RunInfo> TryGetRemoteLastRunInfoAsync(
+    private async Task<ProcessSchema.RunInfo?> TryGetRemoteLastRunInfoAsync(
         CancellationToken cancelToken = default
     )
     {
@@ -983,7 +983,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         LastRunInfo = null;
     }
 
-    private static ProcessSchema.RunInfo NormalizeLastRunInfo(ProcessSchema.RunInfo runInfo)
+    private static ProcessSchema.RunInfo? NormalizeLastRunInfo(ProcessSchema.RunInfo runInfo)
     {
         if (
             runInfo == null
@@ -997,7 +997,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return runInfo;
     }
 
-    private static string FormatLastRunFailure(ProcessSchema.RunInfo runInfo)
+    private static string? FormatLastRunFailure(ProcessSchema.RunInfo runInfo)
     {
         var lines = BuildLastRunDetailLines(
             runInfo,
@@ -1008,7 +1008,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    private static string FormatLastRunSummary(ProcessSchema.RunInfo runInfo)
+    private static string? FormatLastRunSummary(ProcessSchema.RunInfo runInfo)
     {
         if (runInfo == null)
             return null;
@@ -1097,7 +1097,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines;
     }
 
-    private static string FormatRunOutcome(ProcessSchema.RunInfo.Outcome outcome)
+    private static string? FormatRunOutcome(ProcessSchema.RunInfo.Outcome outcome)
     {
         return outcome switch
         {
@@ -1108,7 +1108,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         };
     }
 
-    private static string FormatRunPhase(ProcessSchema.RunInfo.Phase phase)
+    private static string? FormatRunPhase(ProcessSchema.RunInfo.Phase phase)
     {
         return phase switch
         {
@@ -1121,7 +1121,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         };
     }
 
-    private static string FormatRunDetail(string detailType, string message)
+    private static string? FormatRunDetail(string detailType, string message)
     {
         var trimmedType = string.IsNullOrWhiteSpace(detailType) ? null : detailType.Trim();
         var trimmedMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();

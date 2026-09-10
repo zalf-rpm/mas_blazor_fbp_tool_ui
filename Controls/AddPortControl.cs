@@ -30,7 +30,7 @@ public class AddPortControl : ExecutableControl
         _positionProvider = positionProvider;
     }
 
-    public override Point GetPosition(Model model)
+    public override Point? GetPosition(Model model)
     {
         return _positionProvider.GetPosition(model);
     }
@@ -51,7 +51,7 @@ public class AddPortControl : ExecutableControl
         NodeModel.RefreshAll();
     }
 
-    public static CapnpFbpPortModel CreateAndAddPort(
+    public static CapnpFbpPortModel? CreateAndAddPort(
         NodeModel node,
         CapnpFbpPortModel.PortType portType,
         int orderNo,

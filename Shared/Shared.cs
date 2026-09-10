@@ -474,10 +474,10 @@ public static class Shared
             _ => false,
         };
 
-    private static Editor ResolveEditor(RememberCapnpPortsLinkModel link) =>
+    private static Editor? ResolveEditor(RememberCapnpPortsLinkModel link) =>
         ResolveEditor(link.OutPortModel.Parent) ?? ResolveEditor(link.InPortModel.Parent);
 
-    private static Editor ResolveEditor(Model model) =>
+    private static Editor? ResolveEditor(Model? model) =>
         model switch
         {
             CapnpFbpComponentModel component => component.Editor,
@@ -486,7 +486,7 @@ public static class Shared
             _ => null,
         };
 
-    private static CapnpFbpOutPortModel GetOutPort(BaseLinkModel link) =>
+    private static CapnpFbpOutPortModel? GetOutPort(BaseLinkModel link) =>
         link switch
         {
             RememberCapnpPortsLinkModel { OutPortModel: { } outPort } => outPort,
@@ -495,7 +495,7 @@ public static class Shared
             _ => null,
         };
 
-    private static CapnpFbpInPortModel GetInPort(BaseLinkModel link) =>
+    private static CapnpFbpInPortModel? GetInPort(BaseLinkModel link) =>
         link switch
         {
             RememberCapnpPortsLinkModel { InPortModel: { } inPort } => inPort,

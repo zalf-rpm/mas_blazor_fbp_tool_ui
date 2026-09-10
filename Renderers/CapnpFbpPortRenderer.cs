@@ -170,7 +170,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
             EventsExtensions.ToCore(e));
     }
 
-    private PortModel FindPortOn(double clientX, double clientY)
+    private PortModel? FindPortOn(double clientX, double clientY)
     {
         foreach (var portOn in BlazorDiagram.Nodes
                      .SelectMany((Func<NodeModel, IEnumerable<PortModel>>)(n => n.Ports))
@@ -183,7 +183,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
                 return portOn;
         }
 
-        return (PortModel)null;
+        return null;
     }
 
     private async Task UpdateDimensions()

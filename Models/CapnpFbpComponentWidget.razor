@@ -597,7 +597,7 @@
         procNode.LifecycleState == ComponentLifecycleState.Running
         || procNode.ActivityState == ProcessSchema.ActivityState.closing;
 
-    private static string ResolveActivityPortColor(
+    private static string? ResolveActivityPortColor(
         CapnpFbpComponentModel node,
         CapnpFbpPortModel port,
         bool aggregateProcChildren

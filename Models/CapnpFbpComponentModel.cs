@@ -114,7 +114,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     public string LifecycleLabel => LifecycleState.ToString();
     public ComponentLifecycleState DisplayLifecycleState => ResolveDisplayLifecycleState();
-    public string DisplayLifecycleError => ResolveDisplayLifecycleError();
+    public string? DisplayLifecycleError => ResolveDisplayLifecycleError();
     public string DisplayLifecycleLabel => ResolveDisplayLifecycleLabel();
     public bool AnyProcRuntimeAttached =>
         RemoteProcessAttached() || _procChildContexts.Any(context => context.Node.AnyProcRuntimeAttached);
@@ -354,7 +354,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 
-    protected virtual CapnpFbpComponentModel CreateProcChildModel(int displayIndex) => null;
+    protected virtual CapnpFbpComponentModel? CreateProcChildModel(int displayIndex) => null;
 
     private async Task RunProcStructureSyncLoopAsync()
     {
@@ -555,7 +555,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         CopyProcBindingTo(child);
     }
 
-    private ProcChildContext CreateProcChildContext(
+    private ProcChildContext? CreateProcChildContext(
         int displayIndex,
         IReadOnlyCollection<RememberCapnpPortsLinkModel> incomingLinks,
         IReadOnlyCollection<RememberCapnpPortsLinkModel> outgoingLinks
@@ -761,7 +761,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return nodes;
     }
 
-    private static T FindMatchingPort<T>(CapnpFbpComponentModel child, CapnpFbpPortModel sourcePort)
+    private static T? FindMatchingPort<T>(CapnpFbpComponentModel child, CapnpFbpPortModel sourcePort)
         where T : CapnpFbpPortModel
     {
         return child.Ports.OfType<T>().FirstOrDefault(port =>
@@ -798,7 +798,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return ComponentLifecycleState.Idle;
     }
 
-    private string ResolveDisplayLifecycleError()
+    private string? ResolveDisplayLifecycleError()
     {
         if (DisplayLifecycleState != ComponentLifecycleState.Failed)
             return null;

@@ -47,7 +47,7 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public bool IsResizingBuffer { get; private set; }
     private readonly CapnpFbpInPortModel _inPort;
 
-    public RememberCapnpPortsLinkModel LinkModel => Parent as RememberCapnpPortsLinkModel;
+    public RememberCapnpPortsLinkModel? LinkModel => Parent as RememberCapnpPortsLinkModel;
     public ulong BufferSize => _inPort.ChannelBufferSize;
     public bool CanResizeBuffer => _inPort.Channel != null;
     public string ConnectionLabel =>

@@ -7,7 +7,7 @@ namespace BlazorDrawFBP.Models;
 
 public class LinkInformationControl : Control
 {
-    public override Point GetPosition(Model model)
+    public override Point? GetPosition(Model model)
     {
         // We want the information to be under the node
         if (model is LinkModel link)

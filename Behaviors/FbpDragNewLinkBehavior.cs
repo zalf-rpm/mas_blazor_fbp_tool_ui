@@ -119,7 +119,7 @@ public class FbpDragNewLinkBehavior : Behavior
     return relativeMousePoint.Subtract(other);
   }
 
-  private PortModel FindNearPortToAttachTo()
+  private PortModel? FindNearPortToAttachTo()
   {
     if (OngoingLink == null || _targetPositionAnchor == null) return null;
     PortModel nearPortToAttachTo = null;
