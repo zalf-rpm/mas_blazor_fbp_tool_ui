@@ -207,7 +207,29 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     ];
 
     public ConnectionManager ConnectionManager { get; }
-    public BlazorDiagram? Diagram { get; set; }
+
+    private BlazorDiagram? _diagram;
+    public BlazorDiagram? Diagram
+    {
+        get => _diagram;
+        set
+        {
+            if (_diagram != null)
+            {
+                _diagram.Nodes.Added -= OnDiagramNodesChanged;
+                _diagram.Nodes.Removed -= OnDiagramNodesChanged;
+            }
+            _diagram = value;
+            if (_diagram != null)
+            {
+                _diagram.Nodes.Added += OnDiagramNodesChanged;
+                _diagram.Nodes.Removed += OnDiagramNodesChanged;
+            }
+            NotifyStateChanged();
+        }
+    }
+
+    private void OnDiagramNodesChanged(NodeModel node) => NotifyStateChanged();
 
     public Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
     public Dictionary<string, (string, string?)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
@@ -230,6 +252,9 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
     public bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
 
+    public bool HasComponentsOnCanvas =>
+        Diagram?.Nodes.Any(IsExecutableFlowNode) == true;
+
     public bool HasBusyLifecycleNodes =>
         Diagram?.Nodes.Any(node => node switch
         {
@@ -242,6 +267,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public bool CanExecuteFlow =>
         HasConnectedComponentService
         && HasConnectedChannelService
+        && HasComponentsOnCanvas
         && !HasBusyLifecycleNodes
         && !IsExecutingFlow;
 
@@ -250,11 +276,13 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public string ExecuteFlowButtonTitle =>
         !HasConnectedComponentService || !HasConnectedChannelService
             ? "Connect both a components service and a channel service to execute the flow."
-            : IsExecutingFlow
-                ? "Flow execution is already starting the current graph."
-                : HasBusyLifecycleNodes
-                    ? "Processes are currently starting or stopping."
-                    : "Execute entire flow";
+            : !HasComponentsOnCanvas
+                ? "Add at least one component to the canvas to execute the flow."
+                : IsExecutingFlow
+                    ? "Flow execution is already starting the current graph."
+                    : HasBusyLifecycleNodes
+                        ? "Processes are currently starting or stopping."
+                        : "Execute entire flow";
 
     public event Action? StateChanged;
 

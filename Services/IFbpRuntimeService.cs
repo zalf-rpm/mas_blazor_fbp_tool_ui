@@ -21,6 +21,7 @@ public interface IFbpRuntimeService
 
     bool HasConnectedComponentService { get; }
     bool HasConnectedChannelService { get; }
+    bool HasComponentsOnCanvas { get; }
     bool HasBusyLifecycleNodes { get; }
     bool CanExecuteFlow { get; }
     bool IsExecutingFlow { get; }

@@ -23,8 +23,10 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
 
     public bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
     public bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
+    public bool HasComponentsOnCanvas =>
+        Diagram?.Nodes.Any(node => node is CapnpFbpComponentModel or CapnpFbpViewComponentModel or CapnpFbpIipComponentModel) == true;
     public bool HasBusyLifecycleNodes => false;
-    public bool CanExecuteFlow => HasConnectedComponentService && HasConnectedChannelService;
+    public bool CanExecuteFlow => HasConnectedComponentService && HasConnectedChannelService && HasComponentsOnCanvas;
     public bool IsExecutingFlow { get; set; }
     public string ExecuteFlowButtonTitle => "Execute flow";
 

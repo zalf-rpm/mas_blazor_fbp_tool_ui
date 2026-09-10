@@ -36,6 +36,45 @@ public class FbpRuntimeServiceTests
     }
 
     [TestMethod]
+    public void CanExecuteFlow_DisabledUntilAtLeastOneComponentIsOnCanvas()
+    {
+        Assert.IsFalse(_runtimeService.CanExecuteFlow);
+        Assert.IsFalse(_runtimeService.HasComponentsOnCanvas);
+
+        _runtimeService.ServiceId2Registries["reg1"] = null!;
+        _runtimeService.ServiceId2ChannelStarterServices["chan1"] = null!;
+        Assert.IsTrue(_runtimeService.HasConnectedComponentService);
+        Assert.IsTrue(_runtimeService.HasConnectedChannelService);
+
+        Assert.IsFalse(_runtimeService.HasComponentsOnCanvas);
+        Assert.IsFalse(_runtimeService.CanExecuteFlow);
+        Assert.AreEqual(
+            "Add at least one component to the canvas to execute the flow.",
+            _runtimeService.ExecuteFlowButtonTitle
+        );
+
+        var componentNode = new CapnpFbpComponentModel(new Blazor.Diagrams.Core.Geometry.Point(0, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+        };
+        _diagram.Nodes.Add(componentNode);
+
+        Assert.IsTrue(_runtimeService.HasComponentsOnCanvas);
+        Assert.IsTrue(_runtimeService.CanExecuteFlow);
+        Assert.AreEqual("Execute entire flow", _runtimeService.ExecuteFlowButtonTitle);
+
+        _diagram.Nodes.Remove(componentNode);
+
+        Assert.IsFalse(_runtimeService.HasComponentsOnCanvas);
+        Assert.IsFalse(_runtimeService.CanExecuteFlow);
+        Assert.AreEqual(
+            "Add at least one component to the canvas to execute the flow.",
+            _runtimeService.ExecuteFlowButtonTitle
+        );
+    }
+
+    [TestMethod]
     public void GetComponentServicePalette_ReturnsConsistentStyles()
     {
         var style = _runtimeService.GetComponentServiceBadgeStyle("nonexistent");
