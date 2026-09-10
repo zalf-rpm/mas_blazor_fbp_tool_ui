@@ -372,7 +372,7 @@
     {
         var parameters = new DialogParameters();
         parameters.Add("InterfaceId", typeof(IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
         var res = await dia.Result;
         if (res is { Data: StoredSrData nb }) // && editData == null)
@@ -389,7 +389,7 @@
     {
         var parameters = new DialogParameters();
         parameters.Add("InterfaceId", typeof(IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
         var res = await dia.Result;
         if (res is { Data: StoredSrData nb }) // && editData == null)
@@ -411,7 +411,7 @@
         parameters.Add("SturdyRef2Services", SturdyRef2Services);
         parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", connectedCallback);
         parameters.Add("DisconnectedFromInterfaceIdAndSturdyRefChanged", disconnectedCallback);
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>("Sturdy reference bookmarks", parameters, options);
     }
 
