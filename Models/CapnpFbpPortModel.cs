@@ -104,33 +104,17 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
                 : VisibilityState.Hidden,
             PortType.In => IsArrayPort || remainingConnections == 0
                 ? VisibilityState.Visible
-                : VisibilityState.Hidden,
+                : VisibilityState.Dashed,
             _ => VisibilityState.Visible,
         };
     }
 
-    private static bool CanConnect(CapnpFbpPortModel firstPort, CapnpFbpPortModel secondPort)
+    public static bool CanConnect(CapnpFbpPortModel firstPort, CapnpFbpPortModel secondPort)
     {
-        if (firstPort == null || secondPort == null)
+        if (!TryResolveEndpoints(firstPort, secondPort, out var outPort, out var inPort))
             return false;
 
-        if (firstPort.ThePortType == secondPort.ThePortType)
-            return false;
-
-        if (
-            !TryResolveEndpoints(
-                firstPort,
-                secondPort,
-                out var outPort,
-                out var inPort
-            )
-        )
-            return false;
-
-        if (!outPort.IsArrayPort && outPort.Links.Count > 0)
-            return false;
-
-        if (!inPort.IsArrayPort && inPort.Links.Count > 0)
+        if (!outPort.CanAcceptMoreConnections || !inPort.CanAcceptMoreConnections)
             return false;
 
         return !outPort.Links.OfType<RememberCapnpPortsLinkModel>().Any(link =>
