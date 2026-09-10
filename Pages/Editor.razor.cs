@@ -192,7 +192,15 @@ public partial class Editor : IAsyncDisposable
         }
 
         CurrentSession = SessionStore.GetOrCreateSession(FlowId.Value, () => InjectedRuntimeService);
-        CleanupService.RegisterCleanup(RuntimeService.ClearDiagramAsync);
+        SessionStore.MarkAttached(FlowId.Value);
+        CleanupService.RegisterCleanup(() =>
+        {
+            if (FlowId.HasValue)
+            {
+                SessionStore.MarkDetached(FlowId.Value);
+            }
+            return Task.CompletedTask;
+        });
         RuntimeService.StateChanged += OnRuntimeStateChanged;
 
         var options = new BlazorDiagramOptions

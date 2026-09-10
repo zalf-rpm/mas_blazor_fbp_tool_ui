@@ -28,6 +28,7 @@ builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
 builder.Services.AddScoped<IFbpRuntimeService, FbpRuntimeService>();
 builder.Services.AddSingleton<IFlowSessionStore, FlowSessionStore>();
+builder.Services.AddHostedService<FlowSessionReaper>();
 
 var app = builder.Build();
 
