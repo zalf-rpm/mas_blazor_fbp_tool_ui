@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.6.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.5.0...v1.6.0) (2026-09-10)
+
+
+### Features
+
+* add activity state for process components ([c90ed44](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/c90ed44e7e096dd2b20472802d4bbaf2dbcd0ba9))
+* add dev stage in docker image with hot reloading and use lockfile for image build ([8a1471f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/8a1471f89eb0d285cd429b6d62af8869c09b3840))
+* add multiprocess components on array out ports ([aa1b712](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/aa1b712677f828dc60e340f47143fbab5c1604ba))
+* add proper start stop and cleanup logic when switching component services ([fb907c7](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/fb907c7fcc10292a218ecafcbe276eee320369ab))
+* match lifecycle better ([5978fa3](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/5978fa3e949b79f35c408f3a209c4bf618dd5ead))
+* redesign link label make expandible and see buffer state and increase size ([db5b776](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/db5b7766b4cf5233d4e2b7cc3eafacaeafc04ed2))
+* refresh remote process config before editing ([27feeae](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/27feeaef37a8d8f43078a4933bc31f7ad3e639c7))
+* use lastError to report the last error on hover ([298a81c](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/298a81c2c469e8d3686cf73dc8d00abd535f1d3a))
+
+
+### Bug Fixes
+
+* dont close process compoennets when channel is deleted rather gracefully stop them and disconnect the channels ([ed7e78f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ed7e78fdaf6313dc864906354f77bc9a6cc2918c))
+* fixed &lt; &gt; in to be printed messages ([ed23cc2](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ed23cc287cd1dc878afdd27f2fa649934e3a4c8a))
+* handle null values ([21468c6](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/21468c6c2f0d9137bab42818d299a8db2b15abe6))
+* prevent unresolvable failure state ([048152d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/048152dbea6b285b557f505e6868c2a59b31a589))
+* removed seamingly old code breaking configuration value reading ([2f7fd7a](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/2f7fd7a33bb1f5897cd9fb52433c494fb33f8940))
+* to allow in and out ports with the same name ([db535c6](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/db535c695614f59d91f20430f290b96bafb30ce5))
+* use less chars until shorting process name ([65a1546](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/65a154673171d4ede2701bfd735304117ff5860f))
+
 ## [1.5.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.4.0...v1.5.0) (2026-05-05)
 
 
