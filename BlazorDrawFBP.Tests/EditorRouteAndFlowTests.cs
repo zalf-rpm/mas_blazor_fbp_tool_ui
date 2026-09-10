@@ -102,5 +102,24 @@ public class EditorRouteAndFlowTests
         Assert.IsNotNull(terminateSession, "Method 'TerminateFlowSessionAsync()' must exist on Editor.");
         Assert.AreEqual(typeof(Task), terminateSession.ReturnType);
     }
+
+    [TestMethod]
+    public void Editor_CreateConfiguredDiagram_InitializesWithoutNullReference()
+    {
+        var editor = new Editor();
+        var fakeRuntime = new BlazorDrawFBP.Tests.TestDoubles.FakeFbpRuntimeService();
+
+        var method = typeof(Editor).GetMethod(
+            "CreateConfiguredDiagram",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            new[] { typeof(BlazorDrawFBP.Services.IFbpRuntimeService) }
+        );
+        Assert.IsNotNull(method, "Method 'CreateConfiguredDiagram' must exist.");
+
+        var diagram = method.Invoke(editor, new object[] { fakeRuntime }) as Blazor.Diagrams.BlazorDiagram;
+        Assert.IsNotNull(diagram, "CreateConfiguredDiagram should return a BlazorDiagram instance.");
+        Assert.IsNotNull(editor.Diagram, "Editor.Diagram property should be set after CreateConfiguredDiagram.");
+        Assert.AreSame(diagram, fakeRuntime.Diagram, "RuntimeService.Diagram should match created diagram.");
+    }
 }
 

@@ -338,6 +338,7 @@ public partial class Editor : IAsyncDisposable
         };
 
         var diagram = new BlazorDiagram(options);
+        Diagram = diagram;
         runtime.Diagram = diagram;
         var ksb = diagram.GetBehavior<KeyboardShortcutsBehavior>();
         ksb?.RemoveShortcut("Delete", false, false, false);
@@ -641,7 +642,7 @@ public partial class Editor : IAsyncDisposable
             StateHasChanged();
         };
 
-        Diagram.PointerDoubleClick += (m, e) =>
+        diagram.PointerDoubleClick += (m, e) =>
         {
             if (m is LinkModel link)
             {
@@ -650,7 +651,7 @@ public partial class Editor : IAsyncDisposable
                     && link.Target.Model is CapnpFbpPortModel target
                 )
                 {
-                    var relativePt = Diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
+                    var relativePt = diagram.GetRelativeMousePoint(e.ClientX, e.ClientY);
 
                     // find the closest port to the click location
                     var sourceToPoint = relativePt.DistanceTo(source.MiddlePosition);
@@ -662,9 +663,9 @@ public partial class Editor : IAsyncDisposable
                         Label = $"Change {portModel.Name}",
                         PortName = portModel.Name,
                         PortModel = portModel,
-                        Container = Diagram,
+                        Container = diagram,
                     };
-                    Diagram.Nodes.Add(node);
+                    diagram.Nodes.Add(node);
                 }
             }
             else if (m == null)

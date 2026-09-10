@@ -249,16 +249,25 @@
                     </MudButton>
                 </MudStack>
             </div>
-            <CascadingValue Value="Diagram">
-                <DiagramCanvas @key="FlowId">
-                    <Widgets>
-                        <NavigatorWidget Width="200"
-                                         Height="120"
-                                         Class="editor-minimap border border-black absolute"
-                                         Style="bottom: 15px; right: 15px;"/>
-                    </Widgets>
-                </DiagramCanvas>
-            </CascadingValue>
+            @if (Diagram != null)
+            {
+                <CascadingValue Value="Diagram">
+                    <DiagramCanvas @key="FlowId">
+                        <Widgets>
+                            <NavigatorWidget Width="200"
+                                             Height="120"
+                                             Class="editor-minimap border border-black absolute"
+                                             Style="bottom: 15px; right: 15px;"/>
+                        </Widgets>
+                    </DiagramCanvas>
+                </CascadingValue>
+            }
+            else
+            {
+                <div class="d-flex justify-center align-center flex-grow-1" style="min-height: 400px;">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                </div>
+            }
         </MudPaper>
     </MudStack>
 </MudStack>
