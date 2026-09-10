@@ -233,7 +233,6 @@
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
     private int _loadFlowInputVersion;
-    private Editor? _editor;
     private string _searchText = "";
     private string _query = "";
     private const int MinSearchChars = 3;
@@ -356,7 +355,6 @@
             if (ClearButtonTimer == null)
             {
                 //Console.WriteLine("Creating new timer");
-                _editor = this;
                 ClearButtonTimer = new Timer(2000) { AutoReset = false };
                 ClearButtonTimer.Elapsed += ClearButtonTimerElapsed;
             }
@@ -375,7 +373,7 @@
     {
         //Console.WriteLine("Timer elapsed");
         ClearButtonDisabled = true;
-        _editor?.InvokeAsync(StateHasChanged);
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task AddComponentServiceSturdyRef()

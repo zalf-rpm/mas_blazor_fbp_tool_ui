@@ -843,7 +843,7 @@ public partial class Editor
                     ContentTypeLabel = $"{port.Name} {ct}",
                     DescriptionLabel = $"Description",
                     PortModel = port,
-                    NodeModel = port.Parent as CapnpFbpComponentModel,
+                    NodeModel = port.Parent,
                     Container = Diagram,
                 };
                 Diagram.Nodes.Add(node);

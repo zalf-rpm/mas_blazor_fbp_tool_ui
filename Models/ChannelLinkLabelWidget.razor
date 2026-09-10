@@ -154,7 +154,7 @@
 
     [Parameter] public ChannelLinkLabelModel Label { get; set; } = null!;
 
-    private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel?.Stats ?? EmptyStats;
+    private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel.Stats ?? EmptyStats;
     private ulong BufferSize => Label?.BufferSize ?? 1;
     private ulong MessagesInBuffer => Stats.NoOfIpsInQueue;
     private double QueueFillPercent =>

@@ -247,8 +247,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 );
 
                 //create ports, if this is the first time
-                _embeddedConfigInPort ??= new CapnpFbpInPortModel(null) { Name = "conf" };
-                _embeddedConfIipOutPort ??= new CapnpFbpOutPortModel(null);
+                _embeddedConfigInPort ??= new CapnpFbpInPortModel(this) { Name = "conf" };
+                _embeddedConfIipOutPort ??= new CapnpFbpOutPortModel(this);
 
                 //create channel, if not done before
                 if (
@@ -407,15 +407,15 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task StopProcess(ConnectionManager? conMan)
+    public override async Task StopProcess()
     {
         if (!IsInternalProcChild)
-            await StopOwnedProcChildrenAsync(conMan);
+            await StopOwnedProcChildrenAsync();
 
-        await StopSingleProcessAsync(conMan);
+        await StopSingleProcessAsync();
     }
 
-    private async Task StopSingleProcessAsync(ConnectionManager? conMan)
+    private async Task StopSingleProcessAsync()
     {
         if (
             LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping

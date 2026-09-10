@@ -56,8 +56,6 @@
     
     protected async Task RemovePort()
     {
-        if (Node.NodeModel is null) return;
-
         var currentOrderNo = Node.PortModel.OrderNo;
 
         foreach (var link in Node.PortModel.Links.ToArray())
@@ -93,7 +91,7 @@
         var currentOrderNo = Node.PortModel.OrderNo;
 
         // find port with orderNo = currentOrderNo + 1
-        if (Node.NodeModel?.Ports.FirstOrDefault(
+        if (Node.NodeModel.Ports.FirstOrDefault(
                 p => p is CapnpFbpPortModel cp && cp.OrderNo == currentOrderNo + 1
                                                && cp.ThePortType == Node.PortModel.ThePortType)
             is not CapnpFbpPortModel nextPort) return;
@@ -107,7 +105,7 @@
         CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
         if (Node.NodeModel is CapnpFbpComponentModel componentNode)
             componentNode.QueueProcStructureSync();
-        Node.NodeModel?.RefreshAll();
+        Node.NodeModel.RefreshAll();
         StateHasChanged();
     }
 
@@ -117,7 +115,7 @@
         if (currentOrderNo == 0) return;
 
         // find port with orderNo = currentOrderNo + 1
-        if (Node.NodeModel?.Ports.FirstOrDefault(
+        if (Node.NodeModel.Ports.FirstOrDefault(
                 p => p is CapnpFbpPortModel cp && cp.OrderNo == currentOrderNo - 1
                                                && cp.ThePortType == Node.PortModel.ThePortType)
             is not CapnpFbpPortModel prevPort) return;
@@ -131,7 +129,7 @@
         CapnpFbpPortLayout.Apply(Node.NodeModel, refreshPorts: false);
         if (Node.NodeModel is CapnpFbpComponentModel componentNode)
             componentNode.QueueProcStructureSync();
-        Node.NodeModel?.RefreshAll();
+        Node.NodeModel.RefreshAll();
         StateHasChanged();
     }
 

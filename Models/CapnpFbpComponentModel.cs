@@ -120,7 +120,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     public string LifecycleLabel => LifecycleState.ToString();
     public ComponentLifecycleState DisplayLifecycleState => ResolveDisplayLifecycleState();
-    public string? DisplayLifecycleError => ResolveDisplayLifecycleError();
+    public string DisplayLifecycleError => ResolveDisplayLifecycleError();
     public string DisplayLifecycleLabel => ResolveDisplayLifecycleLabel();
     public bool AnyProcRuntimeAttached =>
         RemoteProcessAttached()
@@ -149,7 +149,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
-    public virtual async Task StopProcess(ConnectionManager? conMan)
+    public virtual async Task StopProcess()
     {
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: override StopProcess"
@@ -308,10 +308,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             await child.StartProcess(conMan);
     }
 
-    protected async Task StopOwnedProcChildrenAsync(ConnectionManager? conMan)
+    protected async Task StopOwnedProcChildrenAsync()
     {
         foreach (var child in ProcChildComponents.Reverse())
-            await child.StopProcess(conMan);
+            await child.StopProcess();
     }
 
     protected async Task ResetOwnedProcChildrenAsync()
@@ -827,14 +827,14 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return ComponentLifecycleState.Idle;
     }
 
-    private string? ResolveDisplayLifecycleError()
+    private string ResolveDisplayLifecycleError()
     {
         if (DisplayLifecycleState != ComponentLifecycleState.Failed)
-            return null;
+            return "";
 
         return EnumerateProcNodes()
             .Select(node => node.LifecycleError)
-            .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error));
+            .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error)) ?? "";
     }
 
     private string ResolveDisplayLifecycleLabel()

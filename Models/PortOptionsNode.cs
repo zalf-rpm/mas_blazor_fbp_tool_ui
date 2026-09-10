@@ -18,7 +18,7 @@ public class PortOptionsNode : NodeModel
 
     public CapnpFbpPortModel PortModel { get; set; } = null!;
 
-    public NodeModel? NodeModel { get; set; }
+    public NodeModel NodeModel { get; set; } = null!;
 
     public Diagram Container { get; set; } = null!;
 }

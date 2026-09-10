@@ -218,53 +218,25 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         return null;
     }
 
-    private async Task UpdateDimensions()
+    private Task UpdateDimensions()
     {
-        Point? pan;
         if (BlazorDiagram.Container == null)
+            return Task.CompletedTask;
+
+        _updatingDimensions = true;
+        Port.Initialized = true;
+        _updatingDimensions = false;
+        if (_shouldRefreshPort)
         {
-            pan = null;
-        }
-        else if (Port is CapnpFbpPortModel)
-        {
-            _updatingDimensions = true;
-            Port.Initialized = true;
-            _updatingDimensions = false;
-            if (_shouldRefreshPort)
-            {
-                _shouldRefreshPort = false;
-                Port.RefreshAll();
-            }
-            else
-            {
-                Port.RefreshLinks();
-            }
+            _shouldRefreshPort = false;
+            Port.RefreshAll();
         }
         else
         {
-            _updatingDimensions = true;
-            var zoom = BlazorDiagram.Zoom;
-            pan = BlazorDiagram.Pan;
-            var boundingClientRect = await JSRuntime.GetBoundingClientRect(_element);
-            Port.Size = new Size(boundingClientRect.Width / zoom, boundingClientRect.Height / zoom);
-            Port.Position = new Point(
-                (boundingClientRect.Left - BlazorDiagram.Container.Left - pan.X) / zoom,
-                (boundingClientRect.Top - BlazorDiagram.Container.Top - pan.Y) / zoom
-            );
-            Port.Initialized = true;
-            _updatingDimensions = false;
-            if (_shouldRefreshPort)
-            {
-                _shouldRefreshPort = false;
-                Port.RefreshAll();
-                pan = null;
-            }
-            else
-            {
-                Port.RefreshLinks();
-                pan = null;
-            }
+            Port.RefreshLinks();
         }
+
+        return Task.CompletedTask;
     }
 
     private void OnPortChanged(Model model)

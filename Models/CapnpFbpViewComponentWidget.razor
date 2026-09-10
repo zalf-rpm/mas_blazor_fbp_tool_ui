@@ -109,7 +109,7 @@
     private async Task HandleLifecycleAction()
     {
         if (Node.CanStop)
-            await Node.StopProcess(ConMan);
+            await Node.StopProcess();
         else if (Node.CanStart)
             await Node.StartProcess(ConMan);
 

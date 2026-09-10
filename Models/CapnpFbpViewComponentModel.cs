@@ -288,7 +288,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         }
     }
 
-    public async Task StopProcess(ConnectionManager? conMan)
+    public async Task StopProcess()
     {
         Console.WriteLine($"T{Environment.CurrentManagedThreadId} {ProcessName}: stop process");
         if (IsLifecycleBusy || !CanStop)

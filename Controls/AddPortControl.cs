@@ -52,7 +52,7 @@ public class AddPortControl : ExecutableControl
         NodeModel.RefreshAll();
     }
 
-    public static CapnpFbpPortModel? CreateAndAddPort(
+    public static CapnpFbpPortModel CreateAndAddPort(
         NodeModel node,
         CapnpFbpPortModel.PortType portType,
         int orderNo,
@@ -64,7 +64,7 @@ public class AddPortControl : ExecutableControl
     {
         var alignment =
             portType == CapnpFbpPortModel.PortType.In ? PortAlignment.Left : PortAlignment.Right;
-        CapnpFbpPortModel? port = portType switch
+        CapnpFbpPortModel port = portType switch
         {
             CapnpFbpPortModel.PortType.In => new CapnpFbpInPortModel(node, alignment)
             {
@@ -82,11 +82,9 @@ public class AddPortControl : ExecutableControl
                 OrderNo = orderNo,
                 IsArrayPort = isArrayPort,
             },
-            _ => null,
+            _ => throw new System.ArgumentOutOfRangeException(nameof(portType), portType, null),
         };
 
-        if (port == null)
-            return port;
         node.AddPort(port);
         CapnpFbpPortLayout.Apply(node, refreshPorts: false);
         node.RefreshAll();

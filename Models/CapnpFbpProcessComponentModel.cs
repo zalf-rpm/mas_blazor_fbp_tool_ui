@@ -43,13 +43,13 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Process != null && LifecycleState == ComponentLifecycleState.Running;
     public ProcessSchema.ActivityState ActivityState { get; private set; } =
         ProcessSchema.ActivityState.none;
-    public string? ActivityPortName { get; private set; }
+    public string ActivityPortName { get; private set; } = "";
     public string ActivitySummary => FormatActivitySummary(ActivityState, ActivityPortName);
     public ProcessSchema.RunInfo? LastRunInfo { get; private set; }
     public bool HasLastRunInfo => LastRunInfo != null;
     public ProcessSchema.RunInfo.Outcome LastRunOutcome =>
         LastRunInfo?.TheOutcome ?? ProcessSchema.RunInfo.Outcome.none;
-    public string? LastRunSummary => FormatLastRunSummary(LastRunInfo);
+    public string LastRunSummary => FormatLastRunSummary(LastRunInfo);
     public bool IsProcessingActivity =>
         LifecycleState == ComponentLifecycleState.Running
         && ActivityState == ProcessSchema.ActivityState.processing;
@@ -515,15 +515,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    public override async Task StopProcess(ConnectionManager? conMan)
+    public override async Task StopProcess()
     {
         if (!IsInternalProcChild)
-            await StopOwnedProcChildrenAsync(conMan);
+            await StopOwnedProcChildrenAsync();
 
-        await StopSingleProcessAsync(conMan);
+        await StopSingleProcessAsync();
     }
 
-    private async Task StopSingleProcessAsync(ConnectionManager? conMan)
+    private async Task StopSingleProcessAsync()
     {
         if (
             LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping
@@ -877,7 +877,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             || !string.IsNullOrWhiteSpace(ActivityPortName);
 
         ActivityState = ProcessSchema.ActivityState.none;
-        ActivityPortName = null;
+        ActivityPortName = "";
 
         if (refresh && changed)
         {
@@ -886,12 +886,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    private static string? NormalizeActivityPortName(string? portName) =>
-        string.IsNullOrWhiteSpace(portName) ? null : portName.Trim();
+    private static string NormalizeActivityPortName(string? portName) =>
+        string.IsNullOrWhiteSpace(portName) ? "" : portName.Trim();
 
     private static string FormatActivitySummary(
         ProcessSchema.ActivityState activityState,
-        string? activityPortName
+        string activityPortName
     )
     {
         var label = activityState switch
@@ -999,21 +999,21 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    private static string? FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
+    private static string FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
     {
         if (runInfo == null)
-            return null;
+            return "";
 
         var outcome = FormatRunOutcome(runInfo.TheOutcome);
         if (string.IsNullOrWhiteSpace(outcome))
-            return null;
+            return "";
 
         List<string> contextParts = [];
         var phase = FormatRunPhase(runInfo.ThePhase);
         if (!string.IsNullOrWhiteSpace(phase))
             contextParts.Add($"during {phase}");
 
-        var port = string.IsNullOrWhiteSpace(runInfo.Port) ? null : runInfo.Port.Trim();
+        var port = string.IsNullOrWhiteSpace(runInfo.Port) ? "" : runInfo.Port.Trim();
         if (!string.IsNullOrWhiteSpace(port))
             contextParts.Add($"on {port}");
 
@@ -1088,18 +1088,18 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines;
     }
 
-    private static string? FormatRunOutcome(ProcessSchema.RunInfo.Outcome outcome)
+    private static string FormatRunOutcome(ProcessSchema.RunInfo.Outcome outcome)
     {
         return outcome switch
         {
             ProcessSchema.RunInfo.Outcome.completed => "Completed",
             ProcessSchema.RunInfo.Outcome.stopped => "Stopped",
             ProcessSchema.RunInfo.Outcome.failed => "Failed",
-            _ => null,
+            _ => "",
         };
     }
 
-    private static string? FormatRunPhase(ProcessSchema.RunInfo.Phase phase)
+    private static string FormatRunPhase(ProcessSchema.RunInfo.Phase phase)
     {
         return phase switch
         {
@@ -1108,14 +1108,14 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             ProcessSchema.RunInfo.Phase.run => "run",
             ProcessSchema.RunInfo.Phase.write => "write",
             ProcessSchema.RunInfo.Phase.close => "close",
-            _ => null,
+            _ => "",
         };
     }
 
-    private static string? FormatRunDetail(string detailType, string message)
+    private static string FormatRunDetail(string detailType, string message)
     {
-        var trimmedType = string.IsNullOrWhiteSpace(detailType) ? null : detailType.Trim();
-        var trimmedMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+        var trimmedType = string.IsNullOrWhiteSpace(detailType) ? "" : detailType.Trim();
+        var trimmedMessage = string.IsNullOrWhiteSpace(message) ? "" : message.Trim();
 
         if (string.IsNullOrWhiteSpace(trimmedType))
             return trimmedMessage;

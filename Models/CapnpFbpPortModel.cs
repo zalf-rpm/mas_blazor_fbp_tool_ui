@@ -27,13 +27,13 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     }
 
     public CapnpFbpPortModel(
-        NodeModel? parent,
+        NodeModel parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
         Point? position = null,
         Size? size = null
     )
-        : base(parent!, alignment, position, size)
+        : base(parent, alignment, position, size)
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();
@@ -42,13 +42,13 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public CapnpFbpPortModel(
         string id,
-        NodeModel? parent,
+        NodeModel parent,
         PortType thePortType,
         PortAlignment alignment = PortAlignment.Bottom,
         Point? position = null,
         Size? size = null
     )
-        : base(id, parent!, alignment, position, size)
+        : base(id, parent, alignment, position, size)
     {
         ThePortType = thePortType;
         Name = ThePortType.ToString();

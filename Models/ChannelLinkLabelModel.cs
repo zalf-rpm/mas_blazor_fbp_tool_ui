@@ -47,11 +47,11 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public bool IsResizingBuffer { get; private set; }
     private readonly CapnpFbpInPortModel _inPort;
 
-    public RememberCapnpPortsLinkModel? LinkModel => Parent as RememberCapnpPortsLinkModel;
+    public RememberCapnpPortsLinkModel LinkModel => (RememberCapnpPortsLinkModel)Parent;
     public ulong BufferSize => _inPort.ChannelBufferSize;
     public bool CanResizeBuffer => _inPort.Channel != null;
     public string ConnectionLabel =>
-        $"{FormatPortLabel(LinkModel?.OutPortModel)} -> {FormatPortLabel(LinkModel?.InPortModel)}";
+        $"{FormatPortLabel(LinkModel.OutPortModel)} -> {FormatPortLabel(LinkModel.InPortModel)}";
 
     public void Expand()
     {
@@ -119,16 +119,11 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
         if (!ShowWidget)
             IsExpanded = false;
 
-        LinkModel?.Refresh();
+        LinkModel.Refresh();
     }
 
-    private static string FormatPortLabel(CapnpFbpPortModel? port)
-    {
-        if (port == null)
-            return "unknown";
-
-        return $"{BlazorDrawFBP.Shared.Shared.NodeNameFromPort(port)}.{port.Name}";
-    }
+    private static string FormatPortLabel(CapnpFbpPortModel port) =>
+        $"{BlazorDrawFBP.Shared.Shared.NodeNameFromPort(port)}.{port.Name}";
 
     private static ulong SaturatingAdd(ulong current, ulong delta) =>
         delta > ulong.MaxValue - current ? ulong.MaxValue : current + delta;

@@ -227,10 +227,10 @@ public static class Shared
         switch (node)
         {
             case CapnpFbpComponentModel compNode:
-                await compNode.StopProcess(compNode.Editor?.ConnectionManager);
+                await compNode.StopProcess();
                 break;
             case CapnpFbpViewComponentModel viewNode:
-                await viewNode.StopProcess(viewNode.Editor?.ConnectionManager);
+                await viewNode.StopProcess();
                 break;
             case CapnpFbpIipComponentModel iipNode:
                 await iipNode.ResetExecution();
