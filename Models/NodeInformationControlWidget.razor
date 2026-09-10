@@ -1,22 +1,22 @@
 @using Blazor.Diagrams.Core.Models.Base;
 @using BlazorDrawFBP.Models;;
 
-<div class="gray lighten-3 pa-1" style="width: @(Node.Size!.Width)px;">
+<MudPaper Elevation="0" Class="mud-background-gray pa-2 rounded" Style="@($"width: {Node.Size!.Width}px;")">
     @if (Model is NodeModel)
     {
-        <div>Width: @Node.Size.Width</div>
-        <div>Height: @Node.Size.Height</div>
-        <div>Ports: @Node.Ports.Count</div>
-        <div>Links: @(Node.Links.Count + Node.PortLinks.Count())</div>
+        <MudText Typo="Typo.caption" Class="d-block">Width: @Node.Size.Width</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">Height: @Node.Size.Height</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">Ports: @Node.Ports.Count</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">Links: @(Node.Links.Count + Node.PortLinks.Count())</MudText>
     }
     else if (Model is LinkModel)
     {
-        <div>Width: @Link.Width</div>
-        <div>Color: @Link.Color</div>
-        <div>LLabel: @Link.Labels[0].Content</div>
-        <div>RLabel: @Link.Labels[2].Content</div>
+        <MudText Typo="Typo.caption" Class="d-block">Width: @Link.Width</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">Color: @Link.Color</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">LLabel: @Link.Labels[0].Content</MudText>
+        <MudText Typo="Typo.caption" Class="d-block">RLabel: @Link.Labels[2].Content</MudText>
     }
-</div>
+</MudPaper>
 
 @code
 {

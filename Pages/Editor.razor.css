@@ -53,16 +53,6 @@
     background-color: var(--mud-palette-surface, #fff) !important;
 }
 
-::deep .execute-flow-button {
-    background-color: var(--mud-palette-success, #4caf50) !important;
-}
-
-::deep .execute-flow-button.mud-disabled,
-::deep .execute-flow-button:disabled {
-    background-color: #c7c7c7 !important;
-    color: rgba(0, 0, 0, 0.38) !important;
-    opacity: 1 !important;
-}
 
 ::deep .diagram-node,
 ::deep .diagram-node.selected {

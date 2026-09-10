@@ -1,7 +1,7 @@
 @using Blazor.Diagrams.Components.Renderers;
 @using BlazorDrawFBP.Models;
 
-<div>
+<MudPaper Elevation="4" Class="pa-2 rounded" Style="width: 200px;">
     <MudTextField Required 
                   T="@string" 
                   @bind-Value="@Node.PortName"
@@ -10,7 +10,7 @@
                   Variant="@Variant.Outlined"
                   OnBlur="@OnBlur"
                   OnKeyUp="@OnKeyUp"/>
-</div>
+</MudPaper>
 
 @code {
     [Parameter] public UpdatePortNameNode Node { get; set; } = null!;

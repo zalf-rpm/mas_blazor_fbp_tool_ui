@@ -1,12 +1,12 @@
 @using Blazor.Diagrams.Core.Models.Base;
 @using BlazorDrawFBP.Models;;
 
-<div class="gray lighten-3 pa-1" style="width: @(Link.Width)px;">
-    <div>Width: @Link.Width</div>
-    <div>Color: @Link.Color</div>
-    <div>LLabel: @Link.Labels[0].Content</div>
-    <div>RLabel: @Link.Labels[1].Content</div>
-</div>
+<MudPaper Elevation="0" Class="mud-background-gray pa-2 rounded" Style="@($"width: {Link.Width}px;")">
+    <MudText Typo="Typo.caption" Class="d-block">Width: @Link.Width</MudText>
+    <MudText Typo="Typo.caption" Class="d-block">Color: @Link.Color</MudText>
+    <MudText Typo="Typo.caption" Class="d-block">LLabel: @Link.Labels[0].Content</MudText>
+    <MudText Typo="Typo.caption" Class="d-block">RLabel: @Link.Labels[1].Content</MudText>
+</MudPaper>
 
 @code
 {

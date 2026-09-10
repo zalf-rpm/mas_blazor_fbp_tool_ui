@@ -1,7 +1,7 @@
 @using Blazor.Diagrams.Components.Renderers;
 @using BlazorDrawFBP.Models;
 
-<div>
+<MudPaper Elevation="4" Class="pa-2 rounded relative" Style="width: 200px;">
     <MudFab Class="absolute overflow-visible"
             Style="right: 30px; top: -20px; transform: scale(0.5);"
             OnClick="RemoveWidget"
@@ -38,7 +38,7 @@
                   AutoFocus="@false"
                   Label="@Node.DescriptionLabel"
                   Variant="@Variant.Outlined"/>
-</div>
+</MudPaper>
 
 @code {
     [Parameter] public PortOptionsNode Node { get; set; } = null!;
