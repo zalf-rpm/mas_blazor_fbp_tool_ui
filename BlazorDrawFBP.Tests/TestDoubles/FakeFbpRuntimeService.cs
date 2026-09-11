@@ -25,7 +25,7 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
     public bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
     public bool HasComponentsOnCanvas =>
         Diagram?.Nodes.Any(node => node is CapnpFbpComponentModel or CapnpFbpViewComponentModel or CapnpFbpIipComponentModel) == true;
-    public bool HasBusyLifecycleNodes => false;
+    public bool HasBusyLifecycleNodes { get; set; }
     public bool CanExecuteFlow => HasConnectedComponentService && HasConnectedChannelService && HasComponentsOnCanvas;
     public bool IsExecutingFlow { get; set; }
     public string ExecuteFlowButtonTitle => "Execute flow";
@@ -44,6 +44,20 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
     public List<(CapnpFbpComponentModel Node, string ServiceId)> SwitchServiceCalls { get; } = [];
 
     public event Action? StateChanged;
+    public event Action<ServiceConnectionDroppedEventArgs>? ServiceConnectionDropped;
+
+    public void NotifyServiceConnectionDropped(
+        string serviceType,
+        string serviceId,
+        string petName,
+        string? sturdyRef = null,
+        string? customMessage = null
+    )
+    {
+        ServiceConnectionDropped?.Invoke(
+            new ServiceConnectionDroppedEventArgs(serviceType, serviceId, petName, sturdyRef, customMessage)
+        );
+    }
 
     public string GetComponentServiceName(string serviceId) =>
         ServiceNames.GetValueOrDefault(serviceId, "Test Service");
@@ -82,6 +96,10 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
 
     public void DisconnectChannelStarterService(string sturdyRef) { }
     public void DisconnectRegistryService(string sturdyRef) { }
+    public void DisconnectChannelStarterServiceById(string serviceId) { }
+    public void DisconnectRegistryServiceById(string serviceId) { }
+    public Task<int> CheckConnectedServicesHealthAsync(System.Threading.CancellationToken cancellationToken = default) =>
+        Task.FromResult(0);
 
     public void InitDefaultComponents(string jsonContent) { }
 

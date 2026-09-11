@@ -11,6 +11,7 @@ using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Controls;
 using BlazorDrawFBP.Models;
+using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Newtonsoft.Json.Linq;
 
@@ -59,13 +60,44 @@ public class FlowDocumentService : IFlowDocumentService
             dia["pan"] = new JObject { { "x", diagram.Pan.X }, { "y", diagram.Pan.Y } };
             dia["zoom"] = diagram.Zoom;
 
-            if (dia["services"]?["channels"] is JObject channels)
-                foreach (var p in runtime.ServiceId2ChannelStarterServices)
-                    channels[p.Key] = runtime.ChannelServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+            var servicesObj = dia["services"] as JObject;
+            if (servicesObj == null)
+            {
+                servicesObj = new JObject();
+                dia["services"] = servicesObj;
+            }
 
-            if (dia["services"]?["components"] is JObject components)
-                foreach (var p in runtime.ServiceId2Registries)
-                    components[p.Key] = runtime.RegistryServiceIdToPetNameAndSturdyRef[p.Key].Item2;
+            var channelsObj = new JObject();
+            foreach (var p in runtime.ServiceId2ChannelStarterServices)
+            {
+                if (runtime.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var cInfo) && !string.IsNullOrEmpty(cInfo.Item2))
+                {
+                    channelsObj[p.Key] = cInfo.Item2;
+                }
+            }
+            servicesObj["channels"] = channelsObj;
+
+            var usedComponentServiceIds = diagram.Nodes
+                .OfType<CapnpFbpComponentModel>()
+                .Select(n => n.ComponentServiceId)
+                .Where(id => !string.IsNullOrEmpty(id) && id != NoRegistryServiceId)
+                .ToHashSet();
+
+            var componentsObj = new JObject();
+            foreach (var p in runtime.ServiceId2Registries)
+            {
+                if (p.Key == NoRegistryServiceId)
+                    continue;
+
+                if (usedComponentServiceIds.Count > 0 && !usedComponentServiceIds.Contains(p.Key))
+                    continue;
+
+                if (runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var rInfo) && !string.IsNullOrEmpty(rInfo.Item2))
+                {
+                    componentsObj[p.Key] = rInfo.Item2;
+                }
+            }
+            servicesObj["components"] = componentsObj;
         }
 
         var procIdCount = 2;
@@ -569,6 +601,64 @@ public class FlowDocumentService : IFlowDocumentService
     {
         var oldNodeIdToNewNode = new Dictionary<string, NodeModel>();
 
+        await runtime.CheckConnectedServicesHealthAsync();
+
+        if (dia["services"]?["channels"] is JObject channelsObj)
+        {
+            foreach (var prop in channelsObj.Properties())
+            {
+                var sturdyRef = prop.Value?.ToString();
+                if (string.IsNullOrWhiteSpace(sturdyRef))
+                    continue;
+
+                var isConnected = runtime.ChannelServiceIdToPetNameAndSturdyRef
+                    .Any(entry => entry.Value.Item2 == sturdyRef && runtime.ServiceId2ChannelStarterServices.ContainsKey(entry.Key));
+
+                if (!isConnected)
+                {
+                    var chan = await runtime.ConnectToStartChannelsServiceAsync(prop.Name, sturdyRef);
+                    if (chan == null)
+                    {
+                        runtime.NotifyServiceConnectionDropped(
+                            "Channel starter service",
+                            prop.Name,
+                            prop.Name,
+                            sturdyRef
+                        );
+                    }
+                }
+            }
+        }
+
+        if (dia["services"]?["components"] is JObject componentsObj)
+        {
+            foreach (var prop in componentsObj.Properties())
+            {
+                var sturdyRef = prop.Value?.ToString();
+                if (string.IsNullOrWhiteSpace(sturdyRef))
+                    continue;
+
+                var isConnected = runtime.RegistryServiceIdToPetNameAndSturdyRef
+                    .Any(entry => entry.Key != NoRegistryServiceId && entry.Value.Item2 == sturdyRef && runtime.ServiceId2Registries.ContainsKey(entry.Key));
+
+                if (!isConnected)
+                {
+                    var reg = await runtime.ConnectToRegistryServiceAsync(prop.Name, sturdyRef);
+                    if (reg == null)
+                    {
+                        runtime.NotifyServiceConnectionDropped(
+                            "Component registry service",
+                            prop.Name,
+                            prop.Name,
+                            sturdyRef
+                        );
+                    }
+                }
+            }
+        }
+
+        await runtime.CheckConnectedServicesHealthAsync();
+
         diagram.SuspendRefresh = true;
         try
         {
@@ -617,7 +707,14 @@ public class FlowDocumentService : IFlowDocumentService
                 {
                     component = nodeObj.ContainsKey("content")
                         ? runtime.ServiceIdAndComponentId2Component.GetValueOrDefault((NoRegistryServiceId, "iip"))
-                        : runtime.ServiceIdAndComponentId2Component.GetValueOrDefault((NoRegistryServiceId, "empty_component"));
+                        : runtime.ServiceIdAndComponentId2Component.GetValueOrDefault((NoRegistryServiceId, "empty_component"))
+                            ?? new Component
+                            {
+                                Info = new IdInformation { Id = compId, Name = compId },
+                                Type = Component.ComponentType.standard,
+                                InPorts = [new Component.Port { Name = "in", ContentType = "?" }],
+                                OutPorts = [new Component.Port { Name = "out", ContentType = "?" }],
+                            };
                 }
 
                 if (component != null)

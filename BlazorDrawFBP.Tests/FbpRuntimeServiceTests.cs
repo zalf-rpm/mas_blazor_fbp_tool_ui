@@ -7,6 +7,7 @@ using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Services;
+using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Infrastructure.Common;
 
 [TestClass]
@@ -18,9 +19,15 @@ public class FbpRuntimeServiceTests
     [TestInitialize]
     public void Setup()
     {
-        _runtimeService = new FbpRuntimeService(new ConnectionManager());
+        _runtimeService = new FbpRuntimeService(new ConnectionManager(), System.TimeSpan.Zero);
         _diagram = new BlazorDiagram();
         _runtimeService.Diagram = _diagram;
+    }
+
+    [TestCleanup]
+    public async Task Cleanup()
+    {
+        await _runtimeService.DisposeAsync();
     }
 
     [TestMethod]
@@ -281,6 +288,107 @@ public class FbpRuntimeServiceTests
 
         Assert.IsTrue(_runtimeService.ServiceIdAndComponentId2Component.ContainsKey(key));
         Assert.AreEqual("comp-1", _runtimeService.ServiceIdAndComponentId2Component[key].Info.Id);
+    }
+
+    [TestMethod]
+    public async Task CheckConnectedServicesHealthAsync_HealthyServices_Retained()
+    {
+        var fakeReg = new FakeRegistryService { ServiceId = "reg-1" };
+        var fakeChan = new FakeStartChannelsService { ServiceId = "chan-1" };
+
+        _runtimeService.ServiceId2Registries["reg-1"] = fakeReg;
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = ("Reg 1", "capnp://reg-1");
+        _runtimeService.ServiceId2ChannelStarterServices["chan-1"] = fakeChan;
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["chan-1"] = ("Chan 1", "capnp://chan-1");
+
+        var pruned = await _runtimeService.CheckConnectedServicesHealthAsync();
+
+        Assert.AreEqual(0, pruned);
+        Assert.IsTrue(_runtimeService.ServiceId2Registries.ContainsKey("reg-1"));
+        Assert.IsTrue(_runtimeService.ServiceId2ChannelStarterServices.ContainsKey("chan-1"));
+        Assert.IsFalse(fakeReg.IsDisposed);
+        Assert.IsFalse(fakeChan.IsDisposed);
+    }
+
+    [TestMethod]
+    public async Task CheckConnectedServicesHealthAsync_UnresponsiveServices_PrunedAndCleanedUp()
+    {
+        var fakeReg = new FakeRegistryService { ServiceId = "dead-reg", ShouldFailPing = true };
+        var fakeChan = new FakeStartChannelsService { ServiceId = "dead-chan", ShouldFailPing = true };
+
+        _runtimeService.ServiceId2Registries["dead-reg"] = fakeReg;
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("Dead Reg", "capnp://dead-reg");
+        _runtimeService.ServiceId2ChannelStarterServices["dead-chan"] = fakeChan;
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = ("Dead Chan", "capnp://dead-chan");
+
+        var node = new CapnpFbpRunnableComponentModel("node1", new Point(0, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ComponentServiceId = "dead-reg"
+        };
+        _diagram.Nodes.Add(node);
+
+        var pruned = await _runtimeService.CheckConnectedServicesHealthAsync();
+
+        Assert.AreEqual(2, pruned);
+        Assert.IsFalse(_runtimeService.ServiceId2Registries.ContainsKey("dead-reg"));
+        Assert.IsFalse(_runtimeService.ServiceId2ChannelStarterServices.ContainsKey("dead-chan"));
+        Assert.IsTrue(fakeReg.IsDisposed);
+        Assert.IsTrue(fakeChan.IsDisposed);
+
+        // Registry entry in RegistryServiceIdToPetNameAndSturdyRef should be marked unavailable because node is on canvas
+        Assert.IsTrue(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("dead-reg"));
+        Assert.IsNull(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"].Item2);
+        StringAssert.Contains(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"].Item1, "unavailable!");
+
+        // Channel service should be completely removed
+        Assert.IsFalse(_runtimeService.ChannelServiceIdToPetNameAndSturdyRef.ContainsKey("dead-chan"));
+    }
+
+    [TestMethod]
+    public void DisconnectRegistryServiceById_WithoutNodesOnCanvas_CompletelyRemovesService()
+    {
+        var fakeReg = new FakeRegistryService { ServiceId = "reg-orphan" };
+        _runtimeService.ServiceId2Registries["reg-orphan"] = fakeReg;
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-orphan"] = ("Orphan", "capnp://orphan");
+
+        _runtimeService.DisconnectRegistryServiceById("reg-orphan");
+
+        Assert.IsFalse(_runtimeService.ServiceId2Registries.ContainsKey("reg-orphan"));
+        Assert.IsFalse(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("reg-orphan"));
+        Assert.IsTrue(fakeReg.IsDisposed);
+    }
+
+    [TestMethod]
+    public async Task CheckConnectedServicesHealthAsync_FiresServiceConnectionDroppedEvent()
+    {
+        var droppedEvents = new System.Collections.Generic.List<ServiceConnectionDroppedEventArgs>();
+        _runtimeService.ServiceConnectionDropped += args => droppedEvents.Add(args);
+
+        var fakeReg = new FakeRegistryService { ServiceId = "dead-reg", ShouldFailPing = true };
+        _runtimeService.ServiceId2Registries["dead-reg"] = fakeReg;
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("My Registry", "capnp://dead-reg");
+
+        var fakeChan = new FakeStartChannelsService { ServiceId = "dead-chan", ShouldFailPing = true };
+        _runtimeService.ServiceId2ChannelStarterServices["dead-chan"] = fakeChan;
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = ("My Channel Starter", "capnp://dead-chan");
+
+        await _runtimeService.CheckConnectedServicesHealthAsync();
+
+        Assert.AreEqual(2, droppedEvents.Count);
+
+        var chanEvent = droppedEvents.FirstOrDefault(e => e.ServiceId == "dead-chan");
+        Assert.IsNotNull(chanEvent);
+        Assert.AreEqual("Channel starter service", chanEvent.ServiceType);
+        Assert.AreEqual("My Channel Starter", chanEvent.PetName);
+        StringAssert.Contains(chanEvent.Message, "Connection dropped: Channel starter service 'My Channel Starter' is unreachable.");
+
+        var regEvent = droppedEvents.FirstOrDefault(e => e.ServiceId == "dead-reg");
+        Assert.IsNotNull(regEvent);
+        Assert.AreEqual("Component registry service", regEvent.ServiceType);
+        Assert.AreEqual("My Registry", regEvent.PetName);
+        StringAssert.Contains(regEvent.Message, "Connection dropped: Component registry service 'My Registry' is unreachable.");
     }
 }
 

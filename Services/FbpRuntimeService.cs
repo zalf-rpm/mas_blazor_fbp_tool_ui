@@ -285,11 +285,33 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                         : "Execute entire flow";
 
     public event Action? StateChanged;
+    public event Action<ServiceConnectionDroppedEventArgs>? ServiceConnectionDropped;
 
-    public FbpRuntimeService(ConnectionManager connectionManager)
+    public void NotifyServiceConnectionDropped(
+        string serviceType,
+        string serviceId,
+        string petName,
+        string? sturdyRef = null,
+        string? customMessage = null
+    )
+    {
+        ServiceConnectionDropped?.Invoke(
+            new ServiceConnectionDroppedEventArgs(serviceType, serviceId, petName, sturdyRef, customMessage)
+        );
+    }
+
+    private readonly System.Threading.CancellationTokenSource _healthCheckCts = new();
+    private readonly Task? _healthCheckTask;
+    public TimeSpan HealthCheckInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+    public FbpRuntimeService(ConnectionManager connectionManager, TimeSpan? healthCheckInterval = null)
     {
         ConnectionManager = connectionManager;
+        if (healthCheckInterval.HasValue)
+            HealthCheckInterval = healthCheckInterval.Value;
         RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
+        if (HealthCheckInterval > TimeSpan.Zero)
+            _healthCheckTask = RunHealthCheckLoopAsync(_healthCheckCts.Token);
     }
 
     private void NotifyStateChanged() => StateChanged?.Invoke();
@@ -506,6 +528,62 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         await Task.CompletedTask;
     }
 
+    public void DisconnectChannelStarterServiceById(string serviceId)
+    {
+        if (ServiceId2ChannelStarterServices.Remove(serviceId, out var service))
+        {
+            try { service.Dispose(); } catch { }
+        }
+
+        if (ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId, out var tuple))
+        {
+            if (!string.IsNullOrEmpty(tuple.Item2) && SturdyRef2Services.Remove(tuple.Item2, out var proxy))
+            {
+                try { proxy.Dispose(); } catch { }
+            }
+        }
+
+        NotifyStateChanged();
+    }
+
+    public void DisconnectRegistryServiceById(string serviceId)
+    {
+        if (ServiceId2Registries.Remove(serviceId, out var registry))
+        {
+            try { registry.Dispose(); } catch { }
+        }
+
+        string? sturdyRef = null;
+        if (RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple))
+        {
+            sturdyRef = tuple.Item2;
+        }
+
+        if (!string.IsNullOrEmpty(sturdyRef) && SturdyRef2Services.Remove(sturdyRef, out var proxy))
+        {
+            try { proxy.Dispose(); } catch { }
+        }
+
+        var hasNodesUsingService = Diagram?.Nodes
+            .OfType<CapnpFbpComponentModel>()
+            .Any(n => n.ComponentServiceId == serviceId) == true;
+
+        if (hasNodesUsingService)
+        {
+            var shortPrefix = serviceId[..Math.Min(3, serviceId.Length)];
+            var shortSuffix = serviceId[^Math.Min(3, serviceId.Length)..];
+            RegistryServiceIdToPetNameAndSturdyRef[serviceId] =
+                ($"Service '{shortPrefix}..{shortSuffix}' unavailable!", null);
+        }
+        else
+        {
+            RegistryServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+        }
+
+        RemoveRegistryPaletteEntries(serviceId);
+        NotifyStateChanged();
+    }
+
     public void DisconnectChannelStarterService(string sturdyRef)
     {
         var serviceIds = ChannelServiceIdToPetNameAndSturdyRef
@@ -514,10 +592,11 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             .ToList();
 
         foreach (var serviceId in serviceIds)
+            DisconnectChannelStarterServiceById(serviceId);
+
+        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
         {
-            if (ServiceId2ChannelStarterServices.Remove(serviceId, out var service))
-                service.Dispose();
-            ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId);
+            try { proxy.Dispose(); } catch { }
         }
 
         NotifyStateChanged();
@@ -531,14 +610,107 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             .ToList();
 
         foreach (var serviceId in serviceIds)
+            DisconnectRegistryServiceById(serviceId);
+
+        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
         {
-            if (ServiceId2Registries.Remove(serviceId, out var registry))
-                registry.Dispose();
-            RegistryServiceIdToPetNameAndSturdyRef.Remove(serviceId);
-            RemoveRegistryPaletteEntries(serviceId);
+            try { proxy.Dispose(); } catch { }
         }
 
         NotifyStateChanged();
+    }
+
+    public async Task<int> CheckConnectedServicesHealthAsync(System.Threading.CancellationToken cancellationToken = default)
+    {
+        var prunedCount = 0;
+
+        foreach (var (serviceId, service) in ServiceId2ChannelStarterServices.ToList())
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            if (!await PingServiceAsync(service, cancellationToken))
+            {
+                var petName = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                    ? tuple.Item1
+                    : serviceId;
+                var sturdyRef = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple2)
+                    ? tuple2.Item2
+                    : null;
+
+                Console.WriteLine($"Channel starter service '{serviceId}' is dead or unreachable. Disconnecting...");
+                DisconnectChannelStarterServiceById(serviceId);
+                prunedCount++;
+
+                NotifyServiceConnectionDropped("Channel starter service", serviceId, petName, sturdyRef);
+            }
+        }
+
+        foreach (var (serviceId, registry) in ServiceId2Registries.ToList())
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            if (!await PingServiceAsync(registry, cancellationToken))
+            {
+                var petName = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                    ? tuple.Item1
+                    : serviceId;
+                var sturdyRef = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple2)
+                    ? tuple2.Item2
+                    : null;
+
+                Console.WriteLine($"Component registry service '{serviceId}' is dead or unreachable. Disconnecting...");
+                DisconnectRegistryServiceById(serviceId);
+                prunedCount++;
+
+                NotifyServiceConnectionDropped("Component registry service", serviceId, petName, sturdyRef);
+            }
+        }
+
+        return prunedCount;
+    }
+
+    private static async Task<bool> PingServiceAsync(IIdentifiable? service, System.Threading.CancellationToken cancellationToken)
+    {
+        if (service == null)
+            return false;
+
+        try
+        {
+            using var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            var info = await service.Info(cts.Token);
+            return info != null && !string.IsNullOrWhiteSpace(info.Id);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task RunHealthCheckLoopAsync(System.Threading.CancellationToken cancellationToken)
+    {
+        using var timer = new System.Threading.PeriodicTimer(HealthCheckInterval);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await timer.WaitForNextTickAsync(cancellationToken);
+                if (ServiceId2Registries.Count > 0 || ServiceId2ChannelStarterServices.Count > 0)
+                {
+                    await CheckConnectedServicesHealthAsync(cancellationToken);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"Error in FbpRuntimeService health check loop: {ex.Message}");
+            }
+        }
     }
 
     public void RemoveRegistryPaletteEntries(string serviceId)
@@ -946,6 +1118,18 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _healthCheckCts.Cancel();
+        _healthCheckCts.Dispose();
+        if (_healthCheckTask != null)
+        {
+            try
+            {
+                await _healthCheckTask;
+            }
+            catch (OperationCanceledException) { }
+            catch { }
+        }
+
         await ClearDiagramAsync();
 
         foreach (var proxy in SturdyRef2Services.Values)

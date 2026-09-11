@@ -155,5 +155,54 @@ public class FlowSessionStoreTests
         await session.DisposeAsync();
         // Disposed cleanly without error
     }
+
+    [TestMethod]
+    public void FlowSession_SupportedTtls_Contains4TtlOptions()
+    {
+        Assert.AreEqual(4, FlowSession.SupportedTtls.Length);
+        Assert.AreEqual(TimeSpan.FromMinutes(15), FlowSession.SupportedTtls[0]);
+        Assert.AreEqual(TimeSpan.FromMinutes(30), FlowSession.SupportedTtls[1]);
+        Assert.AreEqual(TimeSpan.FromHours(2), FlowSession.SupportedTtls[2]);
+        Assert.AreEqual(TimeSpan.FromHours(24), FlowSession.SupportedTtls[3]);
+    }
+
+    [TestMethod]
+    public void FlowSession_CycleTtl_CyclesThroughAll4TtlsSequentially()
+    {
+        var flowId = Guid.NewGuid();
+        var session = _store.GetOrCreateSession(flowId);
+        // Default TTL is 30m (index 1)
+        Assert.AreEqual(TimeSpan.FromMinutes(30), session.Ttl);
+
+        // 30m -> 2h
+        var ttl1 = session.CycleTtl();
+        Assert.AreEqual(TimeSpan.FromHours(2), ttl1);
+        Assert.AreEqual(TimeSpan.FromHours(2), session.Ttl);
+
+        // 2h -> 24h
+        var ttl2 = session.CycleTtl();
+        Assert.AreEqual(TimeSpan.FromHours(24), ttl2);
+        Assert.AreEqual(TimeSpan.FromHours(24), session.Ttl);
+
+        // 24h -> 15m
+        var ttl3 = session.CycleTtl();
+        Assert.AreEqual(TimeSpan.FromMinutes(15), ttl3);
+        Assert.AreEqual(TimeSpan.FromMinutes(15), session.Ttl);
+
+        // 15m -> 30m
+        var ttl4 = session.CycleTtl();
+        Assert.AreEqual(TimeSpan.FromMinutes(30), ttl4);
+        Assert.AreEqual(TimeSpan.FromMinutes(30), session.Ttl);
+    }
+
+    [TestMethod]
+    public void FlowSession_FormatTtl_FormatsKnownAndCustomTtls()
+    {
+        Assert.AreEqual("15m", FlowSession.FormatTtl(TimeSpan.FromMinutes(15)));
+        Assert.AreEqual("30m", FlowSession.FormatTtl(TimeSpan.FromMinutes(30)));
+        Assert.AreEqual("2h", FlowSession.FormatTtl(TimeSpan.FromHours(2)));
+        Assert.AreEqual("24h", FlowSession.FormatTtl(TimeSpan.FromHours(24)));
+        Assert.AreEqual("2d", FlowSession.FormatTtl(TimeSpan.FromHours(48)));
+    }
 }
 

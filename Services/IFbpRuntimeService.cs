@@ -50,12 +50,51 @@ public interface IFbpRuntimeService
     Task HandleSturdyRefDisconnectedAsync((ulong interfaceId, string sturdyRef) connection);
     void DisconnectChannelStarterService(string sturdyRef);
     void DisconnectRegistryService(string sturdyRef);
+    void DisconnectChannelStarterServiceById(string serviceId);
+    void DisconnectRegistryServiceById(string serviceId);
+    Task<int> CheckConnectedServicesHealthAsync(System.Threading.CancellationToken cancellationToken = default);
 
     void InitDefaultComponents(string jsonContent);
     Task ClearDiagramAsync();
     Task ExecuteNodeAsync(Model node);
     Task ResetNodeAsync(Model node);
     Task ExecuteFlowAsync(Action? onStateChanged = null);
-
     event Action? StateChanged;
+    event Action<ServiceConnectionDroppedEventArgs>? ServiceConnectionDropped;
+    void NotifyServiceConnectionDropped(
+        string serviceType,
+        string serviceId,
+        string petName,
+        string? sturdyRef = null,
+        string? customMessage = null
+    );
+}
+
+public class ServiceConnectionDroppedEventArgs : EventArgs
+{
+    public string ServiceType { get; }
+    public string ServiceId { get; }
+    public string PetName { get; }
+    public string? SturdyRef { get; }
+    public string Message { get; }
+
+    public ServiceConnectionDroppedEventArgs(
+        string serviceType,
+        string serviceId,
+        string petName,
+        string? sturdyRef = null,
+        string? customMessage = null
+    )
+    {
+        ServiceType = serviceType;
+        ServiceId = serviceId;
+        PetName = petName;
+        SturdyRef = sturdyRef;
+        var displayName = !string.IsNullOrWhiteSpace(petName)
+            ? petName
+            : !string.IsNullOrWhiteSpace(serviceId)
+                ? serviceId
+                : "Unknown";
+        Message = customMessage ?? $"Connection dropped: {serviceType} '{displayName}' is unreachable.";
+    }
 }

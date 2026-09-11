@@ -10,6 +10,7 @@ using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
+using MudBlazor;
 using Newtonsoft.Json.Linq;
 
 [TestClass]
@@ -105,5 +106,97 @@ public class FlowDocumentServiceTests
         Assert.AreEqual(2, _diagram.Nodes.Count);
         Assert.AreEqual(1, _diagram.Links.Count);
         Assert.IsTrue(zoomCalled, "onZoomToFit callback should be called after loading flow.");
+    }
+
+    [TestMethod]
+    public async Task ExportFlowJsonAsync_ExcludesDeadOrUnavailableServices()
+    {
+        _runtime.ServiceId2Registries["active-reg"] = null!;
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["active-reg"] = ("Active Reg", "capnp://active-reg");
+
+        // Dead/unavailable service: has null sturdyRef and is not in ServiceId2Registries
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("Service 'dea..reg' unavailable!", null);
+
+        // Active channel service
+        _runtime.ServiceId2ChannelStarterServices["active-chan"] = null!;
+        _runtime.ChannelServiceIdToPetNameAndSturdyRef["active-chan"] = ("Active Chan", "capnp://active-chan");
+
+        var doc = await _flowDocService.ExportFlowJsonAsync(_diagram, _runtime);
+        var servicesObj = doc["services"] as JObject;
+
+        Assert.IsNotNull(servicesObj);
+        var components = servicesObj["components"] as JObject;
+        var channels = servicesObj["channels"] as JObject;
+
+        Assert.IsNotNull(components);
+        Assert.IsNotNull(channels);
+        Assert.IsTrue(components.ContainsKey("active-reg"));
+        Assert.IsFalse(components.ContainsKey("dead-reg"));
+        Assert.IsTrue(channels.ContainsKey("active-chan"));
+    }
+
+    [TestMethod]
+    public async Task LoadFlowFromJsonAsync_DeadServiceInJson_DoesNotBlockLoadingAndMarksNodeUnavailable()
+    {
+        var flowJson = new JObject
+        {
+            {
+                "services",
+                new JObject
+                {
+                    { "components", new JObject { { "dead-svc", "capnp://unreachable-host:9999/dead" } } },
+                    { "channels", new JObject { { "dead-chan", "capnp://unreachable-host:9999/dead-chan" } } }
+                }
+            },
+            {
+                "nodes",
+                new JArray
+                {
+                    new JObject
+                    {
+                        { "nodeId", "node-dead" },
+                        { "componentId", "some-comp" },
+                        { "componentServiceId", "dead-svc" },
+                        { "processName", "DeadNode" },
+                        { "location", new JObject { { "x", 100 }, { "y", 150 } } },
+                    }
+                }
+            },
+            { "links", new JArray() }
+        };
+
+        await _flowDocService.LoadFlowFromJsonAsync(_diagram, _runtime, flowJson);
+
+        Assert.AreEqual(1, _diagram.Nodes.Count);
+        var node = _diagram.Nodes.First() as CapnpFbpComponentModel;
+        Assert.IsNotNull(node);
+        Assert.AreEqual("dead-svc", node.ComponentServiceId);
+        Assert.IsTrue(_runtime.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("dead-svc"));
+        Assert.IsNull(_runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-svc"].Item2);
+        StringAssert.Contains(_runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-svc"].Item1, "unavailable!");
+    }
+
+    [TestMethod]
+    public async Task ExportFlowJsonAsync_ScopesComponentServicesToThoseUsedByDiagramNodes()
+    {
+        _runtime.ServiceId2Registries["used-reg"] = null!;
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["used-reg"] = ("Used Registry", "capnp://used-reg");
+
+        _runtime.ServiceId2Registries["unused-reg"] = null!;
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["unused-reg"] = ("Unused Registry", "capnp://unused-reg");
+
+        var node = new CapnpFbpComponentModel(new Point(0, 0))
+        {
+            ComponentServiceId = "used-reg",
+            ComponentId = "comp-1"
+        };
+        _diagram.Nodes.Add(node);
+
+        var doc = await _flowDocService.ExportFlowJsonAsync(_diagram, _runtime);
+        var components = doc["services"]?["components"] as JObject;
+
+        Assert.IsNotNull(components);
+        Assert.IsTrue(components.ContainsKey("used-reg"), "Component service used by diagram node must be exported.");
+        Assert.IsFalse(components.ContainsKey("unused-reg"), "Connected component service not used by any diagram node should be excluded.");
     }
 }

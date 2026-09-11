@@ -88,13 +88,17 @@ public class FbpNodeFactory : IFbpNodeFactory
                     initNode?.GetValue("componentServiceId")?.Value<string>()
                     ?? NoRegistryServiceId;
                 var unavailableService = false;
-                if (!runtime.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey(componentServiceId))
+                if (!runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(componentServiceId, out var serviceInfo))
                 {
                     unavailableService = true;
                     var shortPrefix = componentServiceId[..Math.Min(3, componentServiceId.Length)];
                     var shortSuffix = componentServiceId[^Math.Min(3, componentServiceId.Length)..];
                     runtime.RegistryServiceIdToPetNameAndSturdyRef[componentServiceId] =
                         ($"Service '{shortPrefix}..{shortSuffix}' unavailable!", null);
+                }
+                else if (componentServiceId != NoRegistryServiceId && serviceInfo.Item2 == null)
+                {
+                    unavailableService = true;
                 }
 
                 var initNodeComponentId = initNode?["componentId"]?.Value<string>() ?? "";
@@ -203,7 +207,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                 var controlsContainer = diagram.Controls.AddFor(node);
                 controlsContainer.Add(new RemoveProcessControl(0.5, 0, -20, -50));
 
-                foreach (var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
+                foreach (var (i, input) in (component.InPorts ?? []).Select((inp, i) => (i, inp)))
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.In,
@@ -214,7 +218,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                         input.Type == Component.Port.PortType.array
                     );
 
-                foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
+                foreach (var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.Out,
@@ -280,7 +284,7 @@ public class FbpNodeFactory : IFbpNodeFactory
 
                 diagram.Controls.AddFor(node).Add(new RemoveProcessControl(0.5, 0, -20, -50));
 
-                foreach (var (i, input) in component.InPorts.Select((inp, i) => (i, inp)))
+                foreach (var (i, input) in (component.InPorts ?? []).Select((inp, i) => (i, inp)))
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.In,
@@ -291,7 +295,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                         input.Type == Component.Port.PortType.array
                     );
 
-                foreach (var (i, output) in component.OutPorts.Select((outp, i) => (i, outp)))
+                foreach (var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp)))
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.Out,
