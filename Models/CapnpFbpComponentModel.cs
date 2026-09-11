@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -31,13 +27,13 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     private readonly List<ProcChildContext> _procChildContexts = [];
     private readonly object _procSyncGate = new();
-    private Task _procSyncTask = Task.CompletedTask;
-    private bool _procFullSyncRequested;
-    private bool _procCountSyncRequested;
     private int _inParallelCount = 1;
-    private bool _procChildrenExpanded;
     private ComponentLifecycleState? _procAdjustmentState;
+    private bool _procChildrenExpanded;
     private bool _procCountAdjustmentInFlight;
+    private bool _procCountSyncRequested;
+    private bool _procFullSyncRequested;
+    private Task _procSyncTask = Task.CompletedTask;
 
     public CapnpFbpComponentModel(Point? position = null)
         : base(position) { }
@@ -75,8 +71,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public string ConfigString { get; set; } = "";
     public int DisplayNoOfConfigLines { get; set; } = 3;
     public bool ProcessStarted { get; protected set; }
+
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;
+
     public string? LifecycleError { get; private set; }
     public bool IsInternalProcChild { get; protected set; }
     public CapnpFbpComponentModel? ProcOwnerNode { get; protected set; }
@@ -124,6 +122,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     public ComponentLifecycleState DisplayLifecycleState => ResolveDisplayLifecycleState();
     public string DisplayLifecycleError => ResolveDisplayLifecycleError();
     public string DisplayLifecycleLabel => ResolveDisplayLifecycleLabel();
+
     public bool AnyProcRuntimeAttached =>
         RemoteProcessAttached()
         || _procChildContexts.Any(context => context.Node.AnyProcRuntimeAttached);
@@ -132,6 +131,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         !IsInternalProcChild
         && SupportsProcMultiplication
         && EvaluateProcMultiplicationEligibility(GetVisibleIncomingProcLinks());
+
     public bool ProcCountAdjustmentLocked =>
         IsInternalProcChild
         || _procCountAdjustmentInFlight
@@ -139,9 +139,21 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     protected virtual bool SupportsProcMultiplication => false;
 
-    public virtual bool RemoteProcessAttached() => false;
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
 
-    public virtual bool CanEditCommandLine() => false;
+    public virtual bool RemoteProcessAttached()
+    {
+        return false;
+    }
+
+    public virtual bool CanEditCommandLine()
+    {
+        return false;
+    }
 
     public virtual async Task StartProcess(ConnectionManager conMan)
     {
@@ -159,7 +171,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle);
     }
 
-    public virtual Task RefreshConfigFromRemoteAsync() => Task.CompletedTask;
+    public virtual Task RefreshConfigFromRemoteAsync()
+    {
+        return Task.CompletedTask;
+    }
 
     public virtual Task ResetExecution()
     {
@@ -174,7 +189,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
         await ShutdownForComponentServiceSwitchAsync();
         ApplyComponentServiceBinding(component, componentServiceId);
-        CapnpFbpPortLayout.Apply(this, refreshPorts: false);
+        CapnpFbpPortLayout.Apply(this, false);
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
         await EnsureProcStructureSynchronizedAsync();
     }
@@ -230,7 +245,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         _ = EnsureProcCountSynchronizedAsync();
     }
 
-    protected virtual Task ShutdownForComponentServiceSwitchAsync() => ResetExecution();
+    protected virtual Task ShutdownForComponentServiceSwitchAsync()
+    {
+        return ResetExecution();
+    }
 
     public async Task AdjustProcCountAsync(int delta)
     {
@@ -276,12 +294,6 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         DefaultConfigString = component.DefaultConfig?.Value ?? "";
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore();
-        GC.SuppressFinalize(this);
-    }
-
     protected virtual async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeAsyncCore");
@@ -292,13 +304,11 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         await RemoveInternalProcLinksAsync();
 
         if (!IsInternalProcChild && Diagram != null)
-        {
             await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
                 this,
                 Diagram,
                 this
             );
-        }
 
         await DisposeStandardPorts();
     }
@@ -367,7 +377,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Failed, exception.Message, refresh);
     }
 
-    protected virtual CapnpFbpComponentModel? CreateProcChildModel(int displayIndex) => null;
+    protected virtual CapnpFbpComponentModel? CreateProcChildModel(int displayIndex)
+    {
+        return null;
+    }
 
     private async Task RunProcStructureSyncLoopAsync()
     {
@@ -404,10 +417,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
         var affectedVisibleNodes = CollectProcAffectedVisibleNodes();
         if (affectedVisibleNodes.Any(HasActiveLifecycle))
-        {
             foreach (var node in affectedVisibleNodes)
                 await Shared.Shared.ResetNodeLifecycleAsync(node);
-        }
 
         await TeardownProcChildrenAsync();
 
@@ -473,13 +484,11 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         SyncOwnedProcChildSettings();
 
         while (_procChildContexts.Count < desiredChildCount)
-        {
             await AddProcChildIncrementallyAsync(
                 _procChildContexts.Count + 2,
                 incomingLinks,
                 outgoingLinks
             );
-        }
 
         while (_procChildContexts.Count > desiredChildCount)
             await RemoveLastProcChildIncrementallyAsync();
@@ -539,10 +548,8 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
     {
         Console.WriteLine($"{ProcessName}: CapnpFbpComponentModel::DisposeStandardPorts");
         foreach (var port in Ports)
-        {
             if (port is IAsyncDisposable asyncDisposable)
                 await asyncDisposable.DisposeAsync();
-        }
     }
 
     private void InitializeProcChildNode(CapnpFbpComponentModel child, int displayIndex)
@@ -600,9 +607,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
                 FindMatchingPort<CapnpFbpInPortModel>(child, incomingLink.InPortModel)
                 is not { } childInPort
             )
-            {
                 continue;
-            }
 
             var internalIncomingLink = new RememberCapnpPortsLinkModel(
                 incomingLink.OutPortModel,
@@ -622,9 +627,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
                 FindMatchingPort<CapnpFbpOutPortModel>(child, outgoingLink.OutPortModel)
                 is not { } childOutPort
             )
-            {
                 continue;
-            }
 
             var internalOutgoingLink = new RememberCapnpPortsLinkModel(
                 childOutPort,
@@ -668,44 +671,55 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         }
     }
 
-    private IReadOnlyList<RememberCapnpPortsLinkModel> GetVisibleIncomingProcLinks() =>
-        Shared
+    private IReadOnlyList<RememberCapnpPortsLinkModel> GetVisibleIncomingProcLinks()
+    {
+        return Shared
             .Shared.AttachedLinks(this)
             .OfType<RememberCapnpPortsLinkModel>()
             .Where(link =>
                 !link.IsInternalProcLink && ReferenceEquals(link.InPortModel.Parent, this)
             )
             .ToList();
+    }
 
-    private IReadOnlyList<RememberCapnpPortsLinkModel> GetVisibleOutgoingProcLinks() =>
-        Shared
+    private IReadOnlyList<RememberCapnpPortsLinkModel> GetVisibleOutgoingProcLinks()
+    {
+        return Shared
             .Shared.AttachedLinks(this)
             .OfType<RememberCapnpPortsLinkModel>()
             .Where(link =>
                 !link.IsInternalProcLink && ReferenceEquals(link.OutPortModel.Parent, this)
             )
             .ToList();
+    }
 
     private static bool EvaluateProcMultiplicationEligibility(
         IReadOnlyCollection<RememberCapnpPortsLinkModel> incomingLinks
-    ) => incomingLinks.Count > 0 && incomingLinks.All(link => link.OutPortModel.IsArrayPort);
+    )
+    {
+        return incomingLinks.Count > 0 && incomingLinks.All(link => link.OutPortModel.IsArrayPort);
+    }
 
     private bool CanAdjustProcCountIncrementally(
         IReadOnlyCollection<RememberCapnpPortsLinkModel> incomingLinks
-    ) =>
-        !HasProcLifecycleTransitionInProgress()
-        && incomingLinks.All(link =>
-            !RequiresLiveProcSourceMutation(link.OutPortModel.Parent as Model)
-            || SupportsLiveProcSourceMutation(link.OutPortModel.Parent as Model)
-        );
+    )
+    {
+        return !HasProcLifecycleTransitionInProgress()
+            && incomingLinks.All(link =>
+                !RequiresLiveProcSourceMutation(link.OutPortModel.Parent)
+                || SupportsLiveProcSourceMutation(link.OutPortModel.Parent)
+            );
+    }
 
-    private bool HasProcLifecycleTransitionInProgress() =>
-        EnumerateProcNodes()
+    private bool HasProcLifecycleTransitionInProgress()
+    {
+        return EnumerateProcNodes()
             .Any(node =>
                 node.LifecycleState
                     is ComponentLifecycleState.Starting
                         or ComponentLifecycleState.Stopping
             );
+    }
 
     private ComponentLifecycleState? ResolveProcAdjustmentStateForCountChange(int targetCount)
     {
@@ -721,8 +735,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         return null;
     }
 
-    private static bool RequiresLiveProcSourceMutation(Model source) =>
-        source switch
+    private static bool RequiresLiveProcSourceMutation(Model source)
+    {
+        return source switch
         {
             CapnpFbpProcessComponentModel
             {
@@ -746,42 +761,39 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
                 true,
             _ => false,
         };
+    }
 
-    private static bool SupportsLiveProcSourceMutation(Model source) =>
-        source is CapnpFbpProcessComponentModel { SupportsLivePortChanges: true };
+    private static bool SupportsLiveProcSourceMutation(Model source)
+    {
+        return source is CapnpFbpProcessComponentModel { SupportsLivePortChanges: true };
+    }
 
     private HashSet<Model> CollectProcAffectedVisibleNodes()
     {
         var nodes = new HashSet<Model> { this };
 
         foreach (var link in GetVisibleIncomingProcLinks())
-            nodes.Add(link.OutPortModel.Parent as Model);
+            nodes.Add(link.OutPortModel.Parent);
 
         foreach (var link in GetVisibleOutgoingProcLinks())
-            nodes.Add(link.InPortModel.Parent as Model);
+            nodes.Add(link.InPortModel.Parent);
 
         foreach (var child in ProcChildComponents)
+        foreach (
+            var link in Shared.Shared.AttachedLinks(child).OfType<RememberCapnpPortsLinkModel>()
+        )
         {
-            foreach (
-                var link in Shared.Shared.AttachedLinks(child).OfType<RememberCapnpPortsLinkModel>()
+            if (
+                link.OutPortModel.Parent is Model source
+                && source is not CapnpFbpComponentModel { IsInternalProcChild: true }
             )
-            {
-                if (
-                    link.OutPortModel.Parent is Model source
-                    && source is not CapnpFbpComponentModel { IsInternalProcChild: true }
-                )
-                {
-                    nodes.Add(source);
-                }
+                nodes.Add(source);
 
-                if (
-                    link.InPortModel.Parent is Model target
-                    && target is not CapnpFbpComponentModel { IsInternalProcChild: true }
-                )
-                {
-                    nodes.Add(target);
-                }
-            }
+            if (
+                link.InPortModel.Parent is Model target
+                && target is not CapnpFbpComponentModel { IsInternalProcChild: true }
+            )
+                nodes.Add(target);
         }
 
         nodes.RemoveWhere(node => node == null);
@@ -836,8 +848,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             return "";
 
         return EnumerateProcNodes()
-            .Select(node => node.LifecycleError)
-            .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error)) ?? "";
+                .Select(node => node.LifecycleError)
+                .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error))
+            ?? "";
     }
 
     private string ResolveDisplayLifecycleLabel()
@@ -868,9 +881,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         {
             var expandedRows = GetExpandedProcRowLayouts();
             expandedHeight +=
-                (2d * ProcExpansionPaddingPx)
+                2d * ProcExpansionPaddingPx
                 + expandedRows.Sum(row => row.HeightPx)
-                + (Math.Max(0, expandedRows.Count - 1) * ProcExpansionSpacingPx);
+                + Math.Max(0, expandedRows.Count - 1) * ProcExpansionSpacingPx;
         }
 
         PortLayoutHeightOverride = _procChildrenExpanded && HasProcChildren ? baseHeight : null;
@@ -880,9 +893,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             || Math.Abs(Size.Width - width) > double.Epsilon
             || Math.Abs(Size.Height - expandedHeight) > double.Epsilon
         )
-        {
             Size = new Size(width, expandedHeight);
-        }
     }
 
     internal IReadOnlyList<ProcDisplayRowLayout> GetExpandedProcRowLayouts()
@@ -890,7 +901,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         if (!_procChildrenExpanded || !HasProcChildren)
             return [];
 
-        var rowTopPx = (double)Shared.Shared.CardHeight + ProcExpansionPaddingPx;
+        var rowTopPx = Shared.Shared.CardHeight + ProcExpansionPaddingPx;
         var rows = new List<ProcDisplayRowLayout>();
         foreach (var procNode in EnumerateProcNodes())
         {
@@ -915,9 +926,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             ? ProcRowMinHeightPx
             : Math.Max(
                 ProcRowMinHeightPx,
-                (2d * ProcRowVerticalPaddingPx)
+                2d * ProcRowVerticalPaddingPx
                     + CapnpFbpPortLayout.PortSizePx
-                    + ((maxVisiblePorts - 1) * ProcRowPortSpacingPx)
+                    + (maxVisiblePorts - 1) * ProcRowPortSpacingPx
             );
     }
 
@@ -935,11 +946,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         if (portCount == 1)
             return rowHeightPx / 2d;
 
-        var centeredSpanPx =
-            CapnpFbpPortLayout.PortSizePx + ((portCount - 1) * ProcRowPortSpacingPx);
+        var centeredSpanPx = CapnpFbpPortLayout.PortSizePx + (portCount - 1) * ProcRowPortSpacingPx;
         var firstCenterPx =
-            ((rowHeightPx - centeredSpanPx) / 2d) + (CapnpFbpPortLayout.PortSizePx / 2d);
-        return firstCenterPx + (portIndex * ProcRowPortSpacingPx);
+            (rowHeightPx - centeredSpanPx) / 2d + CapnpFbpPortLayout.PortSizePx / 2d;
+        return firstCenterPx + portIndex * ProcRowPortSpacingPx;
     }
 
     private static int CountVisibleProcPorts(
@@ -952,8 +962,9 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             .Count(port => port.ThePortType == type && port.GetCountedLinksForUi().Any());
     }
 
-    private static bool HasActiveLifecycle(Model node) =>
-        node switch
+    private static bool HasActiveLifecycle(Model node)
+    {
+        return node switch
         {
             CapnpFbpComponentModel component => component.DisplayLifecycleState
                 is not ComponentLifecycleState.Idle
@@ -964,6 +975,7 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
             CapnpFbpIipComponentModel iip => iip.LifecycleState is not ComponentLifecycleState.Idle,
             _ => false,
         };
+    }
 
     private async Task AddProcChildIncrementallyAsync(
         int displayIndex,
@@ -980,7 +992,10 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
         foreach (var incomingLink in GetProcChildIncomingLinks(context))
             await Shared.Shared.ConnectLinkToRunningProcessesAsync(incomingLink);
 
-        if (LifecycleState == ComponentLifecycleState.Running && RuntimeService?.ConnectionManager != null)
+        if (
+            LifecycleState == ComponentLifecycleState.Running
+            && RuntimeService?.ConnectionManager != null
+        )
             await context.Node.StartProcess(RuntimeService.ConnectionManager);
     }
 
@@ -1035,17 +1050,21 @@ public class CapnpFbpComponentModel : NodeModel, IAsyncDisposable
 
     private static List<RememberCapnpPortsLinkModel> GetProcChildIncomingLinks(
         ProcChildContext context
-    ) =>
-        context
+    )
+    {
+        return context
             .Links.Where(link => ReferenceEquals(link.InPortModel.Parent, context.Node))
             .ToList();
+    }
 
     private static List<RememberCapnpPortsLinkModel> GetProcChildOutgoingLinks(
         ProcChildContext context
-    ) =>
-        context
+    )
+    {
+        return context
             .Links.Where(link => ReferenceEquals(link.OutPortModel.Parent, context.Node))
             .ToList();
+    }
 
     private static void RefreshInternalProcLinkRemoval(RememberCapnpPortsLinkModel link)
     {

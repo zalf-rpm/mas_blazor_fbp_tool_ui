@@ -1,26 +1,25 @@
-namespace BlazorDrawFBP.Services;
-
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
+
+namespace BlazorDrawFBP.Services;
 
 public static class FbpLayoutHelper
 {
     public const int ViewNodeWidth = 350;
     public const int ViewNodeHeight = 200;
 
-    public static void SetDefaultComponentSize(NodeModel node) =>
+    public static void SetDefaultComponentSize(NodeModel node)
+    {
         node.Size = new Size(Shared.Shared.CardWidth, Shared.Shared.CardHeight);
+    }
 
     public static void RefreshPortLayout(NodeModel node)
     {
         foreach (var relatedNode in GetNodesAffectingPortLayout(node))
         {
-            CapnpFbpPortLayout.Apply(relatedNode, refreshPorts: false);
+            CapnpFbpPortLayout.Apply(relatedNode, false);
             relatedNode.RefreshAll();
         }
     }
@@ -29,7 +28,7 @@ public static class FbpLayoutHelper
     {
         foreach (var node in GetNodesAffectingPortLayout(link))
         {
-            CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+            CapnpFbpPortLayout.Apply(node, false);
             node.RefreshAll();
         }
     }

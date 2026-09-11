@@ -1,12 +1,7 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
-using Mas.Schema.Service;
 
 namespace BlazorDrawFBP.Models;
 
@@ -74,9 +69,7 @@ public class CapnpFbpOutPortModel : CapnpFbpPortModel
                 .Where(link => ReferenceEquals(link.OutPortModel, this))
                 .ToList()
         )
-        {
             await link.DisconnectWriterAsync();
-        }
 
         if (RetrieveWriterFromChannelTask != null)
         {

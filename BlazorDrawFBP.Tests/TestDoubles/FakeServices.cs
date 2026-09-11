@@ -1,13 +1,10 @@
-namespace BlazorDrawFBP.Tests.TestDoubles;
-
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using Blazored.LocalStorage;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
 using Mas.Schema.Service;
+
+namespace BlazorDrawFBP.Tests.TestDoubles;
 
 public class FakeRegistryService : IRegistry
 {
@@ -22,16 +19,33 @@ public class FakeRegistryService : IRegistry
         return Task.FromResult(new IdInformation { Id = ServiceId, Name = "Fake Registry" });
     }
 
-    public Task<IReadOnlyList<IdInformation>> SupportedCategories(CancellationToken cancellationToken_ = default)
-        => Task.FromResult<IReadOnlyList<IdInformation>>([]);
+    public Task<IReadOnlyList<IdInformation>> SupportedCategories(
+        CancellationToken cancellationToken_ = default
+    )
+    {
+        return Task.FromResult<IReadOnlyList<IdInformation>>([]);
+    }
 
-    public Task<IdInformation> CategoryInfo(string categoryId, CancellationToken cancellationToken_ = default)
-        => Task.FromResult(new IdInformation { Id = categoryId });
+    public Task<IdInformation> CategoryInfo(
+        string categoryId,
+        CancellationToken cancellationToken_ = default
+    )
+    {
+        return Task.FromResult(new IdInformation { Id = categoryId });
+    }
 
-    public Task<IReadOnlyList<Registry.Entry>> Entries(string categoryId, CancellationToken cancellationToken_ = default)
-        => Task.FromResult<IReadOnlyList<Registry.Entry>>([]);
+    public Task<IReadOnlyList<Registry.Entry>> Entries(
+        string categoryId,
+        CancellationToken cancellationToken_ = default
+    )
+    {
+        return Task.FromResult<IReadOnlyList<Registry.Entry>>([]);
+    }
 
-    public void Dispose() => IsDisposed = true;
+    public void Dispose()
+    {
+        IsDisposed = true;
+    }
 }
 
 public class FakeStartChannelsService : IStartChannelsService
@@ -50,12 +64,20 @@ public class FakeStartChannelsService : IStartChannelsService
     public Task<(IReadOnlyList<Channel<object>.StartupInfo>, IStoppable)> Start(
         StartChannelsService.Params arg_,
         CancellationToken cancellationToken_ = default
-    ) => Task.FromResult<(IReadOnlyList<Channel<object>.StartupInfo>, IStoppable)>(([], null!));
+    )
+    {
+        return Task.FromResult<(IReadOnlyList<Channel<object>.StartupInfo>, IStoppable)>(
+            ([], null!)
+        );
+    }
 
-    public void Dispose() => IsDisposed = true;
+    public void Dispose()
+    {
+        IsDisposed = true;
+    }
 }
 
-public class FakeLocalStorageService : Blazored.LocalStorage.ILocalStorageService
+public class FakeLocalStorageService : ILocalStorageService
 {
     private readonly Dictionary<string, object> _store = new();
 
@@ -72,7 +94,11 @@ public class FakeLocalStorageService : Blazored.LocalStorage.ILocalStorageServic
         return ValueTask.FromResult<T?>(default);
     }
 
-    public ValueTask SetItemAsync<T>(string key, T data, CancellationToken cancellationToken = default)
+    public ValueTask SetItemAsync<T>(
+        string key,
+        T data,
+        CancellationToken cancellationToken = default
+    )
     {
         if (data != null)
             _store[key] = data;
@@ -81,8 +107,13 @@ public class FakeLocalStorageService : Blazored.LocalStorage.ILocalStorageServic
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask<bool> ContainKeyAsync(string key, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(_store.ContainsKey(key));
+    public ValueTask<bool> ContainKeyAsync(
+        string key,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return ValueTask.FromResult(_store.ContainsKey(key));
+    }
 
     public ValueTask RemoveItemAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -90,24 +121,58 @@ public class FakeLocalStorageService : Blazored.LocalStorage.ILocalStorageServic
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask<string?> GetItemAsStringAsync(string key, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(_store.TryGetValue(key, out var val) ? val?.ToString() : null);
+    public ValueTask<string?> GetItemAsStringAsync(
+        string key,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return ValueTask.FromResult(_store.TryGetValue(key, out var val) ? val?.ToString() : null);
+    }
 
-    public ValueTask SetItemAsStringAsync(string key, string data, CancellationToken cancellationToken = default)
+    public ValueTask SetItemAsStringAsync(
+        string key,
+        string data,
+        CancellationToken cancellationToken = default
+    )
     {
         _store[key] = data;
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask<string?> KeyAsync(int index, CancellationToken cancellationToken = default) => ValueTask.FromResult<string?>(null);
-    public ValueTask<IEnumerable<string>> KeysAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<IEnumerable<string>>(_store.Keys);
-    public ValueTask<int> LengthAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult(_store.Count);
-    public ValueTask RemoveItemsAsync(IEnumerable<string> keys, CancellationToken cancellationToken = default)
+    public ValueTask<string?> KeyAsync(int index, CancellationToken cancellationToken = default)
     {
-        foreach (var k in keys) _store.Remove(k);
+        return ValueTask.FromResult<string?>(null);
+    }
+
+    public ValueTask<IEnumerable<string>> KeysAsync(CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromResult<IEnumerable<string>>(_store.Keys);
+    }
+
+    public ValueTask<int> LengthAsync(CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromResult(_store.Count);
+    }
+
+    public ValueTask RemoveItemsAsync(
+        IEnumerable<string> keys,
+        CancellationToken cancellationToken = default
+    )
+    {
+        foreach (var k in keys)
+            _store.Remove(k);
         return ValueTask.CompletedTask;
     }
 
-    public event EventHandler<Blazored.LocalStorage.ChangingEventArgs>? Changing { add { } remove { } }
-    public event EventHandler<Blazored.LocalStorage.ChangedEventArgs>? Changed { add { } remove { } }
+    public event EventHandler<ChangingEventArgs>? Changing
+    {
+        add { }
+        remove { }
+    }
+
+    public event EventHandler<ChangedEventArgs>? Changed
+    {
+        add { }
+        remove { }
+    }
 }

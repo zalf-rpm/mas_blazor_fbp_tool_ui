@@ -1,17 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
-using Blazor.Diagrams.Core.Models;
-using BlazorDrawFBP.Pages;
+using Capnp.Rpc;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
-using Mas.Schema.Persistence;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Exception = System.Exception;
 using ProcessSchema = Mas.Schema.Fbp.Process;
 using RpcException = Capnp.Rpc.RpcException;
 
@@ -19,40 +13,51 @@ namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
 {
+    private CancellationTokenSource? _cancellationTokenSource;
+    private ProcessActivityTransition? _processActivityTransitionCallback;
+    private ProcessStateTransition? _processStateTransitionCallback;
+
     public CapnpFbpProcessComponentModel(Point? position = null)
         : base(position) { }
 
     public CapnpFbpProcessComponentModel(string id, Point? position = null)
         : base(id, position) { }
 
-    private CancellationTokenSource? _cancellationTokenSource;
-    private ProcessStateTransition? _processStateTransitionCallback;
-    private ProcessActivityTransition? _processActivityTransitionCallback;
     public IProcess? Process { get; set; }
-    public ProcessSchema.IProcessHandle? ProcessHandle { get; set; }
+    public Process.IProcessHandle? ProcessHandle { get; set; }
 
-    public ProcessSchema.IFactory? ProcessFactory { get; set; }
+    public Process.IFactory? ProcessFactory { get; set; }
     protected override bool SupportsProcMultiplication => true;
-
-    public override bool RemoteProcessAttached() => ProcessHandle != null || Process != null;
-
-    public override bool CanEditCommandLine() =>
-        ProcessFactory != null || ProcessHandle != null || Process != null;
 
     public bool SupportsLivePortChanges =>
         Process != null && LifecycleState == ComponentLifecycleState.Running;
-    public ProcessSchema.ActivityState ActivityState { get; private set; } =
+
+    public Process.ActivityState ActivityState { get; private set; } =
         ProcessSchema.ActivityState.none;
+
     public string ActivityPortName { get; private set; } = "";
     public string ActivitySummary => FormatActivitySummary(ActivityState, ActivityPortName);
-    public ProcessSchema.RunInfo? LastRunInfo { get; private set; }
+    public Process.RunInfo? LastRunInfo { get; private set; }
     public bool HasLastRunInfo => LastRunInfo != null;
-    public ProcessSchema.RunInfo.Outcome LastRunOutcome =>
+
+    public Process.RunInfo.Outcome LastRunOutcome =>
         LastRunInfo?.TheOutcome ?? ProcessSchema.RunInfo.Outcome.none;
+
     public string LastRunSummary => FormatLastRunSummary(LastRunInfo);
+
     public bool IsProcessingActivity =>
         LifecycleState == ComponentLifecycleState.Running
         && ActivityState == ProcessSchema.ActivityState.processing;
+
+    public override bool RemoteProcessAttached()
+    {
+        return ProcessHandle != null || Process != null;
+    }
+
+    public override bool CanEditCommandLine()
+    {
+        return ProcessFactory != null || ProcessHandle != null || Process != null;
+    }
 
     public override async Task RefreshConfigFromRemoteAsync()
     {
@@ -72,7 +77,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 config[entry.Name] = ConvertCommonValueToJson(entry.Val);
             }
 
-            ConfigString = config.ToString(Newtonsoft.Json.Formatting.Indented);
+            ConfigString = config.ToString(Formatting.Indented);
             RefreshAll();
         }
         catch (ObjectDisposedException ex)
@@ -89,11 +94,13 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
-        new CapnpFbpProcessComponentModel(
+    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex)
+    {
+        return new CapnpFbpProcessComponentModel(
             $"{Id}__proc_{displayIndex}",
             Position == null ? null : new Point(Position.X, Position.Y)
         );
+    }
 
     private static JToken ConvertCommonValueToJson(Value value)
     {
@@ -205,25 +212,19 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             || LifecycleState != ComponentLifecycleState.Running
             || string.IsNullOrWhiteSpace(ActivityPortName)
         )
-        {
             return false;
-        }
 
         if (
             ActivityState == ProcessSchema.ActivityState.waitingInput
             && port.ThePortType != CapnpFbpPortModel.PortType.In
         )
-        {
             return false;
-        }
 
         if (
             ActivityState == ProcessSchema.ActivityState.waitingOutput
             && port.ThePortType != CapnpFbpPortModel.PortType.Out
         )
-        {
             return false;
-        }
 
         if (
             ActivityState
@@ -232,9 +233,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 or ProcessSchema.ActivityState.waitingOutput
             )
         )
-        {
             return false;
-        }
 
         return string.Equals(port.Name, ActivityPortName, StringComparison.OrdinalIgnoreCase);
     }
@@ -257,9 +256,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             || LifecycleState
                 is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
-        {
             return;
-        }
 
         var shouldStopExistingRuntime =
             ProcessHandle != null
@@ -295,9 +292,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                         OutPortModel: CapnpFbpOutPortModel outPort
                     } rcplm
                 )
-                {
                     continue;
-                }
 
                 // deal with IN port
                 // the IN port (link) is not associated with a channel yet -> create channel
@@ -328,9 +323,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 }
 
                 if (inPort.Name == "config")
-                {
                     configInPortConnected = true;
-                }
 
                 CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
@@ -382,7 +375,6 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                             {
                                 var types = arr.Select(t => t.Type).ToHashSet();
                                 if (types.Count == 1)
-                                {
                                     switch (types.First())
                                     {
                                         case JTokenType.String:
@@ -406,7 +398,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                                 Lb = arr.Select(t => t.Value<bool>()).ToList(),
                                             };
                                     }
-                                }
+
                                 var hl = new List<Value>();
                                 foreach (var t in arr)
                                 {
@@ -422,8 +414,10 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                     if (itemVal != null)
                                         hl.Add(itemVal);
                                 }
+
                                 return new Value { Lv = hl };
                             }
+
                             break;
                         case JTokenType.Object:
                             if (jt is JObject obj)
@@ -445,13 +439,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                                     if (sndVal == null)
                                         continue;
                                     pl.Add(
-                                        new Pair<object, object>()
-                                        { //}string, Value>() {
+                                        new Pair<object, object>
+                                        {
+                                            //}string, Value>() {
                                             Fst = k,
                                             Snd = sndVal,
                                         }
                                     );
                                 }
+
                                 return new Value { Lpair = pl };
                             }
 
@@ -478,8 +474,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                         );
                         continue;
                     }
+
                     await Process.SetConfigEntry(
-                        new ProcessSchema.ConfigEntry { Name = kv.Key, Val = val },
+                        new Process.ConfigEntry { Name = kv.Key, Val = val },
                         cancelToken
                     );
                 }
@@ -497,6 +494,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     remoteError ?? $"Process '{ProcessName}' failed to start."
                 );
             }
+
             SetLifecycleState(ComponentLifecycleState.Running, refresh: true);
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: Process start launched"
@@ -510,8 +508,8 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
         catch (Exception e)
         {
-            await ResetRemoteRuntimeAsync(closeRemoteProcess: true);
-            SetLifecycleFaultPreservingRemoteError(e, refresh: true);
+            await ResetRemoteRuntimeAsync(true);
+            SetLifecycleFaultPreservingRemoteError(e, true);
         }
     }
 
@@ -542,7 +540,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
         catch (Exception e)
         {
-            SetLifecycleFaultPreservingRemoteError(e, refresh: true);
+            SetLifecycleFaultPreservingRemoteError(e, true);
         }
     }
 
@@ -580,7 +578,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (Process != null)
             await TryStopRemoteProcessAsync();
 
-        await ResetRemoteRuntimeAsync(closeRemoteProcess: ProcessHandle != null || Process != null);
+        await ResetRemoteRuntimeAsync(ProcessHandle != null || Process != null);
     }
 
     protected override void ApplyComponentServiceBinding(
@@ -594,7 +592,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         ProcessFactory?.Dispose();
         ProcessFactory =
             component.Factory?.which == Component.factory.WHICH.Process
-                ? Capnp.Rpc.Proxy.Share(component.Factory.Process)
+                ? Proxy.Share(component.Factory.Process)
                 : null;
     }
 
@@ -603,8 +601,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (child is not CapnpFbpProcessComponentModel processChild)
             return;
 
-        processChild.ProcessFactory =
-            ProcessFactory != null ? Capnp.Rpc.Proxy.Share(ProcessFactory) : null;
+        processChild.ProcessFactory = ProcessFactory != null ? Proxy.Share(ProcessFactory) : null;
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -622,7 +619,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent"
         );
-        await ResetRemoteRuntimeAsync(closeRemoteProcess: ProcessHandle != null);
+        await ResetRemoteRuntimeAsync(ProcessHandle != null);
         Console.WriteLine(
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpProcessComponentModel::CancelAndDisposeRemoteComponent stopped runnable/process (ProcessStarted: {ProcessStarted})"
         );
@@ -751,17 +748,15 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
 
         if (_processStateTransitionCallback == null)
-        {
             _processStateTransitionCallback = new ProcessStateTransition(
                 async (old, @new, transitionCancelToken) =>
                 {
-                    await ApplyProcessStateAsync(@new, refresh: true, transitionCancelToken);
+                    await ApplyProcessStateAsync(@new, true, transitionCancelToken);
                 }
             );
-        }
 
         var currentState = await Process.State(_processStateTransitionCallback, cancelToken);
-        await ApplyProcessStateAsync(currentState, refresh: false, cancelToken);
+        await ApplyProcessStateAsync(currentState, false, cancelToken);
         await SubscribeToProcessActivityAsync(cancelToken);
 
         return true;
@@ -777,7 +772,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         _cancellationTokenSource = null;
     }
 
-    private void ApplyProcessState(ProcessSchema.State state, bool refresh = false)
+    private void ApplyProcessState(Process.State state, bool refresh = false)
     {
         switch (state)
         {
@@ -803,12 +798,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     }
 
     private async Task ApplyProcessStateAsync(
-        ProcessSchema.State state,
+        Process.State state,
         bool refresh = false,
         CancellationToken cancelToken = default
     )
     {
-        ProcessSchema.RunInfo? lastRunInfo = null;
+        Process.RunInfo? lastRunInfo = null;
         if (state is ProcessSchema.State.failed or ProcessSchema.State.idle)
             lastRunInfo = await RefreshLastRunInfoAsync(cancelToken);
 
@@ -819,7 +814,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 FormatLastRunFailure(lastRunInfo)
                     ?? LifecycleError
                     ?? $"Process '{ProcessName}' failed on the server.",
-                refresh: refresh
+                refresh
             );
             if (refresh)
                 ProcOwnerNode?.RefreshAll();
@@ -835,24 +830,22 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             return;
 
         if (_processActivityTransitionCallback == null)
-        {
             _processActivityTransitionCallback = new ProcessActivityTransition(
                 (old, @new, transitionCancelToken) =>
                 {
-                    ApplyActivityInfo(@new, refresh: true);
+                    ApplyActivityInfo(@new, true);
                     return Task.CompletedTask;
                 }
             );
-        }
 
         var currentActivity = await Process.Activity(
             _processActivityTransitionCallback,
             cancelToken
         );
-        ApplyActivityInfo(currentActivity, refresh: false);
+        ApplyActivityInfo(currentActivity, false);
     }
 
-    private void ApplyActivityInfo(ProcessSchema.ActivityInfo? activity, bool refresh = false)
+    private void ApplyActivityInfo(Process.ActivityInfo? activity, bool refresh = false)
     {
         var nextState = activity?.State ?? ProcessSchema.ActivityState.none;
         var nextPortName = NormalizeActivityPortName(activity?.Port);
@@ -886,11 +879,13 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         }
     }
 
-    private static string NormalizeActivityPortName(string? portName) =>
-        string.IsNullOrWhiteSpace(portName) ? "" : portName.Trim();
+    private static string NormalizeActivityPortName(string? portName)
+    {
+        return string.IsNullOrWhiteSpace(portName) ? "" : portName.Trim();
+    }
 
     internal static string FormatActivitySummary(
-        ProcessSchema.ActivityState activityState,
+        Process.ActivityState activityState,
         string activityPortName
     )
     {
@@ -912,9 +907,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                     or ProcessSchema.ActivityState.waitingOutput
                 )
         )
-        {
             return label;
-        }
 
         return $"{label} on {activityPortName}";
     }
@@ -922,15 +915,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     public IReadOnlyList<string> GetLastRunTooltipLines(
         bool includeProcessIdentity = false,
         bool includeTraceback = true
-    ) =>
-        BuildLastRunDetailLines(
-            LastRunInfo,
-            includeHeading: true,
-            includeProcessIdentity,
-            includeTraceback
-        );
+    )
+    {
+        return BuildLastRunDetailLines(LastRunInfo, true, includeProcessIdentity, includeTraceback);
+    }
 
-    private async Task<ProcessSchema.RunInfo?> RefreshLastRunInfoAsync(
+    private async Task<Process.RunInfo?> RefreshLastRunInfoAsync(
         CancellationToken cancelToken = default
     )
     {
@@ -938,7 +928,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return LastRunInfo;
     }
 
-    private async Task<ProcessSchema.RunInfo?> TryGetRemoteLastRunInfoAsync(
+    private async Task<Process.RunInfo?> TryGetRemoteLastRunInfoAsync(
         CancellationToken cancelToken = default
     )
     {
@@ -974,32 +964,25 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         LastRunInfo = null;
     }
 
-    private static ProcessSchema.RunInfo? NormalizeLastRunInfo(ProcessSchema.RunInfo runInfo)
+    private static Process.RunInfo? NormalizeLastRunInfo(Process.RunInfo runInfo)
     {
         if (
             runInfo == null
             || !runInfo.HasRunInfo
             || runInfo.TheOutcome == ProcessSchema.RunInfo.Outcome.none
         )
-        {
             return null;
-        }
 
         return runInfo;
     }
 
-    private static string? FormatLastRunFailure(ProcessSchema.RunInfo? runInfo)
+    private static string? FormatLastRunFailure(Process.RunInfo? runInfo)
     {
-        var lines = BuildLastRunDetailLines(
-            runInfo,
-            includeHeading: false,
-            includeProcessIdentity: false,
-            includeTraceback: true
-        );
+        var lines = BuildLastRunDetailLines(runInfo, false, false, true);
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
 
-    internal static string FormatLastRunSummary(ProcessSchema.RunInfo? runInfo)
+    internal static string FormatLastRunSummary(Process.RunInfo? runInfo)
     {
         if (runInfo == null)
             return "";
@@ -1023,15 +1006,13 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             runInfo.TheOutcome == ProcessSchema.RunInfo.Outcome.failed
             && !string.IsNullOrWhiteSpace(detail)
         )
-        {
             return $"{outcome}{context}: {detail}";
-        }
 
         return $"{outcome}{context}";
     }
 
     internal static IReadOnlyList<string> BuildLastRunDetailLines(
-        ProcessSchema.RunInfo? runInfo,
+        Process.RunInfo? runInfo,
         bool includeHeading,
         bool includeProcessIdentity,
         bool includeTraceback
@@ -1053,11 +1034,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
             ? null
             : runInfo.ProcessId.Trim();
         if (!string.IsNullOrWhiteSpace(processId))
-        {
             processLabel = string.IsNullOrWhiteSpace(processLabel)
                 ? processId
                 : $"{processLabel} ({processId})";
-        }
 
         if (includeProcessIdentity && !string.IsNullOrWhiteSpace(processLabel))
             lines.Add($"Process: {processLabel}");
@@ -1088,7 +1067,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         return lines;
     }
 
-    private static string FormatRunOutcome(ProcessSchema.RunInfo.Outcome outcome)
+    private static string FormatRunOutcome(Process.RunInfo.Outcome outcome)
     {
         return outcome switch
         {
@@ -1099,7 +1078,7 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         };
     }
 
-    private static string FormatRunPhase(ProcessSchema.RunInfo.Phase phase)
+    private static string FormatRunPhase(Process.RunInfo.Phase phase)
     {
         return phase switch
         {
@@ -1189,18 +1168,16 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
                 .OfType<RememberCapnpPortsLinkModel>()
                 .Where(link => ReferenceEquals(link.OutPortModel.Parent, this))
         )
-        {
             link.ClearProcessOutDisconnect();
-        }
     }
 
     private class ProcessStateTransition(
-        Func<ProcessSchema.State, ProcessSchema.State, CancellationToken, Task> action
-    ) : ProcessSchema.IStateTransition
+        Func<Process.State, Process.State, CancellationToken, Task> action
+    ) : Process.IStateTransition
     {
         public Task StateChanged(
-            ProcessSchema.State old,
-            ProcessSchema.State @new,
+            Process.State old,
+            Process.State @new,
             CancellationToken cancellationToken = default
         )
         {
@@ -1211,12 +1188,12 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
     }
 
     private class ProcessActivityTransition(
-        Func<ProcessSchema.ActivityInfo, ProcessSchema.ActivityInfo, CancellationToken, Task> action
-    ) : ProcessSchema.IActivityTransition
+        Func<Process.ActivityInfo, Process.ActivityInfo, CancellationToken, Task> action
+    ) : Process.IActivityTransition
     {
         public Task ActivityChanged(
-            ProcessSchema.ActivityInfo old,
-            ProcessSchema.ActivityInfo @new,
+            Process.ActivityInfo old,
+            Process.ActivityInfo @new,
             CancellationToken cancellationToken = default
         )
         {

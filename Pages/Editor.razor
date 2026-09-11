@@ -2,11 +2,21 @@
 @page "/editor"
 @page "/flow/{FlowId:guid}"
 @page "/editor/{FlowId:guid}"
+@using System.Reflection
+@using Blazor.Diagrams.Components.Widgets
+@using BlazorDrawFBP.Components.Editor
+@using BlazorDrawFBP.Services
+@using Blazored.LocalStorage
+@using Capnp
+@using Mas.Infrastructure.BlazorComponents
+@using Mas.Infrastructure.Common
+@using Mas.Schema.Fbp
+@using Mas.Schema.Registry
 @namespace BlazorDrawFBP.Pages
 
 @inject IDialogService DialogService
-@inject Mas.Infrastructure.Common.ConnectionManager InjectedConMan
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ConnectionManager InjectedConMan
+@inject ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 @inject CleanupDiagramService CleanupService
 @inject IFbpRuntimeService InjectedRuntimeService
@@ -17,101 +27,90 @@
 @inject IFbpDiagramFactory DiagramFactory
 @inject IFbpNodeFactory NodeFactory
 
-@using System.Reflection
-@using Blazor.Diagrams.Components.Widgets
-@using BlazorDrawFBP.Components.Editor
-@using BlazorDrawFBP.Models
-@using BlazorDrawFBP.Services
-@using MudBlazor
-@using Capnp.Rpc
-@using Mas.Infrastructure.BlazorComponents
-@using Mas.Schema.Fbp
-@using Mas.Schema.Registry
-
 <div class="editor-shell mud-background-gray pa-1">
-<NavigationLock ConfirmExternalNavigation="@HasActiveExecution"
-                OnBeforeInternalNavigation="@OnBeforeInternalNavigation" />
-<MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
-    <FlowToolbar ComponentListVisible="@_componentListVisible"
-                 FlowId="@FlowId"
-                 ShortFlowId="@ShortFlowId"
-                 TtlLabel="@CurrentTtlLabel"
-                 OnToggleComponentList="@ToggleComponentList"
-                 OnCopyFlowUrl="@CopyFlowUrlToClipboard"
-                 OnCycleTtl="@CycleFlowTtl"
-                 OnCreateNewFlow="@CreateNewFlow"
-                 OnAddComponentService="@AddComponentServiceSturdyRef"
-                 OnAddChannelService="@AddChannelServiceSturdyRef"
-                 OnShowSturdyRefDialog="@ShowSturdyRefDialog" />
+    <NavigationLock ConfirmExternalNavigation="@HasActiveExecution"
+                    OnBeforeInternalNavigation="@OnBeforeInternalNavigation"/>
+    <MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
+        <FlowToolbar ComponentListVisible="@_componentListVisible"
+                     FlowId="@FlowId"
+                     ShortFlowId="@ShortFlowId"
+                     TtlLabel="@CurrentTtlLabel"
+                     OnToggleComponentList="@ToggleComponentList"
+                     OnCopyFlowUrl="@CopyFlowUrlToClipboard"
+                     OnCycleTtl="@CycleFlowTtl"
+                     OnCreateNewFlow="@CreateNewFlow"
+                     OnAddComponentService="@AddComponentServiceSturdyRef"
+                     OnAddChannelService="@AddChannelServiceSturdyRef"
+                     OnShowSturdyRefDialog="@ShowSturdyRefDialog"/>
 
-    <MudStack Row="true"
-              Wrap="Wrap.NoWrap"
-              AlignItems="AlignItems.Stretch"
-              Spacing="1"
-              Class="flex-grow-1 overflow-hidden"
-              Style="min-height: 0;">
-        @if (_componentListVisible)
-        {
-            <ComponentPalette RuntimeService="@RuntimeService"
-                              OnComponentDragStart="@HandleComponentDragStart"
-                              OnComponentDragEnd="@OnNodeDragEnd" />
-        }
-        <MudPaper Outlined="true"
-                  Class="diagram-container flex-grow-1"
-                  ondragover="event.preventDefault();"
-                  @ondrop="OnNodeDrop">
-            <FlowCanvasControls ClearButtonDisabled="@ClearButtonDisabled"
-                                CanTerminateSession="@FlowId.HasValue"
-                                CanExecuteFlow="@CanExecuteFlow"
-                                ExecuteFlowButtonTitle="@ExecuteFlowButtonTitle"
-                                OnFlowFileSelected="@LoadFlow"
-                                OnSaveFlow="@SaveFlow"
-                                OnClearButtonClicked="@ClearButtonClicked"
-                                OnTerminateSession="@TerminateFlowSessionAsync"
-                                OnExecuteFlow="@ExecuteFlow" />
+        <MudStack Row="true"
+                  Wrap="Wrap.NoWrap"
+                  AlignItems="AlignItems.Stretch"
+                  Spacing="1"
+                  Class="flex-grow-1 overflow-hidden"
+                  Style="min-height: 0;">
+            @if (_componentListVisible)
+            {
+                <ComponentPalette RuntimeService="@RuntimeService"
+                                  OnComponentDragStart="@HandleComponentDragStart"
+                                  OnComponentDragEnd="@OnNodeDragEnd"/>
+            }
+            <MudPaper Outlined="true"
+                      Class="diagram-container flex-grow-1"
+                      ondragover="event.preventDefault();"
+                      @ondrop="OnNodeDrop">
+                <FlowCanvasControls ClearButtonDisabled="@ClearButtonDisabled"
+                                    CanTerminateSession="@FlowId.HasValue"
+                                    CanExecuteFlow="@CanExecuteFlow"
+                                    ExecuteFlowButtonTitle="@ExecuteFlowButtonTitle"
+                                    OnFlowFileSelected="@LoadFlow"
+                                    OnSaveFlow="@SaveFlow"
+                                    OnClearButtonClicked="@ClearButtonClicked"
+                                    OnTerminateSession="@TerminateFlowSessionAsync"
+                                    OnExecuteFlow="@ExecuteFlow"/>
 
-            @if (Diagram != null)
-            {
-                <ErrorBoundary @ref="_canvasErrorBoundary">
-                    <ChildContent>
-                        <CascadingValue Value="Diagram" IsFixed="true">
-                            <DiagramCanvas @key="FlowId">
-                                <Widgets>
-                                    <NavigatorWidget Width="200"
-                                                     Height="120"
-                                                     Class="editor-minimap border border-black absolute"
-                                                     Style="bottom: 15px; right: 15px;"/>
-                                </Widgets>
-                            </DiagramCanvas>
-                        </CascadingValue>
-                    </ChildContent>
-                    <ErrorContent Context="ex">
-                        <div class="pa-4">
-                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="my-2">
-                                <div class="d-flex flex-column gap-2">
-                                    <MudText Typo="Typo.subtitle2">An error occurred while rendering the diagram canvas.</MudText>
-                                    <MudText Typo="Typo.body2">@ex.Message</MudText>
-                                    <MudButton Color="Color.Primary"
-                                               Variant="Variant.Filled"
-                                               Size="Size.Small"
-                                               OnClick="@(() => _canvasErrorBoundary?.Recover())">
-                                        Recover Canvas
-                                    </MudButton>
-                                </div>
-                            </MudAlert>
-                        </div>
-                    </ErrorContent>
-                </ErrorBoundary>
-            }
-            else
-            {
-                <div class="d-flex justify-center align-center flex-grow-1" style="min-height: 400px;">
-                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-                </div>
-            }
-        </MudPaper>
+                @if (Diagram != null)
+                {
+                    <ErrorBoundary @ref="_canvasErrorBoundary">
+                        <ChildContent>
+                            <CascadingValue Value="Diagram" IsFixed="true">
+                                <DiagramCanvas @key="FlowId">
+                                    <Widgets>
+                                        <NavigatorWidget Width="200"
+                                                         Height="120"
+                                                         Class="editor-minimap border border-black absolute"
+                                                         Style="bottom: 15px; right: 15px;"/>
+                                    </Widgets>
+                                </DiagramCanvas>
+                            </CascadingValue>
+                        </ChildContent>
+                        <ErrorContent Context="ex">
+                            <div class="pa-4">
+                                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="my-2">
+                                    <div class="d-flex flex-column gap-2">
+                                        <MudText Typo="Typo.subtitle2">An error occurred while rendering the diagram canvas.</MudText>
+                                        <MudText Typo="Typo.body2">@ex.Message</MudText>
+                                        <MudButton Color="Color.Primary"
+                                                   Variant="Variant.Filled"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => _canvasErrorBoundary?.Recover())">
+                                            Recover Canvas
+                                        </MudButton>
+                                    </div>
+                                </MudAlert>
+                            </div>
+                        </ErrorContent>
+                    </ErrorBoundary>
+                }
+                else
+                {
+                    <div class="d-flex justify-center align-center flex-grow-1" style="min-height: 400px;">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+                    </div>
+                }
+            </MudPaper>
+        </MudStack>
     </MudStack>
-</MudStack>
 </div>
 
 @code {
@@ -122,10 +121,15 @@
     private bool CanExecuteFlow => RuntimeService.CanExecuteFlow;
     private string ExecuteFlowButtonTitle => RuntimeService.ExecuteFlowButtonTitle;
 
-    private void ToggleComponentList() => _componentListVisible = !_componentListVisible;
+    private void ToggleComponentList()
+    {
+        _componentListVisible = !_componentListVisible;
+    }
 
-    private void HandleComponentDragStart((Component Component, string ServiceId) args) =>
+    private void HandleComponentDragStart((Mas.Schema.Fbp.Component Component, string ServiceId) args)
+    {
         OnNodeDragStart(args.Component, args.ServiceId);
+    }
 
     private async Task ClearButtonClicked()
     {
@@ -144,7 +148,9 @@
                     ClearButtonDisabled = true;
                     await InvokeAsync(StateHasChanged);
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                }
             });
         }
         else
@@ -161,7 +167,7 @@
     {
         var parameters = new DialogParameters<NewSturdyRefDialog>
         {
-            { x => x.InterfaceId, typeof(IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0UL }
+            { x => x.InterfaceId, typeof(IRegistry).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0UL }
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
@@ -180,7 +186,7 @@
     {
         var parameters = new DialogParameters<NewSturdyRefDialog>
         {
-            { x => x.InterfaceId, typeof(IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0UL }
+            { x => x.InterfaceId, typeof(IStartChannelsService).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0UL }
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
@@ -210,7 +216,7 @@
         var options = new DialogOptions
         {
             MaxWidth = MaxWidth.ExtraLarge,
-            FullWidth = true,
+            FullWidth = true
         };
         var dialog = await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>(
             "Stored Sturdy References",
@@ -220,4 +226,5 @@
         await dialog.Result;
         SafeStateHasChanged();
     }
+
 }

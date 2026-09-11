@@ -1,6 +1,3 @@
-namespace BlazorDrawFBP.Tests;
-
-using System;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
@@ -9,6 +6,8 @@ using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class FbpDiagramFactoryTests
@@ -35,10 +34,7 @@ public class FbpDiagramFactoryTests
         var runtime = new FakeFbpRuntimeService();
         var structureChangedCount = 0;
 
-        var diagram = factory.CreateConfiguredDiagram(
-            runtime,
-            onStructureChanged: () => structureChangedCount++
-        );
+        var diagram = factory.CreateConfiguredDiagram(runtime, () => structureChangedCount++);
 
         diagram.Nodes.Add(new NodeModel(new Point(10, 10)));
         Assert.AreEqual(1, structureChangedCount);
@@ -54,20 +50,38 @@ public class FbpNodeFactoryTests
         var factory = new FbpNodeFactory();
         var json = new JObject
         {
-            { "info", new JObject { { "id", "c1" }, { "name", "Comp One" }, { "description", "Desc" } } },
+            {
+                "info",
+                new JObject
+                {
+                    { "id", "c1" },
+                    { "name", "Comp One" },
+                    { "description", "Desc" },
+                }
+            },
             { "type", "standard" },
             {
                 "inPorts",
                 new JArray
                 {
-                    new JObject { { "name", "in1" }, { "type", "standard" }, { "contentType", "text/plain" } },
+                    new JObject
+                    {
+                        { "name", "in1" },
+                        { "type", "standard" },
+                        { "contentType", "text/plain" },
+                    },
                 }
             },
             {
                 "outPorts",
                 new JArray
                 {
-                    new JObject { { "name", "out1" }, { "type", "standard" }, { "contentType", "text/plain" } },
+                    new JObject
+                    {
+                        { "name", "out1" },
+                        { "type", "standard" },
+                        { "contentType", "text/plain" },
+                    },
                 }
             },
         };

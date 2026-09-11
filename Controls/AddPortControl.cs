@@ -1,9 +1,5 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Controls;
-using Blazor.Diagrams.Core.Controls.Default;
 using Blazor.Diagrams.Core.Events;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -16,11 +12,6 @@ namespace BlazorDrawFBP.Controls;
 public class AddPortControl : ExecutableControl
 {
     private readonly IPositionProvider _positionProvider;
-    public string Label { get; set; } = "Port";
-
-    public CapnpFbpPortModel.PortType PortType { get; set; } = CapnpFbpPortModel.PortType.In;
-
-    public CapnpFbpComponentModel? NodeModel { get; set; }
 
     public AddPortControl(double x, double y, double offsetX = 0.0, double offsetY = 0.0)
         : this(new BoundsBasedPositionProvider(x, y, offsetX, offsetY)) { }
@@ -29,6 +20,12 @@ public class AddPortControl : ExecutableControl
     {
         _positionProvider = positionProvider;
     }
+
+    public string Label { get; set; } = "Port";
+
+    public CapnpFbpPortModel.PortType PortType { get; set; } = CapnpFbpPortModel.PortType.In;
+
+    public CapnpFbpComponentModel? NodeModel { get; set; }
 
     public override Point? GetPosition(Model model)
     {
@@ -82,11 +79,11 @@ public class AddPortControl : ExecutableControl
                 OrderNo = orderNo,
                 IsArrayPort = isArrayPort,
             },
-            _ => throw new System.ArgumentOutOfRangeException(nameof(portType), portType, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(portType), portType, null),
         };
 
         node.AddPort(port);
-        CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+        CapnpFbpPortLayout.Apply(node, false);
         node.RefreshAll();
         if (node is CapnpFbpComponentModel componentNode)
             componentNode.QueueProcStructureSync();

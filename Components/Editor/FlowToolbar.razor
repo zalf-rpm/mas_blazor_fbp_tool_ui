@@ -1,5 +1,5 @@
-@using MudBlazor
-@inject BlazorDrawFBP.Services.IAppThemeService ThemeService
+@inject IAppThemeService ThemeService
+@using BlazorDrawFBP.Services
 @implements IDisposable
 
 <MudPaper Outlined="true">
@@ -73,7 +73,7 @@
                     <span>Light theme</span>
                     @if (!ThemeService.IsDarkMode)
                     {
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2"/>
                     }
                 </div>
             </MudMenuItem>
@@ -84,7 +84,7 @@
                     <span>Dark theme</span>
                     @if (ThemeService.IsDarkMode)
                     {
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2"/>
                     }
                 </div>
             </MudMenuItem>
@@ -93,18 +93,18 @@
 </MudPaper>
 
 @code {
-    [Parameter, EditorRequired] public bool ComponentListVisible { get; set; } = true;
+    [Parameter] [EditorRequired] public bool ComponentListVisible { get; set; } = true;
     [Parameter] public Guid? FlowId { get; set; }
-    [Parameter, EditorRequired] public string ShortFlowId { get; set; } = "";
-    [Parameter, EditorRequired] public string TtlLabel { get; set; } = "30m";
+    [Parameter] [EditorRequired] public string ShortFlowId { get; set; } = "";
+    [Parameter] [EditorRequired] public string TtlLabel { get; set; } = "30m";
 
-    [Parameter, EditorRequired] public EventCallback OnToggleComponentList { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnCopyFlowUrl { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnCycleTtl { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnCreateNewFlow { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnAddComponentService { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnAddChannelService { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnShowSturdyRefDialog { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnToggleComponentList { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnCopyFlowUrl { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnCycleTtl { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnCreateNewFlow { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnAddComponentService { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnAddChannelService { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnShowSturdyRefDialog { get; set; }
 
     protected override void OnInitialized()
     {
@@ -114,7 +114,10 @@
         }
     }
 
-    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+    private void OnThemeChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     public void Dispose()
     {
@@ -123,4 +126,5 @@
             ThemeService.ThemeChanged -= OnThemeChanged;
         }
     }
+
 }

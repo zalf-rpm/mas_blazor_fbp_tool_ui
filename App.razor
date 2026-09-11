@@ -3,34 +3,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="/" />
-    <ResourcePreloader />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-    <link href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" rel="stylesheet" />
-    <link href="@Assets["_content/Z.Blazor.Diagrams/style.css"]" rel="stylesheet" />
-    <link href="@Assets["_content/Z.Blazor.Diagrams/default.styles.css"]" rel="stylesheet" />
-    <link href="@Assets["css/site.css"]" rel="stylesheet" />
-    <link rel="stylesheet" href="@Assets[$"{nameof(BlazorDrawFBP)}.styles.css"]" />
-    <ImportMap />
-    <HeadOutlet @rendermode="NoPrerenderServer" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="/"/>
+    <ResourcePreloader/>
+    <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"/>
+    <link href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" rel="stylesheet"/>
+    <link href="@Assets["_content/Z.Blazor.Diagrams/style.css"]" rel="stylesheet"/>
+    <link href="@Assets["_content/Z.Blazor.Diagrams/default.styles.css"]" rel="stylesheet"/>
+    <link href="@Assets["css/site.css"]" rel="stylesheet"/>
+    <link rel="stylesheet" href="@Assets[$"{nameof(BlazorDrawFBP)}.styles.css"]"/>
+    <ImportMap/>
+    <HeadOutlet @rendermode="NoPrerenderServer"/>
 </head>
 <body>
-    <Routes @rendermode="NoPrerenderServer" />
-    <ReconnectModal />
+<Routes @rendermode="NoPrerenderServer"/>
+<ReconnectModal/>
 
-    <script src="@Assets["js/JSInterop.min.js"]"></script>
-    <script src="@Assets["js/SaveAsBase64.js"]"></script>
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
-    <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
-    <script src="@Assets["_content/Z.Blazor.Diagrams/script.min.js"]"></script>
+<script src="@Assets["js/JSInterop.min.js"]"></script>
+<script src="@Assets["js/SaveAsBase64.js"]"></script>
+<script src="@Assets["_framework/blazor.web.js"]"></script>
+<script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
+<script src="@Assets["_content/Z.Blazor.Diagrams/script.min.js"]"></script>
 </body>
 </html>
 
 @code {
-    private static readonly IComponentRenderMode NoPrerenderServer = new InteractiveServerRenderMode(prerender: false);
+    private static readonly IComponentRenderMode NoPrerenderServer = new InteractiveServerRenderMode(false);
 }

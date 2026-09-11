@@ -1,24 +1,20 @@
-using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
-using Blazor.Diagrams;
 using BlazorDrawFBP.Services;
-using Capnp;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
-using Microsoft.AspNetCore.Components;
 using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 {
+    private CancellationTokenSource? _cancellationTokenSource;
+    private Task? _iipTask;
+
     public CapnpFbpIipComponentModel(Point? position = null)
         : base(position) { }
 
@@ -36,13 +32,17 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         (true, StructuredText.Type.unstructured);
 
     public int DisplayNoOfLines { get; set; } = 3;
+
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;
+
     public string? LifecycleError { get; private set; }
     public bool CanStart => !IsLifecycleBusy;
     public bool CanStop => false;
+
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
+
     public ComponentLifecycleState DisplayLifecycleState =>
         LifecycleState switch
         {
@@ -52,10 +52,8 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
                 ? ComponentLifecycleState.Running
                 : ComponentLifecycleState.Idle,
         };
-    public string LifecycleLabel => DisplayLifecycleState.ToString();
 
-    private CancellationTokenSource? _cancellationTokenSource;
-    private Task? _iipTask;
+    public string LifecycleLabel => DisplayLifecycleState.ToString();
 
     private bool IsConnectedToChannel =>
         Shared
@@ -70,6 +68,12 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
                 )
             );
 
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
+
     public async Task SendIip(ConnectionManager conMan)
     {
         if (!CanStart)
@@ -77,10 +81,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
 
         if (RuntimeService.CurrentChannelStarterService == null)
         {
-            SetLifecycleFault(
-                new InvalidOperationException("No channel service connected."),
-                refresh: true
-            );
+            SetLifecycleFault(new InvalidOperationException("No channel service connected."), true);
             return;
         }
 
@@ -124,7 +125,7 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         catch (Exception e)
         {
             Console.WriteLine($"T{Environment.CurrentManagedThreadId} IIP: Caught exception: " + e);
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFault(e, true);
         }
         finally
         {
@@ -138,28 +139,16 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore();
-        GC.SuppressFinalize(this);
-    }
-
     protected virtual async ValueTask DisposeAsyncCore()
     {
         Console.WriteLine("CapnpFbpIipModel::Disposing");
 
         await ResetExecution();
-        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
-            this,
-            Diagram,
-            this
-        );
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Diagram, this);
 
         foreach (var port in Ports)
-        {
             if (port is IAsyncDisposable asyncDisposable)
                 await asyncDisposable.DisposeAsync();
-        }
     }
 
     private async Task SendIipToPortAsync(
@@ -185,11 +174,9 @@ public class CapnpFbpIipComponentModel : NodeModel, IAsyncDisposable
         }
 
         if (iipLink.Writer == null)
-        {
             throw new InvalidOperationException(
                 $"IIP '{ComponentId ?? "unknown"}' could not connect to an output channel."
             );
-        }
 
         await iipLink.Writer.Write(
             new Channel<IP>.Msg

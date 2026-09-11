@@ -11,9 +11,7 @@ public class LinkInformationControl : Control
     {
         // We want the information to be under the node
         if (model is LinkModel link)
-        {
             return link.GetBounds()?.Center.Add(0, 10);
-        }
         return null;
     }
 }

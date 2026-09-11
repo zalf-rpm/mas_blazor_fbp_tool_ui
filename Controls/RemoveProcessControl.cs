@@ -1,14 +1,10 @@
-using System;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Controls;
-using Blazor.Diagrams.Core.Controls.Default;
 using Blazor.Diagrams.Core.Events;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.Positions;
-using BlazorDrawFBP.Models;
 
 namespace BlazorDrawFBP.Controls;
 
@@ -32,9 +28,7 @@ public class RemoveProcessControl : ExecutableControl
     public override async ValueTask OnPointerDown(Diagram diagram, Model model, PointerEventArgs _)
     {
         if (!await ShouldDeleteModel(diagram, model))
-        {
             return;
-        }
 
         await DeleteModel(diagram, model);
     }

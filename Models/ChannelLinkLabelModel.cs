@@ -1,13 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
-using BlazorDrawFBP.Models;
-using Mas.Schema.Fbp;
-using Mas.Schema.Management;
 
 namespace BlazorDrawFBP.Models;
 
@@ -17,6 +9,7 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public const int CompactInteractionCanvasHeight = 120;
     public const int ExpandedInteractionCanvasWidth = 320;
     public const int ExpandedInteractionCanvasHeight = 320;
+    private readonly CapnpFbpInPortModel _inPort;
 
     // public ChannelLinkLabelModel(
     //     RememberCapnpPortsLinkModel parent,
@@ -45,13 +38,18 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public bool ShowStats => ShowWidget;
     public bool IsExpanded { get; private set; }
     public bool IsResizingBuffer { get; private set; }
-    private readonly CapnpFbpInPortModel _inPort;
 
     public RememberCapnpPortsLinkModel LinkModel => (RememberCapnpPortsLinkModel)Parent;
     public ulong BufferSize => _inPort.ChannelBufferSize;
     public bool CanResizeBuffer => _inPort.Channel != null;
+
     public string ConnectionLabel =>
         $"{FormatPortLabel(LinkModel.OutPortModel)} -> {FormatPortLabel(LinkModel.InPortModel)}";
+
+    public void Dispose()
+    {
+        Console.WriteLine("ChannelLinkLabelModel::Dispose()");
+    }
 
     public void Expand()
     {
@@ -87,11 +85,6 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
         await ResizeBufferSizeAsync(nextSize);
     }
 
-    public void Dispose()
-    {
-        Console.WriteLine("ChannelLinkLabelModel::Dispose()");
-    }
-
     private async Task ResizeBufferSizeAsync(ulong size)
     {
         if (!CanResizeBuffer)
@@ -122,9 +115,13 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
         LinkModel.Refresh();
     }
 
-    private static string FormatPortLabel(CapnpFbpPortModel port) =>
-        $"{BlazorDrawFBP.Shared.Shared.NodeNameFromPort(port)}.{port.Name}";
+    private static string FormatPortLabel(CapnpFbpPortModel port)
+    {
+        return $"{Shared.Shared.NodeNameFromPort(port)}.{port.Name}";
+    }
 
-    private static ulong SaturatingAdd(ulong current, ulong delta) =>
-        delta > ulong.MaxValue - current ? ulong.MaxValue : current + delta;
+    private static ulong SaturatingAdd(ulong current, ulong delta)
+    {
+        return delta > ulong.MaxValue - current ? ulong.MaxValue : current + delta;
+    }
 }

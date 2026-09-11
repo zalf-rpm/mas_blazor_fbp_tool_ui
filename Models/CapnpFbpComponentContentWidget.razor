@@ -1,6 +1,3 @@
-@using Blazor.Diagrams.Components.Renderers;
-@using BlazorDrawFBP.Models;
-
 <MudPaper Elevation="4" Class="pa-1 rounded relative" Style="width: 200px;">
     <MudFab Class="absolute overflow-visible"
             Style="right: -20px; top: -20px; transform: scale(0.5);"
@@ -171,9 +168,9 @@
 </MudPaper>
 
 @code {
-    [Parameter, EditorRequired] public CapnpFbpComponentContentModel Node { get; set; } = null!;
+    [Parameter] [EditorRequired] public CapnpFbpComponentContentModel Node { get; set; } = null!;
 
-    bool _alreadyRemoved = false;
+    readonly bool _alreadyRemoved = false;
 
     private bool _linesOn;
     private bool ProcTopologyLocked => Node.ComponentModel.ProcCountAdjustmentLocked;

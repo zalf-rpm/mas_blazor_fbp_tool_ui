@@ -1,9 +1,7 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Services;
 
 public class FlowSession : IAsyncDisposable
 {
@@ -27,7 +25,18 @@ public class FlowSession : IAsyncDisposable
 
     public bool IsDetached => DetachedAt != null;
 
-    public void Touch() => LastAccessedAt = DateTime.UtcNow;
+    public async ValueTask DisposeAsync()
+    {
+        if (RuntimeService is IAsyncDisposable disposable)
+            await disposable.DisposeAsync();
+        else
+            await RuntimeService.ClearDiagramAsync();
+    }
+
+    public void Touch()
+    {
+        LastAccessedAt = DateTime.UtcNow;
+    }
 
     public void MarkAttached()
     {
@@ -58,29 +67,15 @@ public class FlowSession : IAsyncDisposable
     {
         var currentIndex = -1;
         for (var i = 0; i < SupportedTtls.Length; i++)
-        {
             if (SupportedTtls[i] == Ttl)
             {
                 currentIndex = i;
                 break;
             }
-        }
 
         var nextIndex = (currentIndex + 1) % SupportedTtls.Length;
         Ttl = SupportedTtls[nextIndex];
         Touch();
         return Ttl;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (RuntimeService is IAsyncDisposable disposable)
-        {
-            await disposable.DisposeAsync();
-        }
-        else
-        {
-            await RuntimeService.ClearDiagramAsync();
-        }
     }
 }

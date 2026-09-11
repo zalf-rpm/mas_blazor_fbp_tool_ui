@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -15,7 +12,7 @@ public static class CapnpFbpPortLayout
     public const double PortSpacingPaddingPx = 12d;
     public const double MinPortSpacingPx = PortSizePx + PortSpacingPaddingPx;
     public const double PortCornerClearancePx = 8d;
-    public const double PortCornerKeepOutPx = (PortSizePx / 2d) + PortCornerClearancePx;
+    public const double PortCornerKeepOutPx = PortSizePx / 2d + PortCornerClearancePx;
 
     private const double IntersectionTolerance = 0.001d;
     private const double ServiceBadgeLeftPx = 3d;
@@ -29,20 +26,6 @@ public static class CapnpFbpPortLayout
         "<Alignment>k__BackingField",
         BindingFlags.Instance | BindingFlags.NonPublic
     );
-
-    public readonly record struct PortPlacement(PortAlignment Alignment, double OffsetPx)
-    {
-        public string ToStyle()
-        {
-            var offset = OffsetPx.ToString("0.###", CultureInfo.InvariantCulture);
-            return Alignment switch
-            {
-                PortAlignment.Left or PortAlignment.Right => $"top: {offset}px;",
-                PortAlignment.Top or PortAlignment.Bottom => $"left: {offset}px;",
-                _ => string.Empty,
-            };
-        }
-    }
 
     public static IReadOnlyDictionary<string, PortPlacement> Calculate(NodeModel node)
     {
@@ -218,17 +201,15 @@ public static class CapnpFbpPortLayout
 
         var maxLinearOffset = Math.Max(0d, availableLength - MinPortSpacingPx);
         if (descriptors.Count == 1)
-        {
             return [Math.Clamp(descriptors[0].PreferredLinearOffset, 0d, maxLinearOffset)];
-        }
 
-        if ((descriptors.Count * MinPortSpacingPx) > availableLength + IntersectionTolerance)
+        if (descriptors.Count * MinPortSpacingPx > availableLength + IntersectionTolerance)
             return DistributeEvenly(descriptors.Count, maxLinearOffset);
 
-        var upperBound = Math.Max(0d, availableLength - (descriptors.Count * MinPortSpacingPx));
+        var upperBound = Math.Max(0d, availableLength - descriptors.Count * MinPortSpacingPx);
         var transformedOffsets = descriptors
             .Select(
-                (descriptor, index) => descriptor.PreferredLinearOffset - (index * MinPortSpacingPx)
+                (descriptor, index) => descriptor.PreferredLinearOffset - index * MinPortSpacingPx
             )
             .ToArray();
         var adjustedOffsets = RunIsotonicRegression(transformedOffsets);
@@ -237,7 +218,7 @@ public static class CapnpFbpPortLayout
         for (var i = 0; i < adjustedOffsets.Length; i++)
         {
             adjustedOffsets[i] = Math.Clamp(adjustedOffsets[i], 0d, upperBound);
-            positions[i] = adjustedOffsets[i] + (i * MinPortSpacingPx);
+            positions[i] = adjustedOffsets[i] + i * MinPortSpacingPx;
         }
 
         return positions;
@@ -257,9 +238,7 @@ public static class CapnpFbpPortLayout
 
         var step = maxLinearOffset / (count - 1);
         for (var i = 0; i < count; i++)
-        {
             positions[i] = step * i;
-        }
 
         return positions;
     }
@@ -287,8 +266,8 @@ public static class CapnpFbpPortLayout
                 var mergedWeight = weights[lastIndex - 1] + weights[lastIndex];
                 var mergedMean =
                     (
-                        (means[lastIndex - 1] * weights[lastIndex - 1])
-                        + (means[lastIndex] * weights[lastIndex])
+                        means[lastIndex - 1] * weights[lastIndex - 1]
+                        + means[lastIndex] * weights[lastIndex]
                     ) / mergedWeight;
 
                 ends[lastIndex - 1] = ends[lastIndex];
@@ -304,12 +283,8 @@ public static class CapnpFbpPortLayout
 
         var result = new double[values.Count];
         for (var blockIndex = 0; blockIndex < means.Count; blockIndex++)
-        {
-            for (var i = starts[blockIndex]; i <= ends[blockIndex]; i++)
-            {
-                result[i] = means[blockIndex];
-            }
-        }
+        for (var i = starts[blockIndex]; i <= ends[blockIndex]; i++)
+            result[i] = means[blockIndex];
 
         return result;
     }
@@ -343,7 +318,7 @@ public static class CapnpFbpPortLayout
                 continue;
 
             largestGap = gap;
-            cutOffset = Normalize(currentOffset + (gap / 2d), availableLength);
+            cutOffset = Normalize(currentOffset + gap / 2d, availableLength);
         }
 
         return cutOffset;
@@ -368,9 +343,7 @@ public static class CapnpFbpPortLayout
     private static void SynchronizeAlignment(CapnpFbpPortModel port, PortAlignment alignment)
     {
         if (AlignmentField != null && port.Alignment != alignment)
-        {
             AlignmentField.SetValue(port, alignment);
-        }
     }
 
     private static double[] CreateHomeOffsets(int count, double availableLength)
@@ -383,9 +356,7 @@ public static class CapnpFbpPortLayout
         var step = availableLength / count;
         var offsets = new double[count];
         for (var i = 0; i < count; i++)
-        {
             offsets[i] = (i + 0.5d) * step;
-        }
 
         return offsets;
     }
@@ -508,7 +479,7 @@ public static class CapnpFbpPortLayout
         if (t <= 0d)
             return;
 
-        var variableCoordinate = originCoordinate + (t * delta);
+        var variableCoordinate = originCoordinate + t * delta;
         if (
             variableCoordinate < min - IntersectionTolerance
             || variableCoordinate > max + IntersectionTolerance
@@ -562,7 +533,7 @@ public static class CapnpFbpPortLayout
             return nodeWidth + y;
         if (y >= nodeHeight - IntersectionTolerance)
             return nodeWidth + nodeHeight + (nodeWidth - x);
-        return (2d * nodeWidth) + nodeHeight + (nodeHeight - y);
+        return 2d * nodeWidth + nodeHeight + (nodeHeight - y);
     }
 
     private static Point CreatePortPosition(
@@ -601,16 +572,10 @@ public static class CapnpFbpPortLayout
     private static IEnumerable<NodeModel> GetConnectedNodes(CapnpFbpPortModel port)
     {
         foreach (var link in port.Links.OfType<RememberCapnpPortsLinkModel>())
-        {
             if (ReferenceEquals(link.OutPortModel, port))
-            {
                 yield return link.InPortModel.Parent;
-            }
             else if (ReferenceEquals(link.InPortModel, port))
-            {
                 yield return link.OutPortModel.Parent;
-            }
-        }
     }
 
     private static (double X, double Y) GetNodeCenter(NodeModel node)
@@ -619,7 +584,7 @@ public static class CapnpFbpPortLayout
         var height = GetLayoutNodeHeight(node);
         var x = node.Position?.X ?? 0d;
         var y = node.Position?.Y ?? 0d;
-        return (x + (width / 2d), y + (height / 2d));
+        return (x + width / 2d, y + height / 2d);
     }
 
     private static double GetLayoutNodeHeight(NodeModel node)
@@ -658,7 +623,7 @@ public static class CapnpFbpPortLayout
         var serviceName =
             component.RuntimeService.GetComponentServiceName(component.ComponentServiceId) ?? "";
         var badgeWidth = Math.Clamp(
-            ServiceBadgeBaseWidthPx + (serviceName.Length * ServiceBadgeCharacterWidthPx),
+            ServiceBadgeBaseWidthPx + serviceName.Length * ServiceBadgeCharacterWidthPx,
             ServiceBadgeMinWidthPx,
             nodeWidth * ServiceBadgeMaxWidthRatio
         );
@@ -689,18 +654,18 @@ public static class CapnpFbpPortLayout
         AddInterval(intervals, nodeWidth + nodeHeight, nodeWidth + nodeHeight + horizontalKeepOut);
         AddInterval(
             intervals,
-            (2d * nodeWidth) + nodeHeight - horizontalKeepOut,
-            (2d * nodeWidth) + nodeHeight
+            2d * nodeWidth + nodeHeight - horizontalKeepOut,
+            2d * nodeWidth + nodeHeight
         );
 
         AddInterval(
             intervals,
-            (2d * nodeWidth) + nodeHeight,
-            (2d * nodeWidth) + nodeHeight + verticalKeepOut
+            2d * nodeWidth + nodeHeight,
+            2d * nodeWidth + nodeHeight + verticalKeepOut
         );
         AddInterval(
             intervals,
-            (2d * (nodeWidth + nodeHeight)) - verticalKeepOut,
+            2d * (nodeWidth + nodeHeight) - verticalKeepOut,
             2d * (nodeWidth + nodeHeight)
         );
     }
@@ -726,6 +691,20 @@ public static class CapnpFbpPortLayout
         return normalizedOffset < 0d ? normalizedOffset + length : normalizedOffset;
     }
 
+    public readonly record struct PortPlacement(PortAlignment Alignment, double OffsetPx)
+    {
+        public string ToStyle()
+        {
+            var offset = OffsetPx.ToString("0.###", CultureInfo.InvariantCulture);
+            return Alignment switch
+            {
+                PortAlignment.Left or PortAlignment.Right => $"top: {offset}px;",
+                PortAlignment.Top or PortAlignment.Bottom => $"left: {offset}px;",
+                _ => string.Empty,
+            };
+        }
+    }
+
     private sealed record PortDescriptor(
         CapnpFbpPortModel Port,
         double HomeAvailableOffset,
@@ -742,7 +721,10 @@ public static class CapnpFbpPortLayout
     {
         public double Length => Math.Max(0d, End - Start);
 
-        public bool Contains(double offset) => offset >= Start && offset <= End;
+        public bool Contains(double offset)
+        {
+            return offset >= Start && offset <= End;
+        }
     }
 
     private sealed class PerimeterSpace(
@@ -787,10 +769,8 @@ public static class CapnpFbpPortLayout
 
             var physicalOffset = Normalize(availableOffset, AvailableLength);
             foreach (var interval in _intervals)
-            {
                 if (physicalOffset >= interval.Start)
                     physicalOffset += interval.Length;
-            }
 
             return Normalize(physicalOffset, PhysicalLength);
         }
@@ -799,10 +779,8 @@ public static class CapnpFbpPortLayout
         {
             var removedLength = 0d;
             foreach (var interval in _intervals)
-            {
                 if (physicalOffset >= interval.End)
                     removedLength += interval.Length;
-            }
 
             return physicalOffset - removedLength;
         }

@@ -1,15 +1,17 @@
 @inherits LayoutComponentBase
-@inject BlazorDrawFBP.Services.IAppThemeService ThemeService
+@inject IAppThemeService ThemeService
+@using BlazorDrawFBP.Services
 @implements IDisposable
 
-<MudThemeProvider Theme="_appTheme" IsDarkMode="@ThemeService.IsDarkMode" />
-<MudPopoverProvider />
-<MudDialogProvider CloseButton="true" CloseOnEscapeKey="true" />
-<MudSnackbarProvider />
+<MudThemeProvider Theme="_appTheme" IsDarkMode="@ThemeService.IsDarkMode"/>
+<MudPopoverProvider/>
+<MudDialogProvider CloseButton="true" CloseOnEscapeKey="true"/>
+<MudSnackbarProvider/>
 
 @Body
 
 @code {
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -22,7 +24,10 @@
         }
     }
 
-    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+    private void OnThemeChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     public void Dispose()
     {
@@ -55,14 +60,14 @@
     private readonly MudTheme _appTheme = new()
     {
         Typography = AppTypography,
-        PaletteLight = new PaletteLight()
+        PaletteLight = new PaletteLight
         {
             Black = "#272c34",
             Primary = "#4da950",
             Secondary = "#357537",
             AppbarBackground = "#4da950"
         },
-        PaletteDark = new PaletteDark()
+        PaletteDark = new PaletteDark
         {
             Black = "#27272f",
             Background = "#32333d",
@@ -81,4 +86,5 @@
             Secondary = "#4da950"
         }
     };
+
 }

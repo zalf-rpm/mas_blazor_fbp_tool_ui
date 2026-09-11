@@ -1,17 +1,17 @@
-namespace BlazorDrawFBP.Tests;
-
 using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class RememberCapnpPortsLinkModelTests
 {
+    private CapnpFbpInPortModel _inPort = null!;
+    private CapnpFbpOutPortModel _outPort = null!;
     private CapnpFbpRunnableComponentModel _sourceNode = null!;
     private CapnpFbpRunnableComponentModel _targetNode = null!;
-    private CapnpFbpOutPortModel _outPort = null!;
-    private CapnpFbpInPortModel _inPort = null!;
 
     [TestInitialize]
     public void Setup()

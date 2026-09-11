@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Services;
 using Capnp;
 using Capnp.Rpc;
@@ -39,12 +33,17 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
 
     public ComponentLifecycleState LifecycleState { get; private set; } =
         ComponentLifecycleState.Idle;
+
     public string? LifecycleError { get; private set; }
+
     public bool CanStart =>
         LifecycleState is ComponentLifecycleState.Idle or ComponentLifecycleState.Failed;
+
     public bool CanStop => LifecycleState == ComponentLifecycleState.Running;
+
     public bool IsLifecycleBusy =>
         LifecycleState is ComponentLifecycleState.Starting or ComponentLifecycleState.Stopping;
+
     public string LifecycleLabel => LifecycleState.ToString();
 
     public bool ProcessStarted { get; protected set; }
@@ -54,12 +53,6 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
     public int DisplayHeightPx { get; set; } = 132;
 
     public bool AppendMode { get; set; } = true;
-
-    public void ResetViewContent()
-    {
-        _viewContent = new MarkupString();
-        Refresh();
-    }
 
     public MarkupString ViewContent
     {
@@ -74,14 +67,23 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 : value;
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
+
+    public void ResetViewContent()
+    {
+        _viewContent = new MarkupString();
+        Refresh();
+    }
+
     public async Task StartProcess(ConnectionManager conMan)
     {
         if (RuntimeService.CurrentChannelStarterService == null)
         {
-            SetLifecycleFault(
-                new InvalidOperationException("No channel service connected."),
-                refresh: true
-            );
+            SetLifecycleFault(new InvalidOperationException("No channel service connected."), true);
             return;
         }
 
@@ -114,9 +116,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                         OutPortModel: { } outPort
                     } rcplm
                 )
-                {
                     continue;
-                }
 
                 // deal with IN port
                 // the IN port (link) is not associated with a channel yet -> create channel
@@ -136,9 +136,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 }
 
                 if (inPort.Parent == this && inPort.Reader != null)
-                {
                     reader = Proxy.Share(inPort.Reader);
-                }
 
                 CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
@@ -163,7 +161,6 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                     );
                     var leave = false;
                     while (!leave && reader != null)
-                    {
                         try
                         {
                             Console.WriteLine(
@@ -258,10 +255,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                             Console.WriteLine(
                                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: view receive loop faulted: {ex}"
                             );
-                            SetLifecycleFault(ex, refresh: true);
+                            SetLifecycleFault(ex, true);
                             leave = true;
                         }
-                    }
 
                     reader?.Dispose();
                     Console.WriteLine(
@@ -286,7 +282,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFault(e, true);
         }
     }
 
@@ -307,7 +303,7 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
                 $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::StartProcess: Caught exception: "
                     + e
             );
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFault(e, true);
         }
     }
 
@@ -317,19 +313,9 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
         SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore();
-        GC.SuppressFinalize(this);
-    }
-
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(
-            this,
-            Diagram,
-            this
-        );
+        await Shared.Shared.RestoreDefaultPortVisibilityOfAttachedComponent(this, Diagram, this);
         await FreeRemoteChannelsAttachedToPorts();
         await ResetExecution();
     }
@@ -340,10 +326,8 @@ public class CapnpFbpViewComponentModel : NodeModel, IAsyncDisposable
             $"T{Environment.CurrentManagedThreadId} {ProcessName}: CapnpFbpViewComponentModel::FreeRemoteChannelsAttachedToPorts"
         );
         foreach (var port in Ports)
-        {
             if (port is IAsyncDisposable asyncDisposable)
                 await asyncDisposable.DisposeAsync();
-        }
     }
 
     private async Task CancelAndDisposeViewTasks()

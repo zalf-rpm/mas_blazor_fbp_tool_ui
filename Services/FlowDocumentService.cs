@@ -1,11 +1,4 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -14,6 +7,8 @@ using BlazorDrawFBP.Models;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Services;
 
 public class FlowDocumentService : IFlowDocumentService
 {
@@ -28,15 +23,21 @@ public class FlowDocumentService : IFlowDocumentService
         _nodeFactory = nodeFactory;
     }
 
-    public async Task<JObject> ExportFlowJsonAsync(BlazorDiagram diagram, IFbpRuntimeService runtime)
+    public async Task<JObject> ExportFlowJsonAsync(
+        BlazorDiagram diagram,
+        IFbpRuntimeService runtime
+    )
     {
-        var (json, _) = await ExportFlowDocumentAsync(diagram, runtime, asMermaid: false);
+        var (json, _) = await ExportFlowDocumentAsync(diagram, runtime, false);
         return json ?? new JObject();
     }
 
-    public async Task<string> ExportFlowMermaidAsync(BlazorDiagram diagram, IFbpRuntimeService runtime)
+    public async Task<string> ExportFlowMermaidAsync(
+        BlazorDiagram diagram,
+        IFbpRuntimeService runtime
+    )
     {
-        var (_, mermaid) = await ExportFlowDocumentAsync(diagram, runtime, asMermaid: true);
+        var (_, mermaid) = await ExportFlowDocumentAsync(diagram, runtime, true);
         return mermaid ?? string.Empty;
     }
 
@@ -69,16 +70,16 @@ public class FlowDocumentService : IFlowDocumentService
 
             var channelsObj = new JObject();
             foreach (var p in runtime.ServiceId2ChannelStarterServices)
-            {
-                if (runtime.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var cInfo) && !string.IsNullOrEmpty(cInfo.Item2))
-                {
+                if (
+                    runtime.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var cInfo)
+                    && !string.IsNullOrEmpty(cInfo.Item2)
+                )
                     channelsObj[p.Key] = cInfo.Item2;
-                }
-            }
+
             servicesObj["channels"] = channelsObj;
 
-            var usedComponentServiceIds = diagram.Nodes
-                .OfType<CapnpFbpComponentModel>()
+            var usedComponentServiceIds = diagram
+                .Nodes.OfType<CapnpFbpComponentModel>()
                 .Select(n => n.ComponentServiceId)
                 .Where(id => !string.IsNullOrEmpty(id) && id != NoRegistryServiceId)
                 .ToHashSet();
@@ -92,11 +93,13 @@ public class FlowDocumentService : IFlowDocumentService
                 if (usedComponentServiceIds.Count > 0 && !usedComponentServiceIds.Contains(p.Key))
                     continue;
 
-                if (runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var rInfo) && !string.IsNullOrEmpty(rInfo.Item2))
-                {
+                if (
+                    runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(p.Key, out var rInfo)
+                    && !string.IsNullOrEmpty(rInfo.Item2)
+                )
                     componentsObj[p.Key] = rInfo.Item2;
-                }
             }
+
             servicesObj["components"] = componentsObj;
         }
 
@@ -153,7 +156,10 @@ public class FlowDocumentService : IFlowDocumentService
             return shortIipId;
         }
 
-        static string MermaidEscapeQuotes(string str) => str.Replace("\"", "&quot;");
+        static string MermaidEscapeQuotes(string str)
+        {
+            return str.Replace("\"", "&quot;");
+        }
 
         static string CreateMermaidId(string id)
         {
@@ -271,6 +277,7 @@ public class FlowDocumentService : IFlowDocumentService
                                 defaultConfig = JObject.Parse(fbpNode.DefaultConfigString);
                             }
                             catch (Exception) { }
+
                             jn.Add(
                                 "component",
                                 new JObject
@@ -379,12 +386,10 @@ public class FlowDocumentService : IFlowDocumentService
                     || pl is not RememberCapnpPortsLinkModel rcplm
                     || !persistedLinks.Contains(rcplm)
                 )
-                {
                     continue;
-                }
 
-                var outCapnpPort = rcplm.OutPortModel as CapnpFbpOutPortModel;
-                var inCapnpPort = rcplm.InPortModel as CapnpFbpInPortModel;
+                var outCapnpPort = rcplm.OutPortModel;
+                var inCapnpPort = rcplm.InPortModel;
 
                 switch (outCapnpPort)
                 {
@@ -536,7 +541,8 @@ public class FlowDocumentService : IFlowDocumentService
                         break;
                     }
                     case { Parent: CapnpFbpComponentModel outCapnpModel2 }
-                        when inCapnpPort is { Parent: CapnpFbpViewComponentModel inViewCapnpModel2 }:
+                        when inCapnpPort
+                            is { Parent: CapnpFbpViewComponentModel inViewCapnpModel2 }:
                     {
                         var outNodeId = ShortProcId(outCapnpModel2.Id, outCapnpModel2.ProcessName);
                         var inNodeId = inViewCapnpModel2.Id;
@@ -604,58 +610,58 @@ public class FlowDocumentService : IFlowDocumentService
         await runtime.CheckConnectedServicesHealthAsync();
 
         if (dia["services"]?["channels"] is JObject channelsObj)
-        {
             foreach (var prop in channelsObj.Properties())
             {
                 var sturdyRef = prop.Value?.ToString();
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isConnected = runtime.ChannelServiceIdToPetNameAndSturdyRef
-                    .Any(entry => entry.Value.Item2 == sturdyRef && runtime.ServiceId2ChannelStarterServices.ContainsKey(entry.Key));
+                var isConnected = runtime.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
+                    entry.Value.Item2 == sturdyRef
+                    && runtime.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
+                );
 
                 if (!isConnected)
                 {
-                    var chan = await runtime.ConnectToStartChannelsServiceAsync(prop.Name, sturdyRef);
+                    var chan = await runtime.ConnectToStartChannelsServiceAsync(
+                        prop.Name,
+                        sturdyRef
+                    );
                     if (chan == null)
-                    {
                         runtime.NotifyServiceConnectionDropped(
                             "Channel starter service",
                             prop.Name,
                             prop.Name,
                             sturdyRef
                         );
-                    }
                 }
             }
-        }
 
         if (dia["services"]?["components"] is JObject componentsObj)
-        {
             foreach (var prop in componentsObj.Properties())
             {
                 var sturdyRef = prop.Value?.ToString();
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isConnected = runtime.RegistryServiceIdToPetNameAndSturdyRef
-                    .Any(entry => entry.Key != NoRegistryServiceId && entry.Value.Item2 == sturdyRef && runtime.ServiceId2Registries.ContainsKey(entry.Key));
+                var isConnected = runtime.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
+                    entry.Key != NoRegistryServiceId
+                    && entry.Value.Item2 == sturdyRef
+                    && runtime.ServiceId2Registries.ContainsKey(entry.Key)
+                );
 
                 if (!isConnected)
                 {
                     var reg = await runtime.ConnectToRegistryServiceAsync(prop.Name, sturdyRef);
                     if (reg == null)
-                    {
                         runtime.NotifyServiceConnectionDropped(
                             "Component registry service",
                             prop.Name,
                             prop.Name,
                             sturdyRef
                         );
-                    }
                 }
             }
-        }
 
         await runtime.CheckConnectedServicesHealthAsync();
 
@@ -704,10 +710,13 @@ public class FlowDocumentService : IFlowDocumentService
                 }
 
                 if (component == null)
-                {
                     component = nodeObj.ContainsKey("content")
-                        ? runtime.ServiceIdAndComponentId2Component.GetValueOrDefault((NoRegistryServiceId, "iip"))
-                        : runtime.ServiceIdAndComponentId2Component.GetValueOrDefault((NoRegistryServiceId, "empty_component"))
+                        ? runtime.ServiceIdAndComponentId2Component.GetValueOrDefault(
+                            (NoRegistryServiceId, "iip")
+                        )
+                        : runtime.ServiceIdAndComponentId2Component.GetValueOrDefault(
+                            (NoRegistryServiceId, "empty_component")
+                        )
                             ?? new Component
                             {
                                 Info = new IdInformation { Id = compId, Name = compId },
@@ -715,7 +724,6 @@ public class FlowDocumentService : IFlowDocumentService
                                 InPorts = [new Component.Port { Name = "in", ContentType = "?" }],
                                 OutPorts = [new Component.Port { Name = "out", ContentType = "?" }],
                             };
-                }
 
                 if (component != null)
                 {
@@ -728,7 +736,8 @@ public class FlowDocumentService : IFlowDocumentService
                         cmd,
                         onNodeLayoutChanged
                     );
-                    var oldNodeId = nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "";
+                    var oldNodeId =
+                        nodeObj["nodeId"]?.ToString() ?? nodeObj["node_id"]?.ToString() ?? "";
                     oldNodeIdToNewNode[oldNodeId] = diaNode;
                 }
             }
@@ -753,9 +762,7 @@ public class FlowDocumentService : IFlowDocumentService
                         out var targetNode
                     )
                 )
-                {
                     continue;
-                }
 
                 if (
                     sourceNode == null
@@ -784,9 +791,7 @@ public class FlowDocumentService : IFlowDocumentService
                     p is CapnpFbpInPortModel { ThePortType: CapnpFbpPortModel.PortType.In }
                 );
                 if (sourcePort == null && sourceNode is CapnpFbpIipComponentModel)
-                {
                     sourcePort = sourceNode.Ports.OfType<CapnpFbpOutPortModel>().FirstOrDefault();
-                }
                 if (sourcePort == null && sourceNode is CapnpFbpComponentModel sn)
                     sourcePort = AddPortControl.CreateAndAddPort(
                         sn,
@@ -803,13 +808,9 @@ public class FlowDocumentService : IFlowDocumentService
                     );
 
                 if (sourcePort is CapnpFbpOutPortModel scp)
-                {
                     scp.SyncVisibility();
-                }
                 else
-                {
                     continue;
-                }
                 if (targetPort is CapnpFbpInPortModel tcp)
                 {
                     tcp.SyncVisibility();
@@ -817,7 +818,7 @@ public class FlowDocumentService : IFlowDocumentService
                         link["bufferSize"]?.Value<ulong>()
                             ?? link["buffer_size"]?.Value<ulong>()
                             ?? tcp.ChannelBufferSize,
-                        refreshLinks: false
+                        false
                     );
                 }
                 else
@@ -837,15 +838,15 @@ public class FlowDocumentService : IFlowDocumentService
             diagram.SuspendRefresh = false;
         }
 
-        await FbpLayoutHelper.SyncProcStructureAsync(diagram.Nodes.OfType<CapnpFbpComponentModel>());
+        await FbpLayoutHelper.SyncProcStructureAsync(
+            diagram.Nodes.OfType<CapnpFbpComponentModel>()
+        );
         diagram.Refresh();
         if (onZoomToFit != null)
-        {
             try
             {
                 await onZoomToFit();
             }
             catch (Exception) { }
-        }
     }
 }

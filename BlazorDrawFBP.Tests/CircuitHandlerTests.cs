@@ -1,9 +1,6 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Threading;
-using System.Threading.Tasks;
 using BlazorDrawFBP.Services;
-using Microsoft.AspNetCore.Components.Server.Circuits;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class CircuitHandlerTests

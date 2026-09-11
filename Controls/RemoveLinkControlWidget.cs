@@ -1,4 +1,3 @@
-using Blazor.Diagrams.Core.Controls.Default;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Models;
 using Microsoft.AspNetCore.Components;
@@ -8,6 +7,12 @@ namespace BlazorDrawFBP.Controls;
 
 public class RemoveLinkControlWidget : ComponentBase
 {
+    [Parameter]
+    public RemoveLinkControl Control { get; set; } = null!;
+
+    [Parameter]
+    public Model Model { get; set; } = null!;
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Model is SvgNodeModel)
@@ -27,10 +32,4 @@ public class RemoveLinkControlWidget : ComponentBase
             );
         }
     }
-
-    [Parameter]
-    public RemoveLinkControl Control { get; set; } = null!;
-
-    [Parameter]
-    public Model Model { get; set; } = null!;
 }

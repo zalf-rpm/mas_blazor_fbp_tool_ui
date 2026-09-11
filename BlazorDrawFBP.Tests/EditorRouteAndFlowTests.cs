@@ -1,13 +1,15 @@
-namespace BlazorDrawFBP.Tests;
-
-using System;
-using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
+using Blazor.Diagrams;
+using BlazorDrawFBP.Components.Editor;
+using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Pages;
+using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
+using Mas.Infrastructure.BlazorComponents;
 using Microsoft.AspNetCore.Components;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class EditorRouteAndFlowTests
@@ -16,23 +18,36 @@ public class EditorRouteAndFlowTests
     public void EditorRoutes_ContainRootAndFlowIdRoutes()
     {
         var routes = typeof(Editor)
-            .GetCustomAttributes(typeof(RouteAttribute), inherit: false)
+            .GetCustomAttributes(typeof(RouteAttribute), false)
             .Cast<RouteAttribute>()
             .Select(r => r.Template)
             .ToHashSet();
 
         Assert.IsTrue(routes.Contains("/"), "Route '/' is missing.");
         Assert.IsTrue(routes.Contains("/editor"), "Route '/editor' is missing.");
-        Assert.IsTrue(routes.Contains("/flow/{FlowId:guid}"), "Route '/flow/{FlowId:guid}' is missing.");
-        Assert.IsTrue(routes.Contains("/editor/{FlowId:guid}"), "Route '/editor/{FlowId:guid}' is missing.");
+        Assert.IsTrue(
+            routes.Contains("/flow/{FlowId:guid}"),
+            "Route '/flow/{FlowId:guid}' is missing."
+        );
+        Assert.IsTrue(
+            routes.Contains("/editor/{FlowId:guid}"),
+            "Route '/editor/{FlowId:guid}' is missing."
+        );
     }
 
     [TestMethod]
     public void Editor_HasFlowIdParameterProperty()
     {
-        var prop = typeof(Editor).GetProperty("FlowId", BindingFlags.Public | BindingFlags.Instance);
+        var prop = typeof(Editor).GetProperty(
+            "FlowId",
+            BindingFlags.Public | BindingFlags.Instance
+        );
         Assert.IsNotNull(prop, "Property 'FlowId' must exist on Editor.");
-        Assert.AreEqual(typeof(Guid?), prop.PropertyType, "Property 'FlowId' must be of type Guid?.");
+        Assert.AreEqual(
+            typeof(Guid?),
+            prop.PropertyType,
+            "Property 'FlowId' must be of type Guid?."
+        );
 
         var paramAttr = prop.GetCustomAttribute<ParameterAttribute>();
         Assert.IsNotNull(paramAttr, "Property 'FlowId' must be decorated with [Parameter].");
@@ -46,7 +61,10 @@ public class EditorRouteAndFlowTests
             BindingFlags.Public | BindingFlags.Instance,
             Type.EmptyTypes
         );
-        Assert.IsNotNull(exportJsonMethod, "Public method 'ExportFlowJsonAsync()' must exist on Editor.");
+        Assert.IsNotNull(
+            exportJsonMethod,
+            "Public method 'ExportFlowJsonAsync()' must exist on Editor."
+        );
         Assert.AreEqual(typeof(Task<JObject>), exportJsonMethod.ReturnType);
 
         var exportMermaidMethod = typeof(Editor).GetMethod(
@@ -54,7 +72,10 @@ public class EditorRouteAndFlowTests
             BindingFlags.Public | BindingFlags.Instance,
             Type.EmptyTypes
         );
-        Assert.IsNotNull(exportMermaidMethod, "Public method 'ExportFlowMermaidAsync()' must exist on Editor.");
+        Assert.IsNotNull(
+            exportMermaidMethod,
+            "Public method 'ExportFlowMermaidAsync()' must exist on Editor."
+        );
         Assert.AreEqual(typeof(Task<string>), exportMermaidMethod.ReturnType);
 
         var loadJsonMethod = typeof(Editor).GetMethod(
@@ -62,7 +83,10 @@ public class EditorRouteAndFlowTests
             BindingFlags.Public | BindingFlags.Instance,
             new[] { typeof(JObject) }
         );
-        Assert.IsNotNull(loadJsonMethod, "Public method 'LoadFlowFromJsonAsync(JObject)' must exist on Editor.");
+        Assert.IsNotNull(
+            loadJsonMethod,
+            "Public method 'LoadFlowFromJsonAsync(JObject)' must exist on Editor."
+        );
         Assert.AreEqual(typeof(Task), loadJsonMethod.ReturnType);
     }
 
@@ -100,7 +124,10 @@ public class EditorRouteAndFlowTests
             BindingFlags.Public | BindingFlags.Instance,
             Type.EmptyTypes
         );
-        Assert.IsNotNull(terminateSession, "Method 'TerminateFlowSessionAsync()' must exist on Editor.");
+        Assert.IsNotNull(
+            terminateSession,
+            "Method 'TerminateFlowSessionAsync()' must exist on Editor."
+        );
         Assert.AreEqual(typeof(Task), terminateSession.ReturnType);
 
         var cycleTtl = typeof(Editor).GetMethod(
@@ -122,57 +149,78 @@ public class EditorRouteAndFlowTests
     public void Editor_CreateConfiguredDiagram_InitializesWithoutNullReference()
     {
         var editor = new Editor();
-        var fakeRuntime = new BlazorDrawFBP.Tests.TestDoubles.FakeFbpRuntimeService();
+        var fakeRuntime = new FakeFbpRuntimeService();
 
         var method = typeof(Editor).GetMethod(
             "CreateConfiguredDiagram",
             BindingFlags.NonPublic | BindingFlags.Instance,
-            new[] { typeof(BlazorDrawFBP.Services.IFbpRuntimeService) }
+            new[] { typeof(IFbpRuntimeService) }
         );
         Assert.IsNotNull(method, "Method 'CreateConfiguredDiagram' must exist.");
 
-        var diagram = method.Invoke(editor, new object[] { fakeRuntime }) as Blazor.Diagrams.BlazorDiagram;
-        Assert.IsNotNull(diagram, "CreateConfiguredDiagram should return a BlazorDiagram instance.");
-        Assert.IsNotNull(editor.Diagram, "Editor.Diagram property should be set after CreateConfiguredDiagram.");
-        Assert.AreSame(diagram, fakeRuntime.Diagram, "RuntimeService.Diagram should match created diagram.");
+        var diagram = method.Invoke(editor, new object[] { fakeRuntime }) as BlazorDiagram;
+        Assert.IsNotNull(
+            diagram,
+            "CreateConfiguredDiagram should return a BlazorDiagram instance."
+        );
+        Assert.IsNotNull(
+            editor.Diagram,
+            "Editor.Diagram property should be set after CreateConfiguredDiagram."
+        );
+        Assert.AreSame(
+            diagram,
+            fakeRuntime.Diagram,
+            "RuntimeService.Diagram should match created diagram."
+        );
     }
 
     [TestMethod]
     public async Task Editor_MergeFlowServicesIntoLocalStorage_ImportsAliveAndSkipsDeadOrDuplicate()
     {
         var editor = new Editor();
-        var fakeStorage = new BlazorDrawFBP.Tests.TestDoubles.FakeLocalStorageService();
-        var fakeRuntime = new BlazorDrawFBP.Tests.TestDoubles.FakeFbpRuntimeService();
+        var fakeStorage = new FakeLocalStorageService();
+        var fakeRuntime = new FakeFbpRuntimeService();
 
-        typeof(Editor).GetProperty("LocalStorage", BindingFlags.NonPublic | BindingFlags.Instance)!
+        typeof(Editor)
+            .GetProperty("LocalStorage", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(editor, fakeStorage);
-        typeof(Editor).GetProperty("InjectedRuntimeService", BindingFlags.NonPublic | BindingFlags.Instance)!
+        typeof(Editor)
+            .GetProperty("InjectedRuntimeService", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(editor, fakeRuntime);
 
         // Pre-populate storage with an existing bookmark for an alive registry
-        var existingBookmarks = new List<Mas.Infrastructure.BlazorComponents.StoredSrData>
+        var existingBookmarks = new List<StoredSrData>
         {
             new()
             {
-                InterfaceId = BlazorDrawFBP.Shared.Shared.RegistryInterfaceId,
+                InterfaceId = Shared.Shared.RegistryInterfaceId,
                 PetName = "My Custom Existing PetName",
                 SturdyRef = "capnp://alive-reg",
                 AutoConnect = false,
-            }
+            },
         };
-        await fakeStorage.SetItemAsync(Mas.Infrastructure.BlazorComponents.StoredSrData.StorageKey, existingBookmarks);
+        await fakeStorage.SetItemAsync(StoredSrData.StorageKey, existingBookmarks);
 
         // Configure runtime services:
         // 1. "alive-reg" is alive & connected
         fakeRuntime.ServiceId2Registries["alive-reg"] = null!;
-        fakeRuntime.RegistryServiceIdToPetNameAndSturdyRef["alive-reg"] = ("Alive Registry", "capnp://alive-reg");
+        fakeRuntime.RegistryServiceIdToPetNameAndSturdyRef["alive-reg"] = (
+            "Alive Registry",
+            "capnp://alive-reg"
+        );
 
         // 2. "dead-reg" is NOT in ServiceId2Registries (dead)
-        fakeRuntime.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("Service 'dead..reg' unavailable!", null);
+        fakeRuntime.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = (
+            "Service 'dead..reg' unavailable!",
+            null
+        );
 
         // 3. "alive-chan" is alive & connected
         fakeRuntime.ServiceId2ChannelStarterServices["alive-chan"] = null!;
-        fakeRuntime.ChannelServiceIdToPetNameAndSturdyRef["alive-chan"] = ("Alive Channel Starter", "capnp://alive-chan");
+        fakeRuntime.ChannelServiceIdToPetNameAndSturdyRef["alive-chan"] = (
+            "Alive Channel Starter",
+            "capnp://alive-chan"
+        );
 
         // Flow JSON contains all three services
         var flowDoc = new JObject
@@ -186,26 +234,27 @@ public class EditorRouteAndFlowTests
                         new JObject
                         {
                             { "alive-reg", "capnp://alive-reg" },
-                            { "dead-reg", "capnp://dead-reg" }
+                            { "dead-reg", "capnp://dead-reg" },
                         }
                     },
                     {
                         "channels",
-                        new JObject
-                        {
-                            { "alive-chan", "capnp://alive-chan" }
-                        }
-                    }
+                        new JObject { { "alive-chan", "capnp://alive-chan" } }
+                    },
                 }
-            }
+            },
         };
 
         var addedCount = await editor.MergeFlowServicesIntoLocalStorageAsync(flowDoc);
 
         Assert.AreEqual(1, addedCount, "Only alive-chan should be newly imported.");
 
-        var savedBookmarks = await Mas.Infrastructure.BlazorComponents.StoredSrData.GetAllData(fakeStorage);
-        Assert.AreEqual(2, savedBookmarks.Count, "Should contain existing alive-reg plus newly imported alive-chan.");
+        var savedBookmarks = await StoredSrData.GetAllData(fakeStorage);
+        Assert.AreEqual(
+            2,
+            savedBookmarks.Count,
+            "Should contain existing alive-reg plus newly imported alive-chan."
+        );
 
         // Existing bookmark should have preserved its custom PetName and settings
         var existing = savedBookmarks.FirstOrDefault(b => b.SturdyRef == "capnp://alive-reg");
@@ -216,7 +265,7 @@ public class EditorRouteAndFlowTests
         // Newly imported bookmark should have AutoConnect = true
         var importedChan = savedBookmarks.FirstOrDefault(b => b.SturdyRef == "capnp://alive-chan");
         Assert.IsNotNull(importedChan);
-        Assert.AreEqual(BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId, importedChan.InterfaceId);
+        Assert.AreEqual(Shared.Shared.ChannelStarterInterfaceId, importedChan.InterfaceId);
         Assert.AreEqual("Alive Channel Starter", importedChan.PetName);
         Assert.IsTrue(importedChan.AutoConnect);
 
@@ -229,7 +278,8 @@ public class EditorRouteAndFlowTests
     {
         var editor = new Editor();
         var fakeRuntime = new FakeFbpRuntimeService();
-        typeof(Editor).GetProperty("InjectedRuntimeService", BindingFlags.NonPublic | BindingFlags.Instance)!
+        typeof(Editor)
+            .GetProperty("InjectedRuntimeService", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(editor, fakeRuntime);
 
         // Initially no active execution
@@ -252,24 +302,23 @@ public class EditorRouteAndFlowTests
     public void Components_HaveEditorRequiredAttributes_OnEssentialParameters()
     {
         // 1. FlowCanvasControls
-        var canvasProps = typeof(BlazorDrawFBP.Components.Editor.FlowCanvasControls).GetProperties();
+        var canvasProps = typeof(FlowCanvasControls).GetProperties();
         var canvasExecuteFlow = canvasProps.First(p => p.Name == "OnExecuteFlow");
         Assert.IsNotNull(canvasExecuteFlow.GetCustomAttribute<EditorRequiredAttribute>());
 
         // 2. FlowToolbar
-        var toolbarProps = typeof(BlazorDrawFBP.Components.Editor.FlowToolbar).GetProperties();
+        var toolbarProps = typeof(FlowToolbar).GetProperties();
         var toolbarNewFlow = toolbarProps.First(p => p.Name == "OnCreateNewFlow");
         Assert.IsNotNull(toolbarNewFlow.GetCustomAttribute<EditorRequiredAttribute>());
 
         // 3. CapnpFbpComponentWidget
-        var widgetProps = typeof(BlazorDrawFBP.Models.CapnpFbpComponentWidget).GetProperties();
+        var widgetProps = typeof(CapnpFbpComponentWidget).GetProperties();
         var nodeProp = widgetProps.First(p => p.Name == "Node");
         Assert.IsNotNull(nodeProp.GetCustomAttribute<EditorRequiredAttribute>());
 
         // 4. ComponentPalette
-        var paletteProps = typeof(BlazorDrawFBP.Components.Editor.ComponentPalette).GetProperties();
+        var paletteProps = typeof(ComponentPalette).GetProperties();
         var dragEndProp = paletteProps.First(p => p.Name == "OnComponentDragEnd");
         Assert.IsNotNull(dragEndProp.GetCustomAttribute<EditorRequiredAttribute>());
     }
 }
-

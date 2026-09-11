@@ -1,23 +1,16 @@
 using Blazor.Diagrams.Core;
-using Blazor.Diagrams.Core.Behaviors;
-using BlazorDrawFBP.Models;
-
-namespace BlazorDrawFBP.Behaviors;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Events;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
+using BlazorDrawFBP.Models;
+
+namespace BlazorDrawFBP.Behaviors;
 
 public class FbpDragNewLinkBehavior : Behavior
 {
     private PositionAnchor? _targetPositionAnchor;
-
-    public BaseLinkModel? OngoingLink { get; private set; }
 
     public FbpDragNewLinkBehavior(Diagram diagram)
         : base(diagram)
@@ -26,6 +19,8 @@ public class FbpDragNewLinkBehavior : Behavior
         Diagram.PointerMove += OnPointerMove;
         Diagram.PointerUp += OnPointerUp;
     }
+
+    public BaseLinkModel? OngoingLink { get; private set; }
 
     public void StartFrom(ILinkable source, double clientX, double clientY)
     {
@@ -76,14 +71,13 @@ public class FbpDragNewLinkBehavior : Behavior
         {
             var nearPortToAttachTo = FindNearPortToAttachTo();
             if (nearPortToAttachTo != null || OngoingLink.Target is not PositionAnchor)
-            {
                 OngoingLink.SetTarget(
                     nearPortToAttachTo == null
                         ? _targetPositionAnchor
                         : new SinglePortAnchor(nearPortToAttachTo)
                 );
-            }
         }
+
         OngoingLink.Refresh();
         OngoingLink.RefreshLinks();
     }
@@ -115,6 +109,7 @@ public class FbpDragNewLinkBehavior : Behavior
                 OngoingLink.RefreshLinks();
             }
             else
+            {
                 switch (Diagram.Options.Links.RequireTarget)
                 {
                     case true:
@@ -124,6 +119,8 @@ public class FbpDragNewLinkBehavior : Behavior
                         OngoingLink.Refresh();
                         break;
                 }
+            }
+
             OngoingLink = null;
         }
     }
@@ -159,13 +156,23 @@ public class FbpDragNewLinkBehavior : Behavior
             if (num2 <= Diagram.Options.Links.SnappingRadius)
             {
                 var model = OngoingLink.Source.Model;
-                if ((model != null ? (model.CanAttachTo(other) ? 1 : 0) : 1) != 0 && num2 < num1)
+                if (
+                    (
+                        model != null
+                            ? model.CanAttachTo(other)
+                                ? 1
+                                : 0
+                            : 1
+                    ) != 0
+                    && num2 < num1
+                )
                 {
                     num1 = num2;
                     nearPortToAttachTo = other;
                 }
             }
         }
+
         return nearPortToAttachTo;
     }
 

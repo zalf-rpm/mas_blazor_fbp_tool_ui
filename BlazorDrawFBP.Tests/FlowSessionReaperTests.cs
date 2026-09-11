@@ -1,16 +1,14 @@
-namespace BlazorDrawFBP.Tests;
-
-using System;
-using System.Threading.Tasks;
 using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
 using Microsoft.Extensions.Logging.Abstractions;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class FlowSessionReaperTests
 {
-    private FlowSessionStore _store = null!;
     private FlowSessionReaper _reaper = null!;
+    private FlowSessionStore _store = null!;
 
     [TestInitialize]
     public void Setup()

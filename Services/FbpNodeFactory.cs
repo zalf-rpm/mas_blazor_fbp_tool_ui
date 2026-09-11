@@ -1,7 +1,3 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Linq;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -10,7 +6,10 @@ using BlazorDrawFBP.Models;
 using Capnp.Rpc;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Services;
 
 public class FbpNodeFactory : IFbpNodeFactory
 {
@@ -88,13 +87,20 @@ public class FbpNodeFactory : IFbpNodeFactory
                     initNode?.GetValue("componentServiceId")?.Value<string>()
                     ?? NoRegistryServiceId;
                 var unavailableService = false;
-                if (!runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(componentServiceId, out var serviceInfo))
+                if (
+                    !runtime.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(
+                        componentServiceId,
+                        out var serviceInfo
+                    )
+                )
                 {
                     unavailableService = true;
                     var shortPrefix = componentServiceId[..Math.Min(3, componentServiceId.Length)];
                     var shortSuffix = componentServiceId[^Math.Min(3, componentServiceId.Length)..];
-                    runtime.RegistryServiceIdToPetNameAndSturdyRef[componentServiceId] =
-                        ($"Service '{shortPrefix}..{shortSuffix}' unavailable!", null);
+                    runtime.RegistryServiceIdToPetNameAndSturdyRef[componentServiceId] = (
+                        $"Service '{shortPrefix}..{shortSuffix}' unavailable!",
+                        null
+                    );
                 }
                 else if (componentServiceId != NoRegistryServiceId && serviceInfo.Item2 == null)
                 {
@@ -111,7 +117,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                 var config = initNode?.GetValue("config");
                 var configStr = (config?.Type ?? JTokenType.Null) switch
                 {
-                    JTokenType.Object => config?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "",
+                    JTokenType.Object => config?.ToString(Formatting.Indented) ?? "",
                     JTokenType.String => config?.ToString() ?? "",
                     _ => "",
                 };
@@ -132,15 +138,22 @@ public class FbpNodeFactory : IFbpNodeFactory
                             Diagram = diagram,
                             ComponentId = componentId,
                             ComponentServiceId = componentServiceId,
-                            ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                            ComponentName = unavailableService
+                                ? ""
+                                : component.Info.Name ?? componentId,
                             ProcessName =
                                 procName
                                 ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                             Cmd = cmd,
-                            ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
-                            DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
+                            ShortDescription = unavailableService
+                                ? ""
+                                : component.Info.Description ?? "",
+                            DefaultConfigString = unavailableService
+                                ? ""
+                                : component.DefaultConfig?.Value ?? "",
                             ConfigString = configStr,
-                            DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
+                            DisplayNoOfConfigLines =
+                                initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                             Editable =
                                 initNode?.GetValue("editable")?.Value<bool>()
                                 ?? (component.Factory?.which ?? Component.factory.WHICH.None)
@@ -153,9 +166,7 @@ public class FbpNodeFactory : IFbpNodeFactory
 
                         FbpLayoutHelper.SetDefaultComponentSize(rnode);
                         if (component.Factory?.which == Component.factory.WHICH.Runnable)
-                        {
                             rnode.RunnableFactory = Proxy.Share(component.Factory!.Runnable);
-                        }
 
                         node = rnode;
                         break;
@@ -173,15 +184,22 @@ public class FbpNodeFactory : IFbpNodeFactory
                             Diagram = diagram,
                             ComponentId = componentId,
                             ComponentServiceId = componentServiceId,
-                            ComponentName = unavailableService ? "" : component.Info.Name ?? componentId,
+                            ComponentName = unavailableService
+                                ? ""
+                                : component.Info.Name ?? componentId,
                             ProcessName =
                                 procName
                                 ?? $"{component.Info.Name ?? "new"} {CapnpFbpComponentModel.ProcessNo++}",
                             Cmd = cmd,
-                            ShortDescription = unavailableService ? "" : component.Info.Description ?? "",
-                            DefaultConfigString = unavailableService ? "" : component.DefaultConfig?.Value ?? "",
+                            ShortDescription = unavailableService
+                                ? ""
+                                : component.Info.Description ?? "",
+                            DefaultConfigString = unavailableService
+                                ? ""
+                                : component.DefaultConfig?.Value ?? "",
                             ConfigString = configStr,
-                            DisplayNoOfConfigLines = initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
+                            DisplayNoOfConfigLines =
+                                initNode?["displayNoOfConfigLines"]?.Value<int>() ?? 3,
                             Editable =
                                 initNode?.GetValue("editable")?.Value<bool>()
                                 ?? (component.Factory?.which ?? Component.factory.WHICH.None)
@@ -193,15 +211,15 @@ public class FbpNodeFactory : IFbpNodeFactory
                         };
                         FbpLayoutHelper.SetDefaultComponentSize(pnode);
                         if (component.Factory?.which == Component.factory.WHICH.Process)
-                        {
                             pnode.ProcessFactory = Proxy.Share(component.Factory!.Process);
-                        }
 
                         node = pnode;
                         break;
                     }
                     default:
-                        throw new InvalidOperationException($"Unsupported component type: {component.Type}");
+                        throw new InvalidOperationException(
+                            $"Unsupported component type: {component.Type}"
+                        );
                 }
 
                 var controlsContainer = diagram.Controls.AddFor(node);
@@ -218,7 +236,9 @@ public class FbpNodeFactory : IFbpNodeFactory
                         input.Type == Component.Port.PortType.array
                     );
 
-                foreach (var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp)))
+                foreach (
+                    var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp))
+                )
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.Out,
@@ -229,7 +249,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                         output.Type == Component.Port.PortType.array
                     );
 
-                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                CapnpFbpPortLayout.Apply(node, false);
                 AttachLayoutEvents(node, onNodeLayoutChanged);
                 diagram.Nodes.Add(node);
                 return node;
@@ -295,7 +315,9 @@ public class FbpNodeFactory : IFbpNodeFactory
                         input.Type == Component.Port.PortType.array
                     );
 
-                foreach (var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp)))
+                foreach (
+                    var (i, output) in (component.OutPorts ?? []).Select((outp, i) => (i, outp))
+                )
                     AddPortControl.CreateAndAddPort(
                         node,
                         CapnpFbpPortModel.PortType.Out,
@@ -306,7 +328,7 @@ public class FbpNodeFactory : IFbpNodeFactory
                         output.Type == Component.Port.PortType.array
                     );
 
-                CapnpFbpPortLayout.Apply(node, refreshPorts: false);
+                CapnpFbpPortLayout.Apply(node, false);
                 AttachLayoutEvents(node, onNodeLayoutChanged);
                 diagram.Nodes.Add(node);
                 return node;

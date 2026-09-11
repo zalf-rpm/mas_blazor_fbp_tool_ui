@@ -1,27 +1,23 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
-using Capnp;
 using Capnp.Rpc;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
 using Newtonsoft.Json.Linq;
+using Exception = System.Exception;
+
+namespace BlazorDrawFBP.Services;
 
 public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
 {
     public const string NoRegistryServiceId = "no_service";
-    private static readonly TimeSpan ExecuteFlowSettleTimeout = TimeSpan.FromSeconds(15);
     private const int ExecuteFlowSettlePollIntervalMs = 100;
+    private static readonly TimeSpan ExecuteFlowSettleTimeout = TimeSpan.FromSeconds(15);
 
     private static readonly (string Background, string Foreground)[] ComponentServicePalette =
     [
@@ -206,9 +202,70 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         ("#DC267F", "#FFFFFF"),
     ];
 
-    public ConnectionManager ConnectionManager { get; }
+    private readonly CancellationTokenSource _healthCheckCts = new();
+    private readonly Task? _healthCheckTask;
 
     private BlazorDiagram? _diagram;
+
+    public FbpRuntimeService(
+        ConnectionManager connectionManager,
+        TimeSpan? healthCheckInterval = null
+    )
+    {
+        ConnectionManager = connectionManager;
+        if (healthCheckInterval.HasValue)
+            HealthCheckInterval = healthCheckInterval.Value;
+        RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
+        if (HealthCheckInterval > TimeSpan.Zero)
+            _healthCheckTask = RunHealthCheckLoopAsync(_healthCheckCts.Token);
+    }
+
+    public TimeSpan HealthCheckInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+    public async ValueTask DisposeAsync()
+    {
+        _healthCheckCts.Cancel();
+        _healthCheckCts.Dispose();
+        if (_healthCheckTask != null)
+            try
+            {
+                await _healthCheckTask;
+            }
+            catch (OperationCanceledException) { }
+            catch { }
+
+        await ClearDiagramAsync();
+
+        foreach (var proxy in SturdyRef2Services.Values)
+            try
+            {
+                proxy.Dispose();
+            }
+            catch { }
+
+        SturdyRef2Services.Clear();
+
+        foreach (var registry in ServiceId2Registries.Values)
+            try
+            {
+                registry.Dispose();
+            }
+            catch { }
+
+        ServiceId2Registries.Clear();
+
+        foreach (var service in ServiceId2ChannelStarterServices.Values)
+            try
+            {
+                service.Dispose();
+            }
+            catch { }
+
+        ServiceId2ChannelStarterServices.Clear();
+    }
+
+    public ConnectionManager ConnectionManager { get; }
+
     public BlazorDiagram? Diagram
     {
         get => _diagram;
@@ -219,32 +276,37 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 _diagram.Nodes.Added -= OnDiagramNodesChanged;
                 _diagram.Nodes.Removed -= OnDiagramNodesChanged;
             }
+
             _diagram = value;
             if (_diagram != null)
             {
                 _diagram.Nodes.Added += OnDiagramNodesChanged;
                 _diagram.Nodes.Removed += OnDiagramNodesChanged;
             }
+
             NotifyStateChanged();
         }
     }
 
-    private void OnDiagramNodesChanged(NodeModel node) => NotifyStateChanged();
-
     public Dictionary<string, IRegistry> ServiceId2Registries { get; } = [];
-    public Dictionary<string, (string, string?)> RegistryServiceIdToPetNameAndSturdyRef { get; } = [];
+    public Dictionary<string, (string, string?)> RegistryServiceIdToPetNameAndSturdyRef { get; } =
+    [];
     public Dictionary<string, IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
     public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
     public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
     public Dictionary<(string, string), Component> ServiceIdAndComponentId2Component { get; } = [];
-    public Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds { get; } = [];
+    public Dictionary<
+        string,
+        HashSet<(string, string)>
+    > CatId2CompServiceIdAndComponentIds { get; } = [];
     public Dictionary<string, IdInformation> CatId2Info { get; } = [];
 
-    public Dictionary<ulong, Type> InterfaceIdToType { get; } = new()
-    {
-        { Shared.Shared.RegistryInterfaceId, typeof(IRegistry) },
-        { Shared.Shared.ChannelStarterInterfaceId, typeof(IStartChannelsService) },
-    };
+    public Dictionary<ulong, Type> InterfaceIdToType { get; } =
+        new()
+        {
+            { Shared.Shared.RegistryInterfaceId, typeof(IRegistry) },
+            { Shared.Shared.ChannelStarterInterfaceId, typeof(IStartChannelsService) },
+        };
 
     public IStartChannelsService? CurrentChannelStarterService =>
         ServiceId2ChannelStarterServices.Values.FirstOrDefault();
@@ -252,17 +314,18 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public bool HasConnectedComponentService => ServiceId2Registries.Count > 0;
     public bool HasConnectedChannelService => ServiceId2ChannelStarterServices.Count > 0;
 
-    public bool HasComponentsOnCanvas =>
-        Diagram?.Nodes.Any(IsExecutableFlowNode) == true;
+    public bool HasComponentsOnCanvas => Diagram?.Nodes.Any(IsExecutableFlowNode) == true;
 
     public bool HasBusyLifecycleNodes =>
-        Diagram?.Nodes.Any(node => node switch
-        {
-            CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
-            CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
-            CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
-            _ => false,
-        }) == true;
+        Diagram?.Nodes.Any(node =>
+            node switch
+            {
+                CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
+                CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
+                CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
+                _ => false,
+            }
+        ) == true;
 
     public bool CanExecuteFlow =>
         HasConnectedComponentService
@@ -276,13 +339,10 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public string ExecuteFlowButtonTitle =>
         !HasConnectedComponentService || !HasConnectedChannelService
             ? "Connect both a components service and a channel service to execute the flow."
-            : !HasComponentsOnCanvas
-                ? "Add at least one component to the canvas to execute the flow."
-                : IsExecutingFlow
-                    ? "Flow execution is already starting the current graph."
-                    : HasBusyLifecycleNodes
-                        ? "Processes are currently starting or stopping."
-                        : "Execute entire flow";
+        : !HasComponentsOnCanvas ? "Add at least one component to the canvas to execute the flow."
+        : IsExecutingFlow ? "Flow execution is already starting the current graph."
+        : HasBusyLifecycleNodes ? "Processes are currently starting or stopping."
+        : "Execute entire flow";
 
     public event Action? StateChanged;
     public event Action<ServiceConnectionDroppedEventArgs>? ServiceConnectionDropped;
@@ -296,30 +356,22 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     )
     {
         ServiceConnectionDropped?.Invoke(
-            new ServiceConnectionDroppedEventArgs(serviceType, serviceId, petName, sturdyRef, customMessage)
+            new ServiceConnectionDroppedEventArgs(
+                serviceType,
+                serviceId,
+                petName,
+                sturdyRef,
+                customMessage
+            )
         );
     }
 
-    private readonly System.Threading.CancellationTokenSource _healthCheckCts = new();
-    private readonly Task? _healthCheckTask;
-    public TimeSpan HealthCheckInterval { get; set; } = TimeSpan.FromSeconds(10);
-
-    public FbpRuntimeService(ConnectionManager connectionManager, TimeSpan? healthCheckInterval = null)
+    public string GetComponentServiceName(string serviceId)
     {
-        ConnectionManager = connectionManager;
-        if (healthCheckInterval.HasValue)
-            HealthCheckInterval = healthCheckInterval.Value;
-        RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
-        if (HealthCheckInterval > TimeSpan.Zero)
-            _healthCheckTask = RunHealthCheckLoopAsync(_healthCheckCts.Token);
-    }
-
-    private void NotifyStateChanged() => StateChanged?.Invoke();
-
-    public string GetComponentServiceName(string serviceId) =>
-        RegistryServiceIdToPetNameAndSturdyRef
+        return RegistryServiceIdToPetNameAndSturdyRef
             .GetValueOrDefault(serviceId, ("Unknown service!", null))
             .Item1;
+    }
 
     public string GetComponentServiceBadgeStyle(string serviceId)
     {
@@ -372,42 +424,13 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             || string.IsNullOrWhiteSpace(componentServiceId)
             || componentServiceId == node.ComponentServiceId
         )
-        {
             return;
-        }
 
         if (!TryGetBindableComponent(node, componentServiceId, out var component))
             return;
 
         await node.RebindToComponentServiceAsync(component, componentServiceId);
         NotifyStateChanged();
-    }
-
-    public bool TryGetBindableComponent(
-        CapnpFbpComponentModel node,
-        string componentServiceId,
-        [NotNullWhen(true)] out Component? component
-    )
-    {
-        if (
-            node == null
-            || string.IsNullOrWhiteSpace(node.ComponentId)
-            || !ServiceIdAndComponentId2Component.TryGetValue(
-                (componentServiceId, node.ComponentId),
-                out component
-            )
-        )
-        {
-            component = null;
-            return false;
-        }
-
-        return node switch
-        {
-            CapnpFbpRunnableComponentModel => component.Type == Component.ComponentType.standard,
-            CapnpFbpProcessComponentModel => component.Type == Component.ComponentType.process,
-            _ => false,
-        };
     }
 
     public async Task<IStartChannelsService?> ConnectToStartChannelsServiceAsync(
@@ -441,10 +464,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         return null;
     }
 
-    public async Task<IRegistry?> ConnectToRegistryServiceAsync(
-        string petName,
-        string sturdyRef
-    )
+    public async Task<IRegistry?> ConnectToRegistryServiceAsync(string petName, string sturdyRef)
     {
         IRegistry? reg = null;
         try
@@ -474,7 +494,9 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         return reg;
     }
 
-    public async Task HandleSturdyRefConnectedAsync((ulong interfaceId, string sturdyRef, string petName) connection)
+    public async Task HandleSturdyRefConnectedAsync(
+        (ulong interfaceId, string sturdyRef, string petName) connection
+    )
     {
         var (interfaceId, sturdyRef, petName) = connection;
         if (!SturdyRef2Services.TryGetValue(sturdyRef, out var value))
@@ -509,17 +531,15 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             NotifyStateChanged();
     }
 
-    public async Task HandleSturdyRefDisconnectedAsync((ulong interfaceId, string sturdyRef) connection)
+    public async Task HandleSturdyRefDisconnectedAsync(
+        (ulong interfaceId, string sturdyRef) connection
+    )
     {
         var (interfaceId, sturdyRef) = connection;
         if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
-        {
             DisconnectChannelStarterService(sturdyRef);
-        }
         else if (interfaceId == Shared.Shared.RegistryInterfaceId)
-        {
             DisconnectRegistryService(sturdyRef);
-        }
 
         if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
             proxy.Dispose();
@@ -531,17 +551,22 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public void DisconnectChannelStarterServiceById(string serviceId)
     {
         if (ServiceId2ChannelStarterServices.Remove(serviceId, out var service))
-        {
-            try { service.Dispose(); } catch { }
-        }
+            try
+            {
+                service.Dispose();
+            }
+            catch { }
 
         if (ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId, out var tuple))
-        {
-            if (!string.IsNullOrEmpty(tuple.Item2) && SturdyRef2Services.Remove(tuple.Item2, out var proxy))
-            {
-                try { proxy.Dispose(); } catch { }
-            }
-        }
+            if (
+                !string.IsNullOrEmpty(tuple.Item2)
+                && SturdyRef2Services.Remove(tuple.Item2, out var proxy)
+            )
+                try
+                {
+                    proxy.Dispose();
+                }
+                catch { }
 
         NotifyStateChanged();
     }
@@ -549,31 +574,36 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     public void DisconnectRegistryServiceById(string serviceId)
     {
         if (ServiceId2Registries.Remove(serviceId, out var registry))
-        {
-            try { registry.Dispose(); } catch { }
-        }
+            try
+            {
+                registry.Dispose();
+            }
+            catch { }
 
         string? sturdyRef = null;
         if (RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple))
-        {
             sturdyRef = tuple.Item2;
-        }
 
         if (!string.IsNullOrEmpty(sturdyRef) && SturdyRef2Services.Remove(sturdyRef, out var proxy))
-        {
-            try { proxy.Dispose(); } catch { }
-        }
+            try
+            {
+                proxy.Dispose();
+            }
+            catch { }
 
-        var hasNodesUsingService = Diagram?.Nodes
-            .OfType<CapnpFbpComponentModel>()
-            .Any(n => n.ComponentServiceId == serviceId) == true;
+        var hasNodesUsingService =
+            Diagram
+                ?.Nodes.OfType<CapnpFbpComponentModel>()
+                .Any(n => n.ComponentServiceId == serviceId) == true;
 
         if (hasNodesUsingService)
         {
             var shortPrefix = serviceId[..Math.Min(3, serviceId.Length)];
             var shortSuffix = serviceId[^Math.Min(3, serviceId.Length)..];
-            RegistryServiceIdToPetNameAndSturdyRef[serviceId] =
-                ($"Service '{shortPrefix}..{shortSuffix}' unavailable!", null);
+            RegistryServiceIdToPetNameAndSturdyRef[serviceId] = (
+                $"Service '{shortPrefix}..{shortSuffix}' unavailable!",
+                null
+            );
         }
         else
         {
@@ -595,9 +625,11 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             DisconnectChannelStarterServiceById(serviceId);
 
         if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
-        {
-            try { proxy.Dispose(); } catch { }
-        }
+            try
+            {
+                proxy.Dispose();
+            }
+            catch { }
 
         NotifyStateChanged();
     }
@@ -613,14 +645,18 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             DisconnectRegistryServiceById(serviceId);
 
         if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
-        {
-            try { proxy.Dispose(); } catch { }
-        }
+            try
+            {
+                proxy.Dispose();
+            }
+            catch { }
 
         NotifyStateChanged();
     }
 
-    public async Task<int> CheckConnectedServicesHealthAsync(System.Threading.CancellationToken cancellationToken = default)
+    public async Task<int> CheckConnectedServicesHealthAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         var prunedCount = 0;
 
@@ -631,18 +667,31 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
 
             if (!await PingServiceAsync(service, cancellationToken))
             {
-                var petName = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                var petName = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(
+                    serviceId,
+                    out var tuple
+                )
                     ? tuple.Item1
                     : serviceId;
-                var sturdyRef = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple2)
+                var sturdyRef = ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(
+                    serviceId,
+                    out var tuple2
+                )
                     ? tuple2.Item2
                     : null;
 
-                Console.WriteLine($"Channel starter service '{serviceId}' is dead or unreachable. Disconnecting...");
+                Console.WriteLine(
+                    $"Channel starter service '{serviceId}' is dead or unreachable. Disconnecting..."
+                );
                 DisconnectChannelStarterServiceById(serviceId);
                 prunedCount++;
 
-                NotifyServiceConnectionDropped("Channel starter service", serviceId, petName, sturdyRef);
+                NotifyServiceConnectionDropped(
+                    "Channel starter service",
+                    serviceId,
+                    petName,
+                    sturdyRef
+                );
             }
         }
 
@@ -653,32 +702,245 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
 
             if (!await PingServiceAsync(registry, cancellationToken))
             {
-                var petName = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                var petName = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(
+                    serviceId,
+                    out var tuple
+                )
                     ? tuple.Item1
                     : serviceId;
-                var sturdyRef = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple2)
+                var sturdyRef = RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(
+                    serviceId,
+                    out var tuple2
+                )
                     ? tuple2.Item2
                     : null;
 
-                Console.WriteLine($"Component registry service '{serviceId}' is dead or unreachable. Disconnecting...");
+                Console.WriteLine(
+                    $"Component registry service '{serviceId}' is dead or unreachable. Disconnecting..."
+                );
                 DisconnectRegistryServiceById(serviceId);
                 prunedCount++;
 
-                NotifyServiceConnectionDropped("Component registry service", serviceId, petName, sturdyRef);
+                NotifyServiceConnectionDropped(
+                    "Component registry service",
+                    serviceId,
+                    petName,
+                    sturdyRef
+                );
             }
         }
 
         return prunedCount;
     }
 
-    private static async Task<bool> PingServiceAsync(IIdentifiable? service, System.Threading.CancellationToken cancellationToken)
+    public void InitDefaultComponents(string jsonContent)
+    {
+        var defComps = JObject.Parse(jsonContent);
+        RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
+        foreach (var cat in defComps["categories"] ?? new JArray())
+        {
+            var catId = cat["id"]?.ToString() ?? "";
+            if (catId.Length == 0)
+                continue;
+            CatId2Info[catId] = new IdInformation
+            {
+                Id = catId,
+                Name = cat["name"]?.ToString() ?? catId,
+                Description = cat["description"]?.ToString() ?? "",
+            };
+        }
+
+        foreach (var entry in defComps["entries"] ?? new JArray())
+        {
+            var catId = entry["categoryId"]?.ToString() ?? "";
+            if (catId.Length == 0)
+                continue;
+            if (entry["component"] is not JObject comp)
+                continue;
+
+            if (!CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var value))
+            {
+                value = [];
+                CatId2CompServiceIdAndComponentIds[catId] = value;
+            }
+
+            if (!CatId2Info.ContainsKey(catId))
+                CatId2Info[catId] = new IdInformation { Id = catId, Name = catId };
+
+            var component = CreateFromJson(comp);
+            if (component == null)
+                continue;
+            value.Add((NoRegistryServiceId, component.Info.Id));
+            ServiceIdAndComponentId2Component[(NoRegistryServiceId, component.Info.Id)] = component;
+        }
+
+        NotifyStateChanged();
+    }
+
+    public async Task ClearDiagramAsync()
+    {
+        if (Diagram == null)
+            return;
+
+        var nodes = Diagram.Nodes.ToList();
+        if (Diagram.Links.Count > 0)
+            await Shared.Shared.RemoveAttachedLinksAndCleanupAsync(
+                Diagram.Links.ToList(),
+                Diagram,
+                nodes.Cast<Model>().ToList()
+            );
+
+        foreach (var node in nodes)
+            if (node is IAsyncDisposable disposable)
+                await disposable.DisposeAsync();
+
+        Diagram.Nodes.Clear();
+        Diagram.Refresh();
+        NotifyStateChanged();
+    }
+
+    public async Task ExecuteNodeAsync(Model node)
+    {
+        switch (node)
+        {
+            case CapnpFbpComponentModel compNode when compNode.CanStart:
+                await compNode.StartProcess(ConnectionManager);
+                break;
+            case CapnpFbpViewComponentModel viewNode when viewNode.CanStart:
+                await viewNode.StartProcess(ConnectionManager);
+                break;
+            case CapnpFbpIipComponentModel iipNode when iipNode.CanStart:
+                await iipNode.SendIip(ConnectionManager);
+                break;
+        }
+
+        NotifyStateChanged();
+    }
+
+    public async Task ResetNodeAsync(Model node)
+    {
+        switch (node)
+        {
+            case CapnpFbpComponentModel compNode when compNode.CanStop:
+                await compNode.StopProcess();
+                break;
+            case CapnpFbpViewComponentModel viewNode when viewNode.CanStop:
+                await viewNode.StopProcess();
+                break;
+            case CapnpFbpIipComponentModel iipNode:
+                await iipNode.ResetExecution();
+                break;
+        }
+
+        NotifyStateChanged();
+    }
+
+    public async Task ExecuteFlowAsync(Action? onStateChanged = null)
+    {
+        if (!CanExecuteFlow || Diagram == null)
+            return;
+
+        IsExecutingFlow = true;
+        NotifyStateChanged();
+        onStateChanged?.Invoke();
+
+        try
+        {
+            var startupOrder = GetFlowStartupOrder();
+            var startupNodes = startupOrder
+                .Where(node => node is not CapnpFbpIipComponentModel)
+                .ToList();
+            var iipNodes = startupOrder.OfType<CapnpFbpIipComponentModel>().Cast<Model>().ToList();
+
+            foreach (var node in startupNodes)
+            {
+                await ExecuteNodeAsync(node);
+                await WaitForNodesToSettleAsync([node], onStateChanged);
+                node.Refresh();
+                NotifyStateChanged();
+                onStateChanged?.Invoke();
+            }
+
+            if (!await WaitForNodesToSettleAsync(startupNodes, onStateChanged))
+            {
+                var busyNodes = string.Join(
+                    ", ",
+                    startupNodes.Where(IsLifecycleBusy).Select(GetFlowNodeName)
+                );
+                Console.WriteLine(
+                    $"FbpRuntimeService::ExecuteFlow: timed out waiting for startup to settle before dispatching IIPs. Busy nodes: {busyNodes}"
+                );
+                return;
+            }
+
+            foreach (var node in iipNodes)
+            {
+                await ExecuteNodeAsync(node);
+                node.Refresh();
+                NotifyStateChanged();
+                onStateChanged?.Invoke();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FbpRuntimeService::ExecuteFlow: Caught exception: {ex}");
+        }
+        finally
+        {
+            IsExecutingFlow = false;
+            NotifyStateChanged();
+            onStateChanged?.Invoke();
+        }
+    }
+
+    private void OnDiagramNodesChanged(NodeModel node)
+    {
+        NotifyStateChanged();
+    }
+
+    private void NotifyStateChanged()
+    {
+        StateChanged?.Invoke();
+    }
+
+    public bool TryGetBindableComponent(
+        CapnpFbpComponentModel node,
+        string componentServiceId,
+        [NotNullWhen(true)] out Component? component
+    )
+    {
+        if (
+            node == null
+            || string.IsNullOrWhiteSpace(node.ComponentId)
+            || !ServiceIdAndComponentId2Component.TryGetValue(
+                (componentServiceId, node.ComponentId),
+                out component
+            )
+        )
+        {
+            component = null;
+            return false;
+        }
+
+        return node switch
+        {
+            CapnpFbpRunnableComponentModel => component.Type == Component.ComponentType.standard,
+            CapnpFbpProcessComponentModel => component.Type == Component.ComponentType.process,
+            _ => false,
+        };
+    }
+
+    private static async Task<bool> PingServiceAsync(
+        IIdentifiable? service,
+        CancellationToken cancellationToken
+    )
     {
         if (service == null)
             return false;
 
         try
         {
-            using var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(3));
             var info = await service.Info(cts.Token);
             return info != null && !string.IsNullOrWhiteSpace(info.Id);
@@ -689,28 +951,24 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         }
     }
 
-    private async Task RunHealthCheckLoopAsync(System.Threading.CancellationToken cancellationToken)
+    private async Task RunHealthCheckLoopAsync(CancellationToken cancellationToken)
     {
-        using var timer = new System.Threading.PeriodicTimer(HealthCheckInterval);
+        using var timer = new PeriodicTimer(HealthCheckInterval);
         while (!cancellationToken.IsCancellationRequested)
-        {
             try
             {
                 await timer.WaitForNextTickAsync(cancellationToken);
                 if (ServiceId2Registries.Count > 0 || ServiceId2ChannelStarterServices.Count > 0)
-                {
                     await CheckConnectedServicesHealthAsync(cancellationToken);
-                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine($"Error in FbpRuntimeService health check loop: {ex.Message}");
             }
-        }
     }
 
     public void RemoveRegistryPaletteEntries(string serviceId)
@@ -720,9 +978,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 .Keys.Where(componentKey => componentKey.Item1 == serviceId)
                 .ToList()
         )
-        {
             ServiceIdAndComponentId2Component.Remove(componentKey);
-        }
 
         foreach (var categoryId in CatId2CompServiceIdAndComponentIds.Keys.ToList())
         {
@@ -732,9 +988,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 !CatId2Info.ContainsKey(categoryId)
                 && CatId2CompServiceIdAndComponentIds[categoryId].Count == 0
             )
-            {
                 CatId2CompServiceIdAndComponentIds.Remove(categoryId);
-            }
         }
 
         NotifyStateChanged();
@@ -778,7 +1032,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 {
                     ServiceIdAndComponentId2Component[(info.Id, e.Id)] = await holder.Value();
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex);
                 }
@@ -789,50 +1043,6 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         catch (RpcException)
         {
             Console.WriteLine("Error loading entries from " + sturdyRef);
-        }
-
-        NotifyStateChanged();
-    }
-
-    public void InitDefaultComponents(string jsonContent)
-    {
-        var defComps = JObject.Parse(jsonContent);
-        RegistryServiceIdToPetNameAndSturdyRef[NoRegistryServiceId] = ("No service", null);
-        foreach (var cat in defComps["categories"] ?? new JArray())
-        {
-            var catId = cat["id"]?.ToString() ?? "";
-            if (catId.Length == 0)
-                continue;
-            CatId2Info[catId] = new IdInformation
-            {
-                Id = catId,
-                Name = cat["name"]?.ToString() ?? catId,
-                Description = cat["description"]?.ToString() ?? "",
-            };
-        }
-
-        foreach (var entry in defComps["entries"] ?? new JArray())
-        {
-            var catId = entry["categoryId"]?.ToString() ?? "";
-            if (catId.Length == 0)
-                continue;
-            if (entry["component"] is not JObject comp)
-                continue;
-
-            if (!CatId2CompServiceIdAndComponentIds.TryGetValue(catId, out var value))
-            {
-                value = [];
-                CatId2CompServiceIdAndComponentIds[catId] = value;
-            }
-
-            if (!CatId2Info.ContainsKey(catId))
-                CatId2Info[catId] = new IdInformation { Id = catId, Name = catId };
-
-            var component = CreateFromJson(comp);
-            if (component == null)
-                continue;
-            value.Add((NoRegistryServiceId, component.Info.Id));
-            ServiceIdAndComponentId2Component[(NoRegistryServiceId, component.Info.Id)] = component;
         }
 
         NotifyStateChanged();
@@ -891,124 +1101,6 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         };
     }
 
-    public async Task ClearDiagramAsync()
-    {
-        if (Diagram == null)
-            return;
-
-        var nodes = Diagram.Nodes.ToList();
-        if (Diagram.Links.Count > 0)
-        {
-            await Shared.Shared.RemoveAttachedLinksAndCleanupAsync(
-                Diagram.Links.ToList(),
-                Diagram,
-                nodes.Cast<Model>().ToList()
-            );
-        }
-
-        foreach (var node in nodes)
-        {
-            if (node is IAsyncDisposable disposable)
-                await disposable.DisposeAsync();
-        }
-
-        Diagram.Nodes.Clear();
-        Diagram.Refresh();
-        NotifyStateChanged();
-    }
-
-    public async Task ExecuteNodeAsync(Model node)
-    {
-        switch (node)
-        {
-            case CapnpFbpComponentModel compNode when compNode.CanStart:
-                await compNode.StartProcess(ConnectionManager);
-                break;
-            case CapnpFbpViewComponentModel viewNode when viewNode.CanStart:
-                await viewNode.StartProcess(ConnectionManager);
-                break;
-            case CapnpFbpIipComponentModel iipNode when iipNode.CanStart:
-                await iipNode.SendIip(ConnectionManager);
-                break;
-        }
-        NotifyStateChanged();
-    }
-
-    public async Task ResetNodeAsync(Model node)
-    {
-        switch (node)
-        {
-            case CapnpFbpComponentModel compNode when compNode.CanStop:
-                await compNode.StopProcess();
-                break;
-            case CapnpFbpViewComponentModel viewNode when viewNode.CanStop:
-                await viewNode.StopProcess();
-                break;
-            case CapnpFbpIipComponentModel iipNode:
-                await iipNode.ResetExecution();
-                break;
-        }
-        NotifyStateChanged();
-    }
-
-    public async Task ExecuteFlowAsync(Action? onStateChanged = null)
-    {
-        if (!CanExecuteFlow || Diagram == null)
-            return;
-
-        IsExecutingFlow = true;
-        NotifyStateChanged();
-        onStateChanged?.Invoke();
-
-        try
-        {
-            var startupOrder = GetFlowStartupOrder();
-            var startupNodes = startupOrder
-                .Where(node => node is not CapnpFbpIipComponentModel)
-                .ToList();
-            var iipNodes = startupOrder.OfType<CapnpFbpIipComponentModel>().Cast<Model>().ToList();
-
-            foreach (var node in startupNodes)
-            {
-                await ExecuteNodeAsync(node);
-                await WaitForNodesToSettleAsync([node], onStateChanged);
-                node.Refresh();
-                NotifyStateChanged();
-                onStateChanged?.Invoke();
-            }
-
-            if (!await WaitForNodesToSettleAsync(startupNodes, onStateChanged))
-            {
-                var busyNodes = string.Join(
-                    ", ",
-                    startupNodes.Where(IsLifecycleBusy).Select(GetFlowNodeName)
-                );
-                Console.WriteLine(
-                    $"FbpRuntimeService::ExecuteFlow: timed out waiting for startup to settle before dispatching IIPs. Busy nodes: {busyNodes}"
-                );
-                return;
-            }
-
-            foreach (var node in iipNodes)
-            {
-                await ExecuteNodeAsync(node);
-                node.Refresh();
-                NotifyStateChanged();
-                onStateChanged?.Invoke();
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Console.WriteLine($"FbpRuntimeService::ExecuteFlow: Caught exception: {ex}");
-        }
-        finally
-        {
-            IsExecutingFlow = false;
-            NotifyStateChanged();
-            onStateChanged?.Invoke();
-        }
-    }
-
     public IReadOnlyList<Model> GetFlowStartupOrder()
     {
         if (Diagram == null)
@@ -1032,9 +1124,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
                 || !outgoing.ContainsKey(source)
                 || !outgoing.ContainsKey(target)
             )
-            {
                 continue;
-            }
 
             if (outgoing[target].Add(source))
                 indegree[source]++;
@@ -1075,7 +1165,10 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         return ordered;
     }
 
-    public async Task<bool> WaitForNodesToSettleAsync(IEnumerable<Model> nodes, Action? onStateChanged = null)
+    public async Task<bool> WaitForNodesToSettleAsync(
+        IEnumerable<Model> nodes,
+        Action? onStateChanged = null
+    )
     {
         var trackedNodes = nodes.Distinct().Where(IsExecutableFlowNode).ToList();
         if (trackedNodes.Count == 0)
@@ -1095,59 +1188,33 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         return trackedNodes.All(node => !IsLifecycleBusy(node));
     }
 
-    private static bool IsExecutableFlowNode(Model node) =>
-        node is CapnpFbpComponentModel or CapnpFbpViewComponentModel or CapnpFbpIipComponentModel;
+    private static bool IsExecutableFlowNode(Model node)
+    {
+        return node
+            is CapnpFbpComponentModel
+                or CapnpFbpViewComponentModel
+                or CapnpFbpIipComponentModel;
+    }
 
-    private static bool IsLifecycleBusy(Model node) =>
-        node switch
+    private static bool IsLifecycleBusy(Model node)
+    {
+        return node switch
         {
             CapnpFbpComponentModel compNode => compNode.IsLifecycleBusy,
             CapnpFbpViewComponentModel viewNode => viewNode.IsLifecycleBusy,
             CapnpFbpIipComponentModel iipNode => iipNode.IsLifecycleBusy,
             _ => false,
         };
+    }
 
-    private static string GetFlowNodeName(Model node) =>
-        node switch
+    private static string GetFlowNodeName(Model node)
+    {
+        return node switch
         {
             CapnpFbpComponentModel { ProcessName: { Length: > 0 } processName } => processName,
             CapnpFbpViewComponentModel { ProcessName: { Length: > 0 } processName } => processName,
             CapnpFbpIipComponentModel { ComponentId: { Length: > 0 } componentId } => componentId,
             _ => node.Id,
         };
-
-    public async ValueTask DisposeAsync()
-    {
-        _healthCheckCts.Cancel();
-        _healthCheckCts.Dispose();
-        if (_healthCheckTask != null)
-        {
-            try
-            {
-                await _healthCheckTask;
-            }
-            catch (OperationCanceledException) { }
-            catch { }
-        }
-
-        await ClearDiagramAsync();
-
-        foreach (var proxy in SturdyRef2Services.Values)
-        {
-            try { proxy.Dispose(); } catch { }
-        }
-        SturdyRef2Services.Clear();
-
-        foreach (var registry in ServiceId2Registries.Values)
-        {
-            try { registry.Dispose(); } catch { }
-        }
-        ServiceId2Registries.Clear();
-
-        foreach (var service in ServiceId2ChannelStarterServices.Values)
-        {
-            try { service.Dispose(); } catch { }
-        }
-        ServiceId2ChannelStarterServices.Clear();
     }
 }

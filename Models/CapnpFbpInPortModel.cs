@@ -1,9 +1,5 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using Capnp.Rpc;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
@@ -14,6 +10,9 @@ namespace BlazorDrawFBP.Models;
 public class CapnpFbpInPortModel : CapnpFbpPortModel
 {
     public const uint DefaultChannelStatsUpdateIntervalInMs = 1000;
+
+    private readonly StatsCallback _statsCallback;
+    private Channel<IP>.StatsCallback.IUnregister? _unregisterStatsCallback;
 
     public CapnpFbpInPortModel(
         NodeModel parent,
@@ -42,10 +41,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
 
     public IChannel<IP>? Channel { get; set; }
     public IStoppable? StopChannel { get; set; }
-    public Mas.Schema.Fbp.Process.IDisconnect? ProcessDisconnect { get; private set; }
-
-    private readonly StatsCallback _statsCallback;
-    private Channel<IP>.StatsCallback.IUnregister? _unregisterStatsCallback;
+    public Process.IDisconnect? ProcessDisconnect { get; private set; }
 
     public ulong ChannelBufferSize { get; private set; } = 1;
     public bool ReceivingStats => _statsCallback != null;
@@ -68,7 +64,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         SetKnownChannelBufferSize(normalizedSize);
     }
 
-    public void SetProcessDisconnect(Mas.Schema.Fbp.Process.IDisconnect disconnect, bool connected)
+    public void SetProcessDisconnect(Process.IDisconnect disconnect, bool connected)
     {
         if (!ReferenceEquals(ProcessDisconnect, disconnect))
             ProcessDisconnect?.Dispose();
@@ -122,7 +118,6 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         }
 
         if (Reader != null)
-        {
             try
             {
                 await Reader.Close();
@@ -135,13 +130,11 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             {
                 Console.WriteLine($"Port {Name}: channel reader close RPC failed: {ex.Message}");
             }
-        }
 
         if (Channel != null)
-        {
             try
             {
-                await Channel.Close(waitForEmptyBuffer: false);
+                await Channel.Close(false);
             }
             catch (ObjectDisposedException ex)
             {
@@ -151,7 +144,6 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             {
                 Console.WriteLine($"Port {Name}: channel close RPC failed: {ex.Message}");
             }
-        }
 
         if (stopChannel && StopChannel != null)
         {
@@ -206,27 +198,24 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
             return;
 
         foreach (var link in Shared.Shared.AttachedLinks(Parent))
-        {
             if (
                 link is RememberCapnpPortsLinkModel rcplm
                 && ReferenceEquals(rcplm.InPortModel, this)
             )
             {
                 if (Channel == null)
-                {
                     foreach (var label in rcplm.Labels)
-                    {
                         if (label is ChannelLinkLabelModel channelLabel)
                             channelLabel.ResetExpandedState();
-                    }
-                }
 
                 link.Refresh();
             }
-        }
     }
 
-    private static ulong NormalizeChannelBufferSize(ulong size) => size == 0 ? 1 : size;
+    private static ulong NormalizeChannelBufferSize(ulong size)
+    {
+        return size == 0 ? 1 : size;
+    }
 
     protected override async ValueTask DisposeAsyncCore()
     {
@@ -235,23 +224,18 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
         );
         // unregister from channel
         if (_unregisterStatsCallback != null)
-        {
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: unregistering StatsCallback"
             );
-        }
         if (StopChannel != null)
-        {
             Console.WriteLine(
                 $"T{Environment.CurrentManagedThreadId} Port {Name}: CapnpFbpInPortModel::DisposeAsyncCore: Stop Channel"
             );
-        }
-        await DisconnectChannelAsync(stopChannel: true);
+        await DisconnectChannelAsync(true);
         _statsCallback.Dispose();
     }
 
-    private class StatsCallback(CapnpFbpInPortModel inPortModel)
-        : Mas.Schema.Fbp.Channel<IP>.IStatsCallback
+    private class StatsCallback(CapnpFbpInPortModel inPortModel) : Channel<IP>.IStatsCallback
     {
         public string ChannelName { get; set; } = "no-name";
 
@@ -273,6 +257,7 @@ public class CapnpFbpInPortModel : CapnpFbpPortModel
                 rcplm.Stats = stats;
                 link.Refresh();
             }
+
             return Task.CompletedTask;
         }
 

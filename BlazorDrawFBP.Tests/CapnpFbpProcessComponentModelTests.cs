@@ -1,8 +1,9 @@
+using BlazorDrawFBP.Models;
+using Mas.Schema.Fbp;
+
 namespace BlazorDrawFBP.Tests;
 
-using System.Collections.Generic;
-using BlazorDrawFBP.Models;
-using ProcessSchema = Mas.Schema.Fbp.Process;
+using ProcessSchema = Process;
 
 [TestClass]
 public class CapnpFbpProcessComponentModelTests
@@ -15,11 +16,11 @@ public class CapnpFbpProcessComponentModelTests
         Assert.IsFalse(node.RemoteProcessAttached());
         Assert.IsFalse(node.CanEditCommandLine());
         Assert.IsFalse(node.SupportsLivePortChanges);
-        Assert.AreEqual(ProcessSchema.ActivityState.none, node.ActivityState);
+        Assert.AreEqual(Process.ActivityState.none, node.ActivityState);
         Assert.AreEqual("", node.ActivityPortName);
         Assert.AreEqual("None", node.ActivitySummary);
         Assert.IsFalse(node.HasLastRunInfo);
-        Assert.AreEqual(ProcessSchema.RunInfo.Outcome.none, node.LastRunOutcome);
+        Assert.AreEqual(Process.RunInfo.Outcome.none, node.LastRunOutcome);
         Assert.AreEqual("", node.LastRunSummary);
         Assert.IsFalse(node.IsProcessingActivity);
     }
@@ -27,16 +28,58 @@ public class CapnpFbpProcessComponentModelTests
     [TestMethod]
     public void FormatActivitySummary_MapsAllActivityStatesCorrectly()
     {
-        Assert.AreEqual("None", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.none, ""));
-        Assert.AreEqual("Processing", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.processing, ""));
-        Assert.AreEqual("Processing", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.processing, "in1"));
-        Assert.AreEqual("Closing", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.closing, ""));
+        Assert.AreEqual(
+            "None",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(Process.ActivityState.none, "")
+        );
+        Assert.AreEqual(
+            "Processing",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.processing,
+                ""
+            )
+        );
+        Assert.AreEqual(
+            "Processing",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.processing,
+                "in1"
+            )
+        );
+        Assert.AreEqual(
+            "Closing",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(Process.ActivityState.closing, "")
+        );
 
-        Assert.AreEqual("Waiting input on dataIn", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.waitingInput, "dataIn"));
-        Assert.AreEqual("Waiting input", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.waitingInput, ""));
+        Assert.AreEqual(
+            "Waiting input on dataIn",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.waitingInput,
+                "dataIn"
+            )
+        );
+        Assert.AreEqual(
+            "Waiting input",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.waitingInput,
+                ""
+            )
+        );
 
-        Assert.AreEqual("Waiting output on dataOut", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.waitingOutput, "dataOut"));
-        Assert.AreEqual("Waiting output", CapnpFbpProcessComponentModel.FormatActivitySummary(ProcessSchema.ActivityState.waitingOutput, ""));
+        Assert.AreEqual(
+            "Waiting output on dataOut",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.waitingOutput,
+                "dataOut"
+            )
+        );
+        Assert.AreEqual(
+            "Waiting output",
+            CapnpFbpProcessComponentModel.FormatActivitySummary(
+                Process.ActivityState.waitingOutput,
+                ""
+            )
+        );
     }
 
     [TestMethod]
@@ -49,10 +92,10 @@ public class CapnpFbpProcessComponentModelTests
     [TestMethod]
     public void FormatLastRunSummary_CompletedRun_FormatsOutcomeAndPhase()
     {
-        var runInfo = new ProcessSchema.RunInfo
+        var runInfo = new Process.RunInfo
         {
-            TheOutcome = ProcessSchema.RunInfo.Outcome.completed,
-            ThePhase = ProcessSchema.RunInfo.Phase.run
+            TheOutcome = Process.RunInfo.Outcome.completed,
+            ThePhase = Process.RunInfo.Phase.run,
         };
 
         var summary = CapnpFbpProcessComponentModel.FormatLastRunSummary(runInfo);
@@ -62,40 +105,46 @@ public class CapnpFbpProcessComponentModelTests
     [TestMethod]
     public void FormatLastRunSummary_FailedRun_IncludesPortAndMessage()
     {
-        var runInfo = new ProcessSchema.RunInfo
+        var runInfo = new Process.RunInfo
         {
-            TheOutcome = ProcessSchema.RunInfo.Outcome.failed,
-            ThePhase = ProcessSchema.RunInfo.Phase.run,
+            TheOutcome = Process.RunInfo.Outcome.failed,
+            ThePhase = Process.RunInfo.Phase.run,
             Port = "inPort",
             Message = "Unexpected end of stream",
-            DetailType = "IOException"
+            DetailType = "IOException",
         };
 
         var summary = CapnpFbpProcessComponentModel.FormatLastRunSummary(runInfo);
-        Assert.AreEqual("Failed during run on inPort: IOException: Unexpected end of stream", summary);
+        Assert.AreEqual(
+            "Failed during run on inPort: IOException: Unexpected end of stream",
+            summary
+        );
     }
 
     [TestMethod]
     public void BuildLastRunDetailLines_IncludesHeadingDetailAndTraceback()
     {
-        var runInfo = new ProcessSchema.RunInfo
+        var runInfo = new Process.RunInfo
         {
-            TheOutcome = ProcessSchema.RunInfo.Outcome.failed,
-            ThePhase = ProcessSchema.RunInfo.Phase.run,
+            TheOutcome = Process.RunInfo.Outcome.failed,
+            ThePhase = Process.RunInfo.Phase.run,
             Message = "Null pointer encountered",
             DetailType = "NullReferenceException",
-            Traceback = new List<string> { "at Server.Process()", "at Runner.Execute()" }
+            Traceback = new List<string> { "at Server.Process()", "at Runner.Execute()" },
         };
 
         var lines = CapnpFbpProcessComponentModel.BuildLastRunDetailLines(
             runInfo,
-            includeHeading: true,
-            includeProcessIdentity: false,
-            includeTraceback: true
+            true,
+            false,
+            true
         );
 
         Assert.IsTrue(lines.Count >= 4);
-        StringAssert.Contains(lines[0], "Last run: Failed during run: NullReferenceException: Null pointer encountered");
+        StringAssert.Contains(
+            lines[0],
+            "Last run: Failed during run: NullReferenceException: Null pointer encountered"
+        );
         Assert.IsTrue(lines.Contains("Traceback:"));
         Assert.IsTrue(lines.Contains("  at Server.Process()"));
         Assert.IsTrue(lines.Contains("  at Runner.Execute()"));

@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 
 namespace BlazorDrawFBP.Services;
@@ -17,9 +14,15 @@ public class CleanupDiagramService
 {
     private Func<Task>? _cleanupAction;
 
-    public void RegisterCleanup(Func<Task> cleanupAction) => _cleanupAction = cleanupAction;
+    public void RegisterCleanup(Func<Task> cleanupAction)
+    {
+        _cleanupAction = cleanupAction;
+    }
 
-    public void UnregisterCleanup() => _cleanupAction = null;
+    public void UnregisterCleanup()
+    {
+        _cleanupAction = null;
+    }
 
     public async Task Cleanup()
     {

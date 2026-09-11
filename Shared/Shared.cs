@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
@@ -17,13 +11,14 @@ using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components;
-using MudBlazor.Extensions;
-using Exception = System.Exception;
 
 namespace BlazorDrawFBP.Shared;
 
 public static class Shared
 {
+    public const int CardWidth = 250;
+    public const int CardHeight = 200;
+
     public static readonly ulong ChannelStarterInterfaceId =
         typeof(IStartChannelsService).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0;
 
@@ -53,8 +48,10 @@ public static class Shared
         return candidate;
     }
 
-    public static string MakeUniqueKey<T>(Dictionary<string, T> dict, string key) =>
-        MakeUniqueKey((IReadOnlyDictionary<string, T>)dict, key);
+    public static string MakeUniqueKey<T>(Dictionary<string, T> dict, string key)
+    {
+        return MakeUniqueKey((IReadOnlyDictionary<string, T>)dict, key);
+    }
 
     public static string NodeNameFromPort(PortModel port)
     {
@@ -82,13 +79,19 @@ public static class Shared
         IStartChannelsService css,
         CapnpFbpOutPortModel outPort,
         CapnpFbpInPortModel inPort
-    ) => CreateChannel(conMan, css, outPort, inPort, null);
+    )
+    {
+        return CreateChannel(conMan, css, outPort, inPort, null);
+    }
 
     public static Task CreateChannel(
         ConnectionManager conMan,
         IStartChannelsService css,
         RememberCapnpPortsLinkModel link
-    ) => CreateChannel(conMan, css, link.OutPortModel, link.InPortModel, link);
+    )
+    {
+        return CreateChannel(conMan, css, link.OutPortModel, link.InPortModel, link);
+    }
 
     private static Task CreateChannel(
         ConnectionManager conMan,
@@ -142,6 +145,7 @@ public static class Shared
                     outPort.WriterSturdyRef = writerSturdyRef;
                     outPort.Writer = writer;
                 }
+
                 outPort.Parent?.Refresh();
 
                 inPort.ReaderSturdyRef = si.Item1[0].ReaderSRs[0];
@@ -168,9 +172,7 @@ public static class Shared
 
                 // var ms = Random.Shared.Next(2) * 1000;
                 // and receive status information from channel
-                await inPort.ReceiveChannelStats(
-                    CapnpFbpInPortModel.DefaultChannelStatsUpdateIntervalInMs
-                ); //(uint)ms);
+                await inPort.ReceiveChannelStats(); //(uint)ms);
             }
             finally
             {
@@ -209,12 +211,8 @@ public static class Shared
         inPort?.SyncVisibility(baseLinkModel);
 
         if (outPort?.Parent is CapnpFbpIipComponentModel iipModel)
-        {
             foreach (var p in iipModel.Ports)
-            {
                 p.Visible = true;
-            }
-        }
 
         outPort?.Parent?.RefreshAll();
         inPort?.Parent?.RefreshAll();
@@ -236,10 +234,12 @@ public static class Shared
         }
     }
 
-    public static Task ConnectLinkToRunningProcessesAsync(RememberCapnpPortsLinkModel link) =>
-        ResolveRuntimeService(link) is { CurrentChannelStarterService: { } css } runtime
+    public static Task ConnectLinkToRunningProcessesAsync(RememberCapnpPortsLinkModel link)
+    {
+        return ResolveRuntimeService(link) is { CurrentChannelStarterService: { } css } runtime
             ? ConnectLinkToRunningProcessesAsync(runtime.ConnectionManager, css, link)
             : Task.CompletedTask;
+    }
 
     public static async Task ConnectLinkToRunningProcessesAsync(
         ConnectionManager conMan,
@@ -253,13 +253,9 @@ public static class Shared
 
         var inPort = link.InPortModel;
         if (inPort.ReaderSturdyRef == null && inPort.RetrieveReaderFromChannelTask == null)
-        {
             await CreateChannel(conMan, css, link);
-        }
         else if (inPort.RetrieveReaderFromChannelTask != null)
-        {
             await inPort.RetrieveReaderFromChannelTask;
-        }
 
         if (inPort.ReaderSturdyRef == null)
             return;
@@ -271,18 +267,14 @@ public static class Shared
             && targetProcess.SupportsLivePortChanges
             && inPort.ProcessDisconnect == null
         )
-        {
             await targetProcess.ConnectInputPortAsync(inPort, cancelToken);
-        }
 
         if (
             link.OutPortModel.Parent is CapnpFbpProcessComponentModel sourceProcess
             && sourceProcess.SupportsLivePortChanges
             && link.ProcessOutDisconnect == null
         )
-        {
             await sourceProcess.ConnectOutputPortAsync(link, cancelToken);
-        }
 
         CapnpFbpPortColors.ApplyLinkColor(link);
         link.OutPortModel.Parent?.RefreshAll();
@@ -297,6 +289,7 @@ public static class Shared
             diagram.Links.Remove(baseLinkModel);
             return;
         }
+
         await RemoveRememberedLinkAndCleanupAsync(diagram, removedLink);
     }
 
@@ -304,18 +297,23 @@ public static class Shared
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
         Model? excludedNode = null
-    ) =>
-        RemoveAttachedLinksAndCleanupAsyncCore(
+    )
+    {
+        return RemoveAttachedLinksAndCleanupAsyncCore(
             links,
             diagram,
             excludedNode == null ? [] : [excludedNode]
         );
+    }
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
         IReadOnlyCollection<Model>? excludedNodes
-    ) => RemoveAttachedLinksAndCleanupAsyncCore(links, diagram, excludedNodes);
+    )
+    {
+        return RemoveAttachedLinksAndCleanupAsyncCore(links, diagram, excludedNodes);
+    }
 
     private static async Task RemoveAttachedLinksAndCleanupAsyncCore(
         IReadOnlyCollection<BaseLinkModel> links,
@@ -335,6 +333,7 @@ public static class Shared
                 await RemoveLinkAndCleanupAsync(diagram, blm);
                 continue;
             }
+
             await RemoveRememberedLinkAndCleanupAsync(diagram, removedLink, excludedNodeSet);
         }
     }
@@ -358,17 +357,17 @@ public static class Shared
         var remainingLinks = affectedLinks
             .Where(link =>
                 !ReferenceEquals(link, removedLink)
-                && !excludedNodeSet.Contains(link.OutPortModel.Parent as Model)
-                && !excludedNodeSet.Contains(link.InPortModel.Parent as Model)
+                && !excludedNodeSet.Contains(link.OutPortModel.Parent)
+                && !excludedNodeSet.Contains(link.InPortModel.Parent)
             )
             .ToList();
         var lastWriterRemoved = remainingLinks.Count == 0;
-        IEnumerable<Model> candidateNodesToReset = lastWriterRemoved
+        var candidateNodesToReset = lastWriterRemoved
             ? affectedOutPorts
                 .Select(port => port.Parent)
                 .Append(removedLink.InPortModel.Parent)
                 .OfType<Model>()
-            : new Model[] { removedLink.OutPortModel.Parent as Model };
+            : new[] { removedLink.OutPortModel.Parent as Model };
         var nodesToReset = candidateNodesToReset
             .Where(node => node != null && !excludedNodeSet.Contains(node))
             .Distinct()
@@ -383,34 +382,22 @@ public static class Shared
             && removedLink.InPortModel.Parent is CapnpFbpComponentModel targetComponent
             && !excludedNodeSet.Contains(targetComponent)
         )
-        {
             await ResetNodeLifecycleAsync(targetComponent);
-        }
 
         foreach (var node in nodesToReset)
-        {
             await ResetNodeLifecycleAsync(node);
-        }
 
         if (lastWriterRemoved)
-        {
             await removedLink.InPortModel.DisconnectProcessAsync();
-        }
 
         foreach (var link in linksToDisconnect)
-        {
             await link.DisconnectProcessOutPortAsync();
-        }
 
         if (lastWriterRemoved)
-        {
-            await removedLink.InPortModel.DisconnectChannelAsync(stopChannel: true);
-        }
+            await removedLink.InPortModel.DisconnectChannelAsync(true);
 
         foreach (var link in linksToDisconnect)
-        {
             await link.DisconnectWriterAsync();
-        }
 
         diagram.Links.Remove(removedLink);
 
@@ -432,9 +419,7 @@ public static class Shared
             }
 
             foreach (var link in remainingLinks)
-            {
                 await ConnectLinkToRunningProcessesAsync(link);
-            }
         }
 
         removedLink.OutPortModel.Parent?.RefreshAll();
@@ -445,63 +430,95 @@ public static class Shared
         NodeModel node,
         Diagram diagram,
         Model? excludedNode = null
-    ) => RemoveAttachedLinksAndCleanupAsync(AttachedLinks(node).ToList(), diagram, excludedNode);
+    )
+    {
+        return RemoveAttachedLinksAndCleanupAsync(
+            AttachedLinks(node).ToList(),
+            diagram,
+            excludedNode
+        );
+    }
 
     public static Task RemoveAttachedLinksAndCleanupAsync(
         NodeModel node,
         Diagram diagram,
         IReadOnlyCollection<Model> excludedNodes
-    ) => RemoveAttachedLinksAndCleanupAsync(AttachedLinks(node).ToList(), diagram, excludedNodes);
+    )
+    {
+        return RemoveAttachedLinksAndCleanupAsync(
+            AttachedLinks(node).ToList(),
+            diagram,
+            excludedNodes
+        );
+    }
 
-    private static bool HasLiveProcessEndpoint(RememberCapnpPortsLinkModel link) =>
-        link.InPortModel.Parent is CapnpFbpProcessComponentModel targetProcess
-            && targetProcess.SupportsLivePortChanges
-        || link.OutPortModel.Parent is CapnpFbpProcessComponentModel sourceProcess
-            && sourceProcess.SupportsLivePortChanges;
+    private static bool HasLiveProcessEndpoint(RememberCapnpPortsLinkModel link)
+    {
+        return link.InPortModel.Parent is CapnpFbpProcessComponentModel targetProcess
+                && targetProcess.SupportsLivePortChanges
+            || link.OutPortModel.Parent is CapnpFbpProcessComponentModel sourceProcess
+                && sourceProcess.SupportsLivePortChanges;
+    }
 
-    private static bool RequiresLifecycleResetOnChannelRemoval(Model node) =>
-        node switch
+    private static bool RequiresLifecycleResetOnChannelRemoval(Model node)
+    {
+        return node switch
         {
             CapnpFbpComponentModel => false,
             CapnpFbpViewComponentModel => true,
             CapnpFbpIipComponentModel => true,
             _ => false,
         };
+    }
 
-    private static IFbpRuntimeService? ResolveRuntimeService(RememberCapnpPortsLinkModel link) =>
-        ResolveRuntimeService(link.OutPortModel.Parent) ?? ResolveRuntimeService(link.InPortModel.Parent);
+    private static IFbpRuntimeService? ResolveRuntimeService(RememberCapnpPortsLinkModel link)
+    {
+        return ResolveRuntimeService(link.OutPortModel.Parent)
+            ?? ResolveRuntimeService(link.InPortModel.Parent);
+    }
 
-    private static IFbpRuntimeService? ResolveRuntimeService(Model? model) =>
-        model switch
+    private static IFbpRuntimeService? ResolveRuntimeService(Model? model)
+    {
+        return model switch
         {
             CapnpFbpComponentModel component => component.RuntimeService,
             CapnpFbpViewComponentModel view => view.RuntimeService,
             CapnpFbpIipComponentModel iip => iip.RuntimeService,
             _ => null,
         };
+    }
 
-    private static CapnpFbpOutPortModel? GetOutPort(BaseLinkModel link) =>
-        link switch
+    private static CapnpFbpOutPortModel? GetOutPort(BaseLinkModel link)
+    {
+        return link switch
         {
             RememberCapnpPortsLinkModel { OutPortModel: { } outPort } => outPort,
             { Source.Model: CapnpFbpOutPortModel outPort } => outPort,
             { Target.Model: CapnpFbpOutPortModel outPort } => outPort,
             _ => null,
         };
+    }
 
-    private static CapnpFbpInPortModel? GetInPort(BaseLinkModel link) =>
-        link switch
+    private static CapnpFbpInPortModel? GetInPort(BaseLinkModel link)
+    {
+        return link switch
         {
             RememberCapnpPortsLinkModel { InPortModel: { } inPort } => inPort,
             { Source.Model: CapnpFbpInPortModel inPort } => inPort,
             { Target.Model: CapnpFbpInPortModel inPort } => inPort,
             _ => null,
         };
+    }
 
-    public static IEnumerable<BaseLinkModel> AttachedLinks(NodeModel node) =>
-        node.PortLinks.Concat(node.Links).Distinct();
+    public static IEnumerable<BaseLinkModel> AttachedLinks(NodeModel node)
+    {
+        return node.PortLinks.Concat(node.Links).Distinct();
+    }
 
-    public static int AttachedLinkCount(NodeModel node) => AttachedLinks(node).Count();
+    public static int AttachedLinkCount(NodeModel node)
+    {
+        return AttachedLinks(node).Count();
+    }
 
     public static string FormatStructuredTextType(StructuredText.Type sst)
     {
@@ -515,9 +532,6 @@ public static class Shared
             _ => "is unknown text type",
         };
     }
-
-    public const int CardWidth = 250;
-    public const int CardHeight = 200;
 
     public static MarkupString MakePortToolTipText(CapnpFbpPortModel port)
     {
@@ -543,6 +557,7 @@ public static class Shared
                     break;
             }
         }
+
         ct = cts2.Aggregate(
             "",
             (acc, s) => $"{acc}{(acc.Length == 0 ? "" : " or ")}<b><em>{s}</em></b>"
@@ -552,9 +567,7 @@ public static class Shared
                 ? $"<b>{port.Name}</b> receives [{ct}]"
                 : $"<b>{port.Name}</b> sends [{ct}]";
         if (!string.IsNullOrWhiteSpace(port.Description))
-        {
             ms += $"<br/><small>{port.Description}</small>";
-        }
         return new MarkupString(ms);
     }
 
@@ -562,11 +575,21 @@ public static class Shared
         IReadOnlyCollection<BaseLinkModel> links,
         Diagram diagram,
         Model? excludedNode = null
-    ) => await RemoveAttachedLinksAndCleanupAsync(links, diagram, excludedNode);
+    )
+    {
+        await RemoveAttachedLinksAndCleanupAsync(links, diagram, excludedNode);
+    }
 
     public static Task RestoreDefaultPortVisibilityOfAttachedComponent(
         NodeModel node,
         Diagram diagram,
         Model? excludedNode = null
-    ) => RemoveAttachedLinksAndCleanupAsync(AttachedLinks(node).ToList(), diagram, excludedNode);
+    )
+    {
+        return RemoveAttachedLinksAndCleanupAsync(
+            AttachedLinks(node).ToList(),
+            diagram,
+            excludedNode
+        );
+    }
 }

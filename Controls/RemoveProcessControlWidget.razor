@@ -1,16 +1,13 @@
-@using Blazor.Diagrams.Core.Models.Base;
-
+@using Blazor.Diagrams.Core.Models.Base
 <div>
-    <MudFab Size="Size.Small" 
-            Color="Color.Warning" 
+    <MudFab Size="Size.Small"
+            Color="Color.Warning"
             StartIcon="@Icons.Material.Filled.Delete"/>
 </div>
 
 @code
 {
-    [Parameter, EditorRequired]
-    public RemoveProcessControl Control { get; set; } = null!;
+    [Parameter] [EditorRequired] public RemoveProcessControl Control { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public Model Model { get; set; } = null!;
+    [Parameter] [EditorRequired] public Model Model { get; set; } = null!;
 }

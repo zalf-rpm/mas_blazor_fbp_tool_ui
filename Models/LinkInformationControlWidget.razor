@@ -1,5 +1,5 @@
-@using Blazor.Diagrams.Core.Models.Base;
-@using BlazorDrawFBP.Models;;
+@using Blazor.Diagrams.Core.Models.Base
+;
 
 <MudPaper Elevation="0" Class="mud-background-gray pa-2 rounded" Style="@($"width: {Link.Width}px;")">
     <MudText Typo="Typo.caption" Class="d-block">Width: @Link.Width</MudText>
@@ -10,11 +10,9 @@
 
 @code
 {
-    [Parameter, EditorRequired]
-    public LinkInformationControl Control { get; set; } = null!;
+    [Parameter] [EditorRequired] public LinkInformationControl Control { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public Model Model { get; set; } = null!;
+    [Parameter] [EditorRequired] public Model Model { get; set; } = null!;
 
     public LinkModel Link => (Model as LinkModel)!;
 }

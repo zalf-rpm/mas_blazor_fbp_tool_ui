@@ -1,17 +1,16 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Tests.TestDoubles;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class CapnpFbpComponentModelTests
 {
-    private FakeFbpRuntimeService _runtimeService = null!;
     private BlazorDiagram _diagram = null!;
+    private FakeFbpRuntimeService _runtimeService = null!;
 
     [TestInitialize]
     public void Setup()
@@ -29,7 +28,7 @@ public class CapnpFbpComponentModelTests
             Diagram = _diagram,
             ComponentName = "TestComp",
             ProcessName = "Process 1",
-            ComponentServiceId = "svc1"
+            ComponentServiceId = "svc1",
         };
 
         Assert.AreEqual(ComponentLifecycleState.Idle, node.LifecycleState);
@@ -51,7 +50,7 @@ public class CapnpFbpComponentModelTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentName = "Worker",
-            ProcessName = "WorkerProcess"
+            ProcessName = "WorkerProcess",
         };
 
         _diagram.Nodes.Add(node);
@@ -71,24 +70,21 @@ public class CapnpFbpComponentModelTests
         var sourceNode = new CapnpFbpRunnableComponentModel("source", new Point(0, 0))
         {
             RuntimeService = _runtimeService,
-            Diagram = _diagram
+            Diagram = _diagram,
         };
         var sourceOutPort = new CapnpFbpOutPortModel(sourceNode, PortAlignment.Right)
         {
             Name = "OUT",
-            IsArrayPort = true
+            IsArrayPort = true,
         };
         sourceNode.AddPort(sourceOutPort);
 
         var targetNode = new CapnpFbpRunnableComponentModel("target", new Point(100, 0))
         {
             RuntimeService = _runtimeService,
-            Diagram = _diagram
+            Diagram = _diagram,
         };
-        var targetInPort = new CapnpFbpInPortModel(targetNode, PortAlignment.Left)
-        {
-            Name = "IN"
-        };
+        var targetInPort = new CapnpFbpInPortModel(targetNode, PortAlignment.Left) { Name = "IN" };
         targetNode.AddPort(targetInPort);
 
         var link = new RememberCapnpPortsLinkModel(sourceOutPort, targetInPort);
@@ -125,7 +121,7 @@ public class CapnpFbpComponentModelTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ComponentServiceId = "old_service"
+            ComponentServiceId = "old_service",
         };
 
         await _runtimeService.SwitchComponentServiceAsync(node, "new_service");
@@ -141,7 +137,7 @@ public class CapnpFbpComponentModelTests
         var node = new CapnpFbpRunnableComponentModel("test_node", new Point(0, 0))
         {
             RuntimeService = _runtimeService,
-            Diagram = _diagram
+            Diagram = _diagram,
         };
 
         var inPort = new CapnpFbpInPortModel(node, PortAlignment.Left) { Name = "IN" };

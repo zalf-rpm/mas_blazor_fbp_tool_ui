@@ -1,9 +1,8 @@
-namespace BlazorDrawFBP.Tests;
-
-using System;
-using System.Linq;
+using Blazor.Diagrams;
 using BlazorDrawFBP.Services;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class FlowSessionStoreTests
@@ -104,8 +103,11 @@ public class FlowSessionStoreTests
         var doc = new JObject
         {
             { "version", "0.3" },
-            { "pan", new JObject { { "x", 10 }, { "y", 20 } } },
-            { "zoom", 1.5 }
+            {
+                "pan",
+                new JObject { { "x", 10 }, { "y", 20 } }
+            },
+            { "zoom", 1.5 },
         };
         session.FlowDocument = doc;
 
@@ -135,7 +137,7 @@ public class FlowSessionStoreTests
     {
         var flowId = Guid.NewGuid();
         var session = _store.GetOrCreateSession(flowId);
-        var diagram = new Blazor.Diagrams.BlazorDiagram();
+        var diagram = new BlazorDiagram();
         session.Diagram = diagram;
 
         // Simulate reconnecting to existing session
@@ -146,7 +148,7 @@ public class FlowSessionStoreTests
     }
 
     [TestMethod]
-    public async System.Threading.Tasks.Task FlowSession_DisposeAsync_CleansUpRuntimeService()
+    public async Task FlowSession_DisposeAsync_CleansUpRuntimeService()
     {
         var flowId = Guid.NewGuid();
         var session = _store.GetOrCreateSession(flowId);
@@ -205,4 +207,3 @@ public class FlowSessionStoreTests
         Assert.AreEqual("2d", FlowSession.FormatTtl(TimeSpan.FromHours(48)));
     }
 }
-

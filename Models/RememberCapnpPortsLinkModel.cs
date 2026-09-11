@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
@@ -24,15 +20,22 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
     public CapnpFbpInPortModel InPortModel { get; set; }
     public bool IsInternalProcLink { get; set; }
 
-    public Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats { get; set; } = new();
+    public Channel<IP>.StatsCallback.Stats Stats { get; set; } = new();
     public Task? RetrieveWriterFromChannelTask { get; set; }
     public SturdyRef? WriterSturdyRef { get; private set; }
     public Channel<IP>.IWriter? Writer { get; private set; }
-    public Mas.Schema.Fbp.Process.IDisconnect? ProcessOutDisconnect { get; private set; }
+    public Process.IDisconnect? ProcessOutDisconnect { get; private set; }
     public bool ProcessOutConnected { get; private set; }
 
-    private static SinglePortAnchor CreatePortAnchor(CapnpFbpPortModel port) =>
-        new(port) { MiddleIfNoMarker = true, UseShapeAndAlignment = false };
+    public void Dispose()
+    {
+        Console.WriteLine("RememberCapnpPortsLinkModel::Dispose()");
+    }
+
+    private static SinglePortAnchor CreatePortAnchor(CapnpFbpPortModel port)
+    {
+        return new SinglePortAnchor(port) { MiddleIfNoMarker = true, UseShapeAndAlignment = false };
+    }
 
     public Task EnsureWriterFromChannelAsync(CancellationToken cancelToken = default)
     {
@@ -79,10 +82,7 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
         OutPortModel?.SyncLinkedWriterState();
     }
 
-    public void SetProcessOutDisconnect(
-        Mas.Schema.Fbp.Process.IDisconnect? disconnect,
-        bool connected
-    )
+    public void SetProcessOutDisconnect(Process.IDisconnect? disconnect, bool connected)
     {
         if (!ReferenceEquals(ProcessOutDisconnect, disconnect))
             ProcessOutDisconnect?.Dispose();
@@ -139,7 +139,6 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
         }
 
         if (Writer != null)
-        {
             try
             {
                 await Writer.Close();
@@ -152,17 +151,11 @@ public class RememberCapnpPortsLinkModel : LinkModel, IDisposable
             {
                 Console.WriteLine($"Link {Id}: writer close RPC failed: {ex.Message}");
             }
-        }
 
         Writer?.Dispose();
         Writer = null;
         WriterSturdyRef = null;
         OutPortModel?.SyncLinkedWriterState();
-    }
-
-    public void Dispose()
-    {
-        Console.WriteLine("RememberCapnpPortsLinkModel::Dispose()");
     }
 
     public void AttachToPorts()

@@ -1,8 +1,6 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
+
+namespace BlazorDrawFBP.Services;
 
 public interface IFbpDiagramFactory
 {

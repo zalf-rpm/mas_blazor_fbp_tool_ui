@@ -1,6 +1,3 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using BlazorDrawFBP.Models;
@@ -8,11 +5,13 @@ using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Infrastructure.Common;
 using Microsoft.AspNetCore.Components;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class CapnpFbpViewComponentModelTests
 {
-    private FakeFbpRuntimeService _runtimeService = null!;
     private BlazorDiagram _diagram = null!;
+    private FakeFbpRuntimeService _runtimeService = null!;
 
     [TestInitialize]
     public void Setup()
@@ -29,7 +28,7 @@ public class CapnpFbpViewComponentModelTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentName = "TextViewer",
-            ProcessName = "ViewerProcess"
+            ProcessName = "ViewerProcess",
         };
 
         Assert.AreEqual(ComponentLifecycleState.Idle, node.LifecycleState);
@@ -50,7 +49,7 @@ public class CapnpFbpViewComponentModelTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            AppendMode = true
+            AppendMode = true,
         };
 
         node.ViewContent = new MarkupString("First line");
@@ -67,7 +66,7 @@ public class CapnpFbpViewComponentModelTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            AppendMode = false
+            AppendMode = false,
         };
 
         node.ViewContent = new MarkupString("First line");
@@ -83,7 +82,7 @@ public class CapnpFbpViewComponentModelTests
         var node = new CapnpFbpViewComponentModel(new Point(0, 0))
         {
             RuntimeService = _runtimeService,
-            Diagram = _diagram
+            Diagram = _diagram,
         };
 
         node.ViewContent = new MarkupString("Data");
@@ -100,7 +99,7 @@ public class CapnpFbpViewComponentModelTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "ViewerProcess"
+            ProcessName = "ViewerProcess",
         };
         _runtimeService.CurrentChannelStarterService = null;
 

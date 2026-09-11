@@ -1,21 +1,15 @@
-using System;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Components.Renderers;
-using Blazor.Diagrams.Core;
-using Blazor.Diagrams.Core.Behaviors;
 using Blazor.Diagrams.Core.Extensions;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Extensions;
 using BlazorDrawFBP.Behaviors;
 using BlazorDrawFBP.Renderers;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.CompilerServices;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
-using SvgPathProperties;
 
 namespace BlazorDrawFBP.Models;
 
@@ -42,7 +36,7 @@ public class FbpLinkWidget : ComponentBase
                 builder.OpenElement(0, "path");
                 builder.AddAttribute(1, "class", "selection-helper");
                 builder.AddAttribute(2, "stroke", color);
-                builder.AddAttribute(3, "stroke-width", (object)12);
+                builder.AddAttribute(3, "stroke-width", 12);
                 builder.AddAttribute(4, nameof(d), d);
                 builder.AddAttribute(5, "stroke-linecap", "butt");
                 builder.AddAttribute(
@@ -56,25 +50,20 @@ public class FbpLinkWidget : ComponentBase
                     builder.AddAttribute(
                         8,
                         "onmouseenter",
-                        EventCallback.Factory.Create<MouseEventArgs>(
-                            (object)this,
-                            new Action<MouseEventArgs>(OnMouseEnter)
-                        )
+                        EventCallback.Factory.Create<MouseEventArgs>(this, OnMouseEnter)
                     );
                     builder.AddAttribute(
                         9,
                         "onmouseleave",
-                        EventCallback.Factory.Create<MouseEventArgs>(
-                            (object)this,
-                            new Action<MouseEventArgs>(OnMouseLeave)
-                        )
+                        EventCallback.Factory.Create<MouseEventArgs>(this, OnMouseLeave)
                     );
                 }
+
                 builder.AddAttribute(
                     10,
                     "onpointerdown",
                     EventCallback.Factory.Create<PointerEventArgs>(
-                        (object)this,
+                        this,
                         (Action<PointerEventArgs>)(e => OnPointerDown(e, index))
                     )
                 );
@@ -88,15 +77,18 @@ public class FbpLinkWidget : ComponentBase
     {
         if (!Link.Segmentable)
             return;
-        BlazorDiagram.TriggerPointerDown(
-            CreateVertex(e.ClientX, e.ClientY, index),
-            EventsExtensions.ToCore(e)
-        );
+        BlazorDiagram.TriggerPointerDown(CreateVertex(e.ClientX, e.ClientY, index), e.ToCore());
     }
 
-    private void OnMouseEnter(MouseEventArgs e) => _hovered = true;
+    private void OnMouseEnter(MouseEventArgs e)
+    {
+        _hovered = true;
+    }
 
-    private void OnMouseLeave(MouseEventArgs e) => _hovered = false;
+    private void OnMouseLeave(MouseEventArgs e)
+    {
+        _hovered = false;
+    }
 
     private LinkVertexModel CreateVertex(double clientX, double clientY, int index)
     {
@@ -131,14 +123,11 @@ public class FbpLinkWidget : ComponentBase
         if (behavior.OngoingLink == null || behavior.OngoingLink != Link)
         {
             if (Link.Vertices.Count == 0)
-            {
                 builder.AddContent(
                     5,
                     GetSelectionHelperPath(color, d1, 0, enableSelectionHoverFeedback)
                 );
-            }
             else
-            {
                 for (var index1 = 0; index1 < pathGeneratorResult.Paths.Length; ++index1)
                 {
                     var d2 = pathGeneratorResult.Paths[index1].ToString();
@@ -148,8 +137,8 @@ public class FbpLinkWidget : ComponentBase
                         GetSelectionHelperPath(color, d2, index2, enableSelectionHoverFeedback)
                     );
                 }
-            }
         }
+
         if (
             Link.SourceMarker != null
             && pathGeneratorResult.SourceMarkerAngle is double sourceAngle
@@ -170,6 +159,7 @@ public class FbpLinkWidget : ComponentBase
             builder.CloseElement();
             builder.CloseElement();
         }
+
         if (
             Link.TargetMarker != null
             && pathGeneratorResult.TargetMarkerAngle is double targetAngle
@@ -190,6 +180,7 @@ public class FbpLinkWidget : ComponentBase
             builder.CloseElement();
             builder.CloseElement();
         }
+
         if (Link.Vertices.Count > 0)
         {
             var str1 = Link.SelectedColor ?? BlazorDiagram.Options.Links.DefaultSelectedColor;
@@ -197,33 +188,14 @@ public class FbpLinkWidget : ComponentBase
             foreach (var vertex in Link.Vertices)
             {
                 builder.OpenComponent<LinkVertexRenderer>(17);
-                builder.AddAttribute(
-                    18,
-                    "Vertex",
-                    Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(
-                        vertex
-                    )
-                );
-                builder.AddAttribute(
-                    19,
-                    "Color",
-                    (object)
-                        Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(
-                            str2
-                        )
-                );
-                builder.AddAttribute(
-                    20,
-                    "SelectedColor",
-                    (object)
-                        Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(
-                            str1
-                        )
-                );
-                builder.SetKey((object)vertex.Id);
+                builder.AddAttribute(18, "Vertex", RuntimeHelpers.TypeCheck(vertex));
+                builder.AddAttribute(19, "Color", (object)RuntimeHelpers.TypeCheck(str2));
+                builder.AddAttribute(20, "SelectedColor", (object)RuntimeHelpers.TypeCheck(str1));
+                builder.SetKey(vertex.Id);
                 builder.CloseComponent();
             }
         }
+
         foreach (var label in Link.Labels)
         {
             var labelRendererType =
@@ -231,19 +203,13 @@ public class FbpLinkWidget : ComponentBase
                     ? typeof(CapnpLinkLabelRenderer)
                     : typeof(LinkLabelRenderer);
             builder.OpenComponent(21, labelRendererType);
-            builder.AddAttribute(
-                22,
-                "Label",
-                Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(label)
-            );
+            builder.AddAttribute(22, "Label", RuntimeHelpers.TypeCheck(label));
             builder.AddAttribute(
                 23,
                 "Path",
-                Microsoft.AspNetCore.Components.CompilerServices.RuntimeHelpers.TypeCheck(
-                    pathGeneratorResult.FullPath
-                )
+                RuntimeHelpers.TypeCheck(pathGeneratorResult.FullPath)
             );
-            builder.SetKey((object)label.Id);
+            builder.SetKey(label.Id);
             builder.CloseComponent();
         }
     }

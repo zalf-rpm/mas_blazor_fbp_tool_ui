@@ -1,10 +1,4 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
-using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
 using Capnp.Rpc;
@@ -12,6 +6,8 @@ using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
+
+namespace BlazorDrawFBP.Services;
 
 public interface IFbpRuntimeService
 {
@@ -41,18 +37,25 @@ public interface IFbpRuntimeService
     string GetComponentServiceBadgeStyle(string serviceId);
     string GetComponentServiceHandleStyle(string serviceId);
     (string Background, string Foreground) GetComponentServiceColors(string serviceId);
-    IReadOnlyList<KeyValuePair<string, (string, string?)>> GetBindableComponentServices(CapnpFbpComponentModel node);
+    IReadOnlyList<KeyValuePair<string, (string, string?)>> GetBindableComponentServices(
+        CapnpFbpComponentModel node
+    );
     Task SwitchComponentServiceAsync(CapnpFbpComponentModel node, string componentServiceId);
 
-    Task<IStartChannelsService?> ConnectToStartChannelsServiceAsync(string petName, string sturdyRef);
+    Task<IStartChannelsService?> ConnectToStartChannelsServiceAsync(
+        string petName,
+        string sturdyRef
+    );
     Task<IRegistry?> ConnectToRegistryServiceAsync(string petName, string sturdyRef);
-    Task HandleSturdyRefConnectedAsync((ulong interfaceId, string sturdyRef, string petName) connection);
+    Task HandleSturdyRefConnectedAsync(
+        (ulong interfaceId, string sturdyRef, string petName) connection
+    );
     Task HandleSturdyRefDisconnectedAsync((ulong interfaceId, string sturdyRef) connection);
     void DisconnectChannelStarterService(string sturdyRef);
     void DisconnectRegistryService(string sturdyRef);
     void DisconnectChannelStarterServiceById(string serviceId);
     void DisconnectRegistryServiceById(string serviceId);
-    Task<int> CheckConnectedServicesHealthAsync(System.Threading.CancellationToken cancellationToken = default);
+    Task<int> CheckConnectedServicesHealthAsync(CancellationToken cancellationToken = default);
 
     void InitDefaultComponents(string jsonContent);
     Task ClearDiagramAsync();
@@ -61,6 +64,7 @@ public interface IFbpRuntimeService
     Task ExecuteFlowAsync(Action? onStateChanged = null);
     event Action? StateChanged;
     event Action<ServiceConnectionDroppedEventArgs>? ServiceConnectionDropped;
+
     void NotifyServiceConnectionDropped(
         string serviceType,
         string serviceId,
@@ -72,12 +76,6 @@ public interface IFbpRuntimeService
 
 public class ServiceConnectionDroppedEventArgs : EventArgs
 {
-    public string ServiceType { get; }
-    public string ServiceId { get; }
-    public string PetName { get; }
-    public string? SturdyRef { get; }
-    public string Message { get; }
-
     public ServiceConnectionDroppedEventArgs(
         string serviceType,
         string serviceId,
@@ -90,11 +88,17 @@ public class ServiceConnectionDroppedEventArgs : EventArgs
         ServiceId = serviceId;
         PetName = petName;
         SturdyRef = sturdyRef;
-        var displayName = !string.IsNullOrWhiteSpace(petName)
-            ? petName
-            : !string.IsNullOrWhiteSpace(serviceId)
-                ? serviceId
-                : "Unknown";
-        Message = customMessage ?? $"Connection dropped: {serviceType} '{displayName}' is unreachable.";
+        var displayName =
+            !string.IsNullOrWhiteSpace(petName) ? petName
+            : !string.IsNullOrWhiteSpace(serviceId) ? serviceId
+            : "Unknown";
+        Message =
+            customMessage ?? $"Connection dropped: {serviceType} '{displayName}' is unreachable.";
     }
+
+    public string ServiceType { get; }
+    public string ServiceId { get; }
+    public string PetName { get; }
+    public string? SturdyRef { get; }
+    public string Message { get; }
 }

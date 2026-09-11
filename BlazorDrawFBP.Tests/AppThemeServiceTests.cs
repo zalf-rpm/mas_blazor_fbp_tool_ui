@@ -1,8 +1,7 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Threading.Tasks;
 using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class AppThemeServiceTests

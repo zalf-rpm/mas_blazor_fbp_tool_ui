@@ -1,8 +1,4 @@
-@using Blazor.Diagrams.Components.Renderers;
-@using BlazorDrawFBP.Models;
 @using BlazorDrawFBP.Renderers
-@using System.Text
-@using System.Threading
 @using Mas.Infrastructure.BlazorComponents
 @using Mas.Infrastructure.Common
 @using Mas.Schema.Common
@@ -15,7 +11,7 @@
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
                                     Label="@Node.LifecycleLabel"
-                                    Error="@Node.LifecycleError" />
+                                    Error="@Node.LifecycleError"/>
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="pl-3 pr-3 pt-3">
             <MudButton Color="@Color.Primary"
                        Disabled="@Node.IsLifecycleBusy"
@@ -41,7 +37,8 @@
                         <MudSelectItem Value="@((true, StructuredText.Type.unstructured))">
                             as plain text
                         </MudSelectItem>
-                        @foreach (var ct in Enum.GetValues<Mas.Schema.Common.StructuredText.Type>()) {
+                        @foreach (var ct in Enum.GetValues<StructuredText.Type>())
+                        {
                             <MudSelectItem Value="@((false, ct))">@(Shared.FormatStructuredTextType(ct))</MudSelectItem>
                         }
                     </MudSelect>
@@ -72,28 +69,35 @@
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="iipPort"
                                   Port="iipPort"
-                                  SocketColor="@GetSocketColor(iipPort)" />
+                                  SocketColor="@GetSocketColor(iipPort)"/>
         </div>
     }
 </div>
 
 @code
 {
-    [Parameter, EditorRequired] public CapnpFbpIipComponentModel Node { get; set; } = null!;
+    [Parameter] [EditorRequired] public CapnpFbpIipComponentModel Node { get; set; } = null!;
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private const string FrameWidth = "border-width: 1px";
+
     private string FrameBorderColorValue =>
         CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.DisplayLifecycleState);
+
     private string FrameColor => $@"border-color: {FrameBorderColorValue}";
-    private string GetSocketColor(CapnpFbpPortModel port) =>
-        CapnpFbpPortColors.ResolvePortShellColor(port) ?? FrameBorderColorValue;
+
+    private string GetSocketColor(CapnpFbpPortModel port)
+    {
+        return CapnpFbpPortColors.ResolvePortShellColor(port) ?? FrameBorderColorValue;
+    }
+
     private string LifecycleButtonText => Node.DisplayLifecycleState switch
     {
         ComponentLifecycleState.Starting => $"{Node.LifecycleLabel}...",
         ComponentLifecycleState.Failed => "Send",
-        _ => "Send",
+        _ => "Send"
     };
+
     private string LifecycleButtonIcon => Icons.Material.Filled.Send;
 
     private MarkupString CardToolTipText { get; set; }

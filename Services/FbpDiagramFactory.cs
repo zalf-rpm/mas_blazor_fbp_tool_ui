@@ -1,20 +1,15 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Anchors;
 using Blazor.Diagrams.Core.Behaviors;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Core.PathGenerators;
 using Blazor.Diagrams.Core.Routers;
 using Blazor.Diagrams.Options;
 using BlazorDrawFBP.Behaviors;
 using BlazorDrawFBP.Controls;
 using BlazorDrawFBP.Models;
-using BlazorDrawFBP.Shared;
+
+namespace BlazorDrawFBP.Services;
 
 public class FbpDiagramFactory : IFbpDiagramFactory
 {
@@ -124,13 +119,11 @@ public class FbpDiagramFactory : IFbpDiagramFactory
             if (l is RememberCapnpPortsLinkModel rememberedLink)
             {
                 if (runtime.CurrentChannelStarterService is { } css)
-                {
-                    await BlazorDrawFBP.Shared.Shared.ConnectLinkToRunningProcessesAsync(
+                    await Shared.Shared.ConnectLinkToRunningProcessesAsync(
                         runtime.ConnectionManager,
                         css,
                         rememberedLink
                     );
-                }
                 FbpLayoutHelper.RefreshPortLayout(l);
                 FbpLayoutHelper.QueueProcStructureSyncForLink(rememberedLink);
                 return;
@@ -203,7 +196,7 @@ public class FbpDiagramFactory : IFbpDiagramFactory
                 {
                     NameLabel = $"Change {port.Name}",
                     ContentTypeLabel = $"{port.Name} {ct}",
-                    DescriptionLabel = $"Description",
+                    DescriptionLabel = "Description",
                     PortModel = port,
                     NodeModel = port.Parent,
                     Container = diagram,

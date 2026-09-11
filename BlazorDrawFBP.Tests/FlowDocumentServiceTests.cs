@@ -1,8 +1,3 @@
-namespace BlazorDrawFBP.Tests;
-
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using BlazorDrawFBP.Models;
@@ -10,16 +5,17 @@ using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
-using MudBlazor;
 using Newtonsoft.Json.Linq;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class FlowDocumentServiceTests
 {
-    private FbpNodeFactory _nodeFactory = null!;
-    private FlowDocumentService _flowDocService = null!;
-    private FakeFbpRuntimeService _runtime = null!;
     private BlazorDiagram _diagram = null!;
+    private FlowDocumentService _flowDocService = null!;
+    private FbpNodeFactory _nodeFactory = null!;
+    private FakeFbpRuntimeService _runtime = null!;
 
     [TestInitialize]
     public void Setup()
@@ -53,10 +49,31 @@ public class FlowDocumentServiceTests
     {
         var testComponent = new Component
         {
-            Info = new IdInformation { Id = "comp-1", Name = "TestComponent", Description = "A test component" },
+            Info = new IdInformation
+            {
+                Id = "comp-1",
+                Name = "TestComponent",
+                Description = "A test component",
+            },
             Type = Component.ComponentType.standard,
-            InPorts = [new Component.Port { Name = "in1", Type = Component.Port.PortType.standard, ContentType = "text" }],
-            OutPorts = [new Component.Port { Name = "out1", Type = Component.Port.PortType.standard, ContentType = "text" }],
+            InPorts =
+            [
+                new Component.Port
+                {
+                    Name = "in1",
+                    Type = Component.Port.PortType.standard,
+                    ContentType = "text",
+                },
+            ],
+            OutPorts =
+            [
+                new Component.Port
+                {
+                    Name = "out1",
+                    Type = Component.Port.PortType.standard,
+                    ContentType = "text",
+                },
+            ],
         };
         _runtime.ServiceIdAndComponentId2Component[("no_service", "comp-1")] = testComponent;
 
@@ -71,14 +88,20 @@ public class FlowDocumentServiceTests
                         { "nodeId", "node-1" },
                         { "componentId", "comp-1" },
                         { "processName", "Process1" },
-                        { "location", new JObject { { "x", 100 }, { "y", 150 } } },
+                        {
+                            "location",
+                            new JObject { { "x", 100 }, { "y", 150 } }
+                        },
                     },
                     new JObject
                     {
                         { "nodeId", "node-2" },
                         { "componentId", "comp-1" },
                         { "processName", "Process2" },
-                        { "location", new JObject { { "x", 400 }, { "y", 150 } } },
+                        {
+                            "location",
+                            new JObject { { "x", 400 }, { "y", 150 } }
+                        },
                     },
                 }
             },
@@ -88,8 +111,14 @@ public class FlowDocumentServiceTests
                 {
                     new JObject
                     {
-                        { "source", new JObject { { "nodeId", "node-1" }, { "port", "out1" } } },
-                        { "target", new JObject { { "nodeId", "node-2" }, { "port", "in1" } } },
+                        {
+                            "source",
+                            new JObject { { "nodeId", "node-1" }, { "port", "out1" } }
+                        },
+                        {
+                            "target",
+                            new JObject { { "nodeId", "node-2" }, { "port", "in1" } }
+                        },
                     },
                 }
             },
@@ -100,7 +129,11 @@ public class FlowDocumentServiceTests
             _diagram,
             _runtime,
             flowJson,
-            onZoomToFit: () => { zoomCalled = true; return Task.CompletedTask; }
+            () =>
+            {
+                zoomCalled = true;
+                return Task.CompletedTask;
+            }
         );
 
         Assert.AreEqual(2, _diagram.Nodes.Count);
@@ -112,14 +145,23 @@ public class FlowDocumentServiceTests
     public async Task ExportFlowJsonAsync_ExcludesDeadOrUnavailableServices()
     {
         _runtime.ServiceId2Registries["active-reg"] = null!;
-        _runtime.RegistryServiceIdToPetNameAndSturdyRef["active-reg"] = ("Active Reg", "capnp://active-reg");
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["active-reg"] = (
+            "Active Reg",
+            "capnp://active-reg"
+        );
 
         // Dead/unavailable service: has null sturdyRef and is not in ServiceId2Registries
-        _runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("Service 'dea..reg' unavailable!", null);
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = (
+            "Service 'dea..reg' unavailable!",
+            null
+        );
 
         // Active channel service
         _runtime.ServiceId2ChannelStarterServices["active-chan"] = null!;
-        _runtime.ChannelServiceIdToPetNameAndSturdyRef["active-chan"] = ("Active Chan", "capnp://active-chan");
+        _runtime.ChannelServiceIdToPetNameAndSturdyRef["active-chan"] = (
+            "Active Chan",
+            "capnp://active-chan"
+        );
 
         var doc = await _flowDocService.ExportFlowJsonAsync(_diagram, _runtime);
         var servicesObj = doc["services"] as JObject;
@@ -144,8 +186,14 @@ public class FlowDocumentServiceTests
                 "services",
                 new JObject
                 {
-                    { "components", new JObject { { "dead-svc", "capnp://unreachable-host:9999/dead" } } },
-                    { "channels", new JObject { { "dead-chan", "capnp://unreachable-host:9999/dead-chan" } } }
+                    {
+                        "components",
+                        new JObject { { "dead-svc", "capnp://unreachable-host:9999/dead" } }
+                    },
+                    {
+                        "channels",
+                        new JObject { { "dead-chan", "capnp://unreachable-host:9999/dead-chan" } }
+                    },
                 }
             },
             {
@@ -158,11 +206,14 @@ public class FlowDocumentServiceTests
                         { "componentId", "some-comp" },
                         { "componentServiceId", "dead-svc" },
                         { "processName", "DeadNode" },
-                        { "location", new JObject { { "x", 100 }, { "y", 150 } } },
-                    }
+                        {
+                            "location",
+                            new JObject { { "x", 100 }, { "y", 150 } }
+                        },
+                    },
                 }
             },
-            { "links", new JArray() }
+            { "links", new JArray() },
         };
 
         await _flowDocService.LoadFlowFromJsonAsync(_diagram, _runtime, flowJson);
@@ -173,22 +224,31 @@ public class FlowDocumentServiceTests
         Assert.AreEqual("dead-svc", node.ComponentServiceId);
         Assert.IsTrue(_runtime.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("dead-svc"));
         Assert.IsNull(_runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-svc"].Item2);
-        StringAssert.Contains(_runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-svc"].Item1, "unavailable!");
+        StringAssert.Contains(
+            _runtime.RegistryServiceIdToPetNameAndSturdyRef["dead-svc"].Item1,
+            "unavailable!"
+        );
     }
 
     [TestMethod]
     public async Task ExportFlowJsonAsync_ScopesComponentServicesToThoseUsedByDiagramNodes()
     {
         _runtime.ServiceId2Registries["used-reg"] = null!;
-        _runtime.RegistryServiceIdToPetNameAndSturdyRef["used-reg"] = ("Used Registry", "capnp://used-reg");
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["used-reg"] = (
+            "Used Registry",
+            "capnp://used-reg"
+        );
 
         _runtime.ServiceId2Registries["unused-reg"] = null!;
-        _runtime.RegistryServiceIdToPetNameAndSturdyRef["unused-reg"] = ("Unused Registry", "capnp://unused-reg");
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["unused-reg"] = (
+            "Unused Registry",
+            "capnp://unused-reg"
+        );
 
         var node = new CapnpFbpComponentModel(new Point(0, 0))
         {
             ComponentServiceId = "used-reg",
-            ComponentId = "comp-1"
+            ComponentId = "comp-1",
         };
         _diagram.Nodes.Add(node);
 
@@ -196,7 +256,13 @@ public class FlowDocumentServiceTests
         var components = doc["services"]?["components"] as JObject;
 
         Assert.IsNotNull(components);
-        Assert.IsTrue(components.ContainsKey("used-reg"), "Component service used by diagram node must be exported.");
-        Assert.IsFalse(components.ContainsKey("unused-reg"), "Connected component service not used by any diagram node should be excluded.");
+        Assert.IsTrue(
+            components.ContainsKey("used-reg"),
+            "Component service used by diagram node must be exported."
+        );
+        Assert.IsFalse(
+            components.ContainsKey("unused-reg"),
+            "Connected component service not used by any diagram node should be excluded."
+        );
     }
 }

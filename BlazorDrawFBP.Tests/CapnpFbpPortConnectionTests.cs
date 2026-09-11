@@ -1,10 +1,9 @@
-namespace BlazorDrawFBP.Tests;
-
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
-using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class CapnpFbpPortConnectionTests
@@ -72,7 +71,7 @@ public class CapnpFbpPortConnectionTests
     {
         var outPort = new CapnpFbpOutPortModel(_sourceNode, PortAlignment.Right);
         var inPort1 = new CapnpFbpInPortModel(_targetNode, PortAlignment.Left);
-        var inPort2 = new CapnpFbpInPortModel(_targetNode, PortAlignment.Bottom);
+        var inPort2 = new CapnpFbpInPortModel(_targetNode);
         _sourceNode.AddPort(outPort);
         _targetNode.AddPort(inPort1);
         _targetNode.AddPort(inPort2);
@@ -89,10 +88,10 @@ public class CapnpFbpPortConnectionTests
     {
         var arrayOutPort = new CapnpFbpOutPortModel(_sourceNode, PortAlignment.Right)
         {
-            IsArrayPort = true
+            IsArrayPort = true,
         };
         var inPort1 = new CapnpFbpInPortModel(_targetNode, PortAlignment.Left);
-        var inPort2 = new CapnpFbpInPortModel(_targetNode, PortAlignment.Bottom);
+        var inPort2 = new CapnpFbpInPortModel(_targetNode);
         _sourceNode.AddPort(arrayOutPort);
         _targetNode.AddPort(inPort1);
         _targetNode.AddPort(inPort2);
@@ -109,7 +108,7 @@ public class CapnpFbpPortConnectionTests
     {
         var arrayOutPort = new CapnpFbpOutPortModel(_sourceNode, PortAlignment.Right)
         {
-            IsArrayPort = true
+            IsArrayPort = true,
         };
         var inPort = new CapnpFbpInPortModel(_targetNode, PortAlignment.Left);
         _sourceNode.AddPort(arrayOutPort);

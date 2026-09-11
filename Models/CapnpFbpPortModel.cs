@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
-using Mas.Schema.Fbp;
-using Mas.Schema.Persistence;
-using Mas.Schema.Service;
 
 namespace BlazorDrawFBP.Models;
 
@@ -80,6 +74,12 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
 
     public double LayoutOffsetPx { get; set; }
 
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
+
     public override bool CanAttachTo(ILinkable other)
     {
         // default constraints
@@ -125,8 +125,8 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
     private static bool TryResolveEndpoints(
         CapnpFbpPortModel firstPort,
         CapnpFbpPortModel secondPort,
-        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out CapnpFbpOutPortModel? outPort,
-        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out CapnpFbpInPortModel? inPort
+        [NotNullWhen(true)] out CapnpFbpOutPortModel? outPort,
+        [NotNullWhen(true)] out CapnpFbpInPortModel? inPort
     )
     {
         switch (firstPort, secondPort)
@@ -144,12 +144,6 @@ public class CapnpFbpPortModel : PortModel, IAsyncDisposable
                 inPort = null;
                 return false;
         }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore();
-        GC.SuppressFinalize(this);
     }
 
     protected virtual async ValueTask DisposeAsyncCore() { }

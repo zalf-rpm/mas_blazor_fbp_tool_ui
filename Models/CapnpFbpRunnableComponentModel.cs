@@ -1,25 +1,25 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams.Core.Geometry;
-using Blazor.Diagrams.Core.Models;
-using BlazorDrawFBP.Pages;
+using Capnp.Rpc;
 using Mas.Infrastructure.Common;
 using Mas.Schema.Common;
 using Mas.Schema.Fbp;
 using Mas.Schema.Persistence;
 using Mas.Schema.Service;
-using Newtonsoft.Json.Linq;
-using Process = Mas.Schema.Fbp.Process;
+using Exception = System.Exception;
 using RpcException = Capnp.Rpc.RpcException;
 
 namespace BlazorDrawFBP.Models;
 
 public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 {
+    private readonly StoppedCallback _stoppedCallback;
+    private CancellationTokenSource? _cancellationTokenSource;
+    private CapnpFbpOutPortModel? _embeddedConfIipOutPort;
+    private CapnpFbpInPortModel? _embeddedConfigInPort;
+    private SturdyRef? _portInfosReaderSr;
+    private Channel<PortInfos>.IWriter? _portInfosWriter;
+
     public CapnpFbpRunnableComponentModel(Point? position = null)
         : base(position)
     {
@@ -32,12 +32,6 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         _stoppedCallback = new StoppedCallback(this);
     }
 
-    private readonly StoppedCallback _stoppedCallback;
-    private CancellationTokenSource? _cancellationTokenSource;
-    private CapnpFbpInPortModel? _embeddedConfigInPort;
-    private CapnpFbpOutPortModel? _embeddedConfIipOutPort;
-    private SturdyRef? _portInfosReaderSr;
-    private Channel<PortInfos>.IWriter? _portInfosWriter;
     private IStoppable? _stopPortInfosChannel { get; set; }
 
     public IRunnable? Runnable { get; set; }
@@ -45,15 +39,23 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
     public Runnable.IFactory? RunnableFactory { get; set; }
     protected override bool SupportsProcMultiplication => true;
 
-    public override bool RemoteProcessAttached() => Runnable != null;
+    public override bool RemoteProcessAttached()
+    {
+        return Runnable != null;
+    }
 
-    public override bool CanEditCommandLine() => RunnableFactory != null || Runnable != null;
+    public override bool CanEditCommandLine()
+    {
+        return RunnableFactory != null || Runnable != null;
+    }
 
-    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex) =>
-        new CapnpFbpRunnableComponentModel(
+    protected override CapnpFbpComponentModel CreateProcChildModel(int displayIndex)
+    {
+        return new CapnpFbpRunnableComponentModel(
             $"{Id}__proc_{displayIndex}",
             Position == null ? null : new Point(Position.X, Position.Y)
         );
+    }
 
     public override async Task StartProcess(ConnectionManager conMan)
     {
@@ -73,9 +75,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             || LifecycleState
                 is not (ComponentLifecycleState.Idle or ComponentLifecycleState.Failed)
         )
-        {
             return;
-        }
 
         var shouldStopExistingRuntime =
             Runnable != null && LifecycleState is not ComponentLifecycleState.Idle;
@@ -94,9 +94,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             {
                 Runnable = await RunnableFactory.Create(cancelToken);
                 if (Runnable == null)
-                {
                     return;
-                }
             }
 
             List<PortInfos.NameAndSR> inPortSRs = [];
@@ -117,7 +115,6 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     case CapnpFbpInPortModel inPort:
                         // if there is no SR
                         if (inPort.ReaderSturdyRef == null)
-                        {
                             // but we have a task for the SR
                             if (inPort.RetrieveReaderFromChannelTask != null)
                             {
@@ -126,7 +123,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                                 );
                                 await inPort.RetrieveReaderFromChannelTask;
                             }
-                        }
+
                         if (!collectedInPorts.Add(inPort))
                             break;
                         inPortSRs.Add(
@@ -139,9 +136,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                         break;
                     case CapnpFbpOutPortModel outPort when link != null:
                         if (link.WriterSturdyRef == null)
-                        {
                             await link.EnsureWriterFromChannelAsync(cancelToken);
-                        }
                         if (link.WriterSturdyRef == null)
                             throw new InvalidOperationException(
                                 $"Could not initialize writer for out port '{outPort.Name}'."
@@ -151,6 +146,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                             writerSrs = [];
                             outPortSrMap[outPort] = writerSrs;
                         }
+
                         writerSrs.Add(link.WriterSturdyRef);
                         break;
                 }
@@ -168,9 +164,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                         OutPortModel: { } outPort
                     } rcplm
                 )
-                {
                     continue;
-                }
 
                 // deal with IN port
                 // the IN port (link) is not associated with a channel yet -> create channel
@@ -181,9 +175,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                         inPort.Parent is not CapnpFbpComponentModel
                         && inPort.Parent is not CapnpFbpViewComponentModel
                     )
-                    {
                         continue;
-                    }
 
                     Console.WriteLine(
                         $"T{Environment.CurrentManagedThreadId} {ProcessName}: the IN port (link) is not associated with a channel yet -> create channel"
@@ -196,14 +188,10 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 }
 
                 if (inPort.Parent == this)
-                {
                     await CollectPortSrs(inPort);
-                }
 
                 if (inPort.Name == "config")
-                {
                     configInPortConnected = true;
-                }
 
                 CapnpFbpPortColors.ApplyLinkColor(rcplm);
 
@@ -211,22 +199,18 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                 await rcplm.EnsureWriterFromChannelAsync(cancelToken);
 
                 if (outPort.Parent == this)
-                {
                     await CollectPortSrs(outPort, rcplm);
-                }
                 outPort.Parent.Refresh();
             }
 
-            List<PortInfos.NameAndSR> outPortSRs = outPortSrMap
+            var outPortSRs = outPortSrMap
                 .OrderBy(entry => entry.Key.OrderNo)
                 .ThenBy(entry => entry.Key.Name)
                 .Select(entry =>
                 {
                     var writerSrs = entry.Value;
                     if (entry.Key.IsArrayPort)
-                    {
                         return new PortInfos.NameAndSR { Name = entry.Key.Name, Srs = writerSrs };
-                    }
 
                     return new PortInfos.NameAndSR
                     {
@@ -348,9 +332,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
                     || si.Item1[0].ReaderSRs.Count == 0
                     || si.Item1[0].WriterSRs.Count == 0
                 )
-                {
                     return;
-                }
 
                 _portInfosReaderSr = si.Item1[0].ReaderSRs[0];
                 _portInfosWriter = (
@@ -402,8 +384,8 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
         catch (Exception e)
         {
-            await ResetRemoteRuntimeAsync(stopRunnable: true);
-            SetLifecycleFault(e, refresh: true);
+            await ResetRemoteRuntimeAsync(true);
+            SetLifecycleFault(e, true);
         }
     }
 
@@ -430,7 +412,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         }
         catch (Exception e)
         {
-            SetLifecycleFault(e, refresh: true);
+            SetLifecycleFault(e, true);
         }
     }
 
@@ -460,7 +442,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
 
     private async Task ShutdownSingleForComponentServiceSwitchAsync()
     {
-        await ResetRemoteRuntimeAsync(stopRunnable: Runnable != null);
+        await ResetRemoteRuntimeAsync(Runnable != null);
     }
 
     protected override void ApplyComponentServiceBinding(
@@ -473,7 +455,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         RunnableFactory?.Dispose();
         RunnableFactory =
             component.Factory?.which == Component.factory.WHICH.Runnable
-                ? Capnp.Rpc.Proxy.Share(component.Factory.Runnable)
+                ? Proxy.Share(component.Factory.Runnable)
                 : null;
     }
 
@@ -483,7 +465,7 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
             return;
 
         runnableChild.RunnableFactory =
-            RunnableFactory != null ? Capnp.Rpc.Proxy.Share(RunnableFactory) : null;
+            RunnableFactory != null ? Proxy.Share(RunnableFactory) : null;
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -521,22 +503,6 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         if (_embeddedConfIipOutPort != null)
             await _embeddedConfIipOutPort.DisposeAsync();
         _embeddedConfIipOutPort = null;
-    }
-
-    private class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)
-        : Mas.Schema.Fbp.Runnable.IStoppedCallback
-    {
-        public void Dispose() { }
-
-        public Task Stopped(CancellationToken cancellationToken = default)
-        {
-            Console.WriteLine(
-                $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
-            );
-            runnableModel.SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
-            return Task.CompletedTask;
-            //return runnableModel.StopProcess(null);
-        }
     }
 
     private async Task ResetRemoteRuntimeAsync(bool stopRunnable)
@@ -651,5 +617,21 @@ public class CapnpFbpRunnableComponentModel : CapnpFbpComponentModel
         await _cancellationTokenSource.CancelAsync();
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = null;
+    }
+
+    private class StoppedCallback(CapnpFbpRunnableComponentModel runnableModel)
+        : Runnable.IStoppedCallback
+    {
+        public void Dispose() { }
+
+        public Task Stopped(CancellationToken cancellationToken = default)
+        {
+            Console.WriteLine(
+                $"T{Environment.CurrentManagedThreadId} {runnableModel.ProcessName} StoppedCallback::Stopped received"
+            );
+            runnableModel.SetLifecycleState(ComponentLifecycleState.Idle, refresh: true);
+            return Task.CompletedTask;
+            //return runnableModel.StopProcess(null);
+        }
     }
 }

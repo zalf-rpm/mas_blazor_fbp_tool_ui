@@ -1,8 +1,6 @@
-namespace BlazorDrawFBP.Services;
-
-using System;
-using System.Threading.Tasks;
 using Blazored.LocalStorage;
+
+namespace BlazorDrawFBP.Services;
 
 public class AppThemeService(ILocalStorageService? localStorage = null) : IAppThemeService
 {
@@ -45,7 +43,6 @@ public class AppThemeService(ILocalStorageService? localStorage = null) : IAppTh
         ThemeChanged?.Invoke();
 
         if (localStorage != null)
-        {
             try
             {
                 await localStorage.SetItemAsync(StorageKey, IsDarkMode);
@@ -54,6 +51,5 @@ public class AppThemeService(ILocalStorageService? localStorage = null) : IAppTh
             {
                 Console.WriteLine($"Failed to save theme preference: {ex.Message}");
             }
-        }
     }
 }

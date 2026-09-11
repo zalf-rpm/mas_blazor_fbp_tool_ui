@@ -1,7 +1,7 @@
-using System;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Components;
 using Blazor.Diagrams.Core.Extensions;
+using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
@@ -62,7 +62,7 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
             builder.AddAttribute(5, "height", height.ToString());
             builder.AddAttribute(6, "style", "overflow: visible;");
             builder.OpenComponent(7, componentType);
-            builder.AddAttribute(8, "Label", (object)Label);
+            builder.AddAttribute(8, "Label", Label);
         }
         else
         {
@@ -71,8 +71,9 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
             builder.AddAttribute(2, "x", x.ToInvariantString());
             builder.AddAttribute(3, "y", y.ToInvariantString());
             builder.OpenComponent(4, componentType);
-            builder.AddAttribute(5, "Label", (object)Label);
+            builder.AddAttribute(5, "Label", Label);
         }
+
         builder.CloseComponent();
         builder.CloseElement();
     }
@@ -82,25 +83,21 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
         InvokeAsync(StateHasChanged);
     }
 
-    private Blazor.Diagrams.Core.Geometry.Point FindPosition()
+    private Point FindPosition()
     {
         var length = Path.Length;
         var distance = Label.Distance;
         double fractionLength;
         if (distance is double d)
-        {
             fractionLength = d switch
             {
                 <= 1.0 => d >= 0.0 ? d * length : length + d,
                 _ => d,
             };
-        }
         else
-        {
             fractionLength =
                 length * (Label.Parent.Labels.IndexOf(Label) + 1) / (Label.Parent.Labels.Count + 1);
-        }
         var pointAtLength = Path.GetPointAtLength(fractionLength);
-        return new Blazor.Diagrams.Core.Geometry.Point(pointAtLength.X, pointAtLength.Y);
+        return new Point(pointAtLength.X, pointAtLength.Y);
     }
 }

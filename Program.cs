@@ -1,6 +1,7 @@
+using BlazorDrawFBP;
 using BlazorDrawFBP.Services;
-using BlazorDrawFBP.Shared;
 using Blazored.LocalStorage;
+using Mas.Infrastructure.Common;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor;
 using MudBlazor.Services;
@@ -21,7 +22,7 @@ builder.Services.AddMudServices(config =>
     config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
 });
 
-builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
+builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<IAppThemeService, AppThemeService>();
 
@@ -39,7 +40,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseExceptionHandler("/Error", true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -52,13 +53,11 @@ if (
     string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"))
     || app.Configuration["HTTPS_PORT"] != null
 )
-{
     app.UseHttpsRedirection();
-}
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<BlazorDrawFBP.App>().AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();

@@ -1,17 +1,10 @@
 namespace BlazorDrawFBP.Services;
 
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
 public class FlowSessionReaper : BackgroundService
 {
-    private readonly IFlowSessionStore _sessionStore;
-    private readonly ILogger<FlowSessionReaper> _logger;
     private readonly TimeSpan _checkInterval;
+    private readonly ILogger<FlowSessionReaper> _logger;
+    private readonly IFlowSessionStore _sessionStore;
 
     public FlowSessionReaper(
         IFlowSessionStore sessionStore,
@@ -32,7 +25,7 @@ public class FlowSessionReaper : BackgroundService
             .Where(session =>
                 session.IsDetached
                 && session.DetachedAt.HasValue
-                && (now - session.DetachedAt.Value) > session.Ttl
+                && now - session.DetachedAt.Value > session.Ttl
                 && !session.RuntimeService.IsExecutingFlow
             )
             .ToList();
@@ -46,13 +39,9 @@ public class FlowSessionReaper : BackgroundService
             try
             {
                 if (removedSession.RuntimeService is IAsyncDisposable disposable)
-                {
                     await disposable.DisposeAsync();
-                }
                 else
-                {
                     await removedSession.RuntimeService.ClearDiagramAsync();
-                }
 
                 reapedCount++;
                 _logger.LogInformation(
@@ -78,7 +67,6 @@ public class FlowSessionReaper : BackgroundService
     {
         using var timer = new PeriodicTimer(_checkInterval);
         while (!stoppingToken.IsCancellationRequested)
-        {
             try
             {
                 await timer.WaitForNextTickAsync(stoppingToken);
@@ -92,6 +80,5 @@ public class FlowSessionReaper : BackgroundService
             {
                 _logger.LogError(ex, "Unexpected error in FlowSessionReaper loop.");
             }
-        }
     }
 }

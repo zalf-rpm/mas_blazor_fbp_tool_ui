@@ -1,8 +1,7 @@
-@inject Mas.Infrastructure.Common.ConnectionManager ConMan
-
-@using System.Threading
 @using BlazorDrawFBP.Renderers
 @using Mas.Infrastructure.BlazorComponents
+@using Mas.Infrastructure.Common
+@inject ConnectionManager ConMan
 @inject IDialogService DialogService
 @* @inject BlazorDispatcher Dispatcher *@
 
@@ -11,7 +10,7 @@
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
                                     Label="@Node.LifecycleLabel"
-                                    Error="@Node.LifecycleError" />
+                                    Error="@Node.LifecycleError"/>
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="pl-3 pr-3 pt-3">
             <MudButton Color="@Color.Primary"
                        Disabled="@Node.IsLifecycleBusy"
@@ -53,38 +52,46 @@
              @onmouseleave="@(() => CardToolTipText = new MarkupString())">
             <CapnpFbpPortRenderer @key="capnpPort"
                                   Port="capnpPort"
-                                  SocketColor="@GetSocketColor(capnpPort)" />
+                                  SocketColor="@GetSocketColor(capnpPort)"/>
         </div>
     }
 </div>
 
 @code {
-    [Parameter, EditorRequired] public CapnpFbpViewComponentModel Node { get; set; } = null!;
+    [Parameter] [EditorRequired] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
     private string CardStyle =>
-        $"height: {(Node.Size?.Height ?? 200)}px; width: {(Node.Size?.Width ?? 350)}px;{FrameWidth};{FrameColor}";
+        $"height: {Node.Size?.Height ?? 200}px; width: {Node.Size?.Width ?? 350}px;{FrameWidth};{FrameColor}";
+
     private const string FrameWidth = "border-width: 1px";
+
     private string FrameBorderColorValue =>
         CapnpFbpPortColors.ResolveLifecycleFrameColor(Node.LifecycleState);
+
     private string FrameColor => $@"border-color: {FrameBorderColorValue}";
-    private string GetSocketColor(CapnpFbpPortModel port) =>
-        CapnpFbpPortColors.ResolvePortShellColor(port) ?? FrameBorderColorValue;
+
+    private string GetSocketColor(CapnpFbpPortModel port)
+    {
+        return CapnpFbpPortColors.ResolvePortShellColor(port) ?? FrameBorderColorValue;
+    }
+
     private string LifecycleButtonText => Node.IsLifecycleBusy
         ? $"{Node.LifecycleLabel}..."
         : Node.LifecycleState switch
-    {
-        ComponentLifecycleState.Running => "Stop",
-        ComponentLifecycleState.Failed => "Retry",
-        _ => "Start",
-    };
+        {
+            ComponentLifecycleState.Running => "Stop",
+            ComponentLifecycleState.Failed => "Retry",
+            _ => "Start"
+        };
+
     private string LifecycleButtonIcon => Node.LifecycleState switch
     {
         ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
-        _ => Icons.Material.Filled.PlayCircle,
+        _ => Icons.Material.Filled.PlayCircle
     };
 
     private MarkupString CardToolTipText { get; set; }
-    private string CardToolTipStyle => $"width: {(Node.Size?.Width ?? 350)}px;";
+    private string CardToolTipStyle => $"width: {Node.Size?.Width ?? 350}px;";
 
     protected override void OnInitialized()
     {
@@ -109,9 +116,10 @@
         {
             { x => x.Content, Node.ViewContent },
             { x => x.EnableZoom, EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = true; }) },
-            { x => x.DisableZoom, EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = false; }) },
+            { x => x.DisableZoom, EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = false; }) }
         };
 
         await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters, options);
     }
+
 }

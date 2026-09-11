@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
-using Blazor.Diagrams.Components.Renderers;
-using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using Blazor.Diagrams.Extensions;
@@ -21,10 +15,10 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 {
     private ElementReference _element;
     private bool _isParentSvg;
+    private string? _lastStyle;
     private bool _shouldRefreshPort;
     private bool _shouldRender = true;
     private bool _shouldUpdateDimensions;
-    private string? _lastStyle;
     private bool _updatingDimensions;
 
     [CascadingParameter]
@@ -49,6 +43,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
     public RenderFragment? ChildContent { get; set; }
 
     private PortAlignment EffectiveAlignment => Port.LayoutAlignment;
+
     private string PortLabelText =>
         Port.IsArrayPort ? $"{Port.Name} [{Port.ConnectedChannelCount}]" : Port.Name;
 
@@ -73,9 +68,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         var renderSignature =
             $"{EffectiveAlignment}|{Port.LayoutOffsetPx}|{Class}|{iconColor}|{SocketColor}";
         if (string.Equals(renderSignature, _lastStyle, StringComparison.Ordinal))
-        {
             return;
-        }
 
         _lastStyle = renderSignature;
         _shouldRender = true;
@@ -172,6 +165,7 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
                 builder.CloseElement();
             }
         }
+
         builder.CloseElement();
     }
 
@@ -185,14 +179,14 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
 
     private void OnPointerDown(PointerEventArgs e)
     {
-        BlazorDiagram.TriggerPointerDown(Port, EventsExtensions.ToCore(e));
+        BlazorDiagram.TriggerPointerDown(Port, e.ToCore());
     }
 
     private void OnPointerUp(PointerEventArgs e)
     {
         BlazorDiagram.TriggerPointerUp(
             e.PointerType == "mouse" ? Port : FindPortOn(e.ClientX, e.ClientY),
-            EventsExtensions.ToCore(e)
+            e.ToCore()
         );
     }
 

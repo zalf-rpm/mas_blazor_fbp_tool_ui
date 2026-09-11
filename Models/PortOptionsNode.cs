@@ -1,9 +1,8 @@
 using Blazor.Diagrams.Core;
-
-namespace BlazorDrawFBP.Models;
-
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+
+namespace BlazorDrawFBP.Models;
 
 public class PortOptionsNode : NodeModel
 {

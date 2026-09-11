@@ -1,8 +1,5 @@
 namespace BlazorDrawFBP.Services;
 
-using System;
-using System.Threading.Tasks;
-
 public interface IAppThemeService
 {
     bool IsDarkMode { get; }

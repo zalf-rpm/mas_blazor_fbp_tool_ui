@@ -1,16 +1,15 @@
 // Register as Scoped in DI
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace BlazorDrawFBP.Services;
 
 public class BlazorDispatcher
 {
     private SynchronizationContext? _context;
 
-    public void Capture() => _context = SynchronizationContext.Current;
+    public void Capture()
+    {
+        _context = SynchronizationContext.Current;
+    }
 
     public Task InvokeAsync(Action action)
     {

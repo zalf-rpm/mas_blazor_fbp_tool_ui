@@ -1,6 +1,3 @@
-@using Microsoft.AspNetCore.Components.Forms
-@using MudBlazor
-
 <div class="d-inline-block absolute"
      style="top: 0.25rem; left: 0.25rem; z-index: 2; max-width: calc(100% - 0.5rem);">
     <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap">
@@ -8,7 +5,7 @@
                        FilesChanged="OnFlowFileSelected"
                        Accept=".json"
                        Class="d-inline-flex">
-            <SelectedTemplate Context="_" />
+            <SelectedTemplate Context="_"/>
             <CustomContent>
                 <MudButton StartIcon="@Icons.Material.Filled.Upload"
                            Variant="@Variant.Filled"
@@ -57,14 +54,14 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public bool ClearButtonDisabled { get; set; } = true;
-    [Parameter, EditorRequired] public bool CanTerminateSession { get; set; }
-    [Parameter, EditorRequired] public bool CanExecuteFlow { get; set; }
-    [Parameter, EditorRequired] public string ExecuteFlowButtonTitle { get; set; } = "Execute flow";
+    [Parameter] [EditorRequired] public bool ClearButtonDisabled { get; set; } = true;
+    [Parameter] [EditorRequired] public bool CanTerminateSession { get; set; }
+    [Parameter] [EditorRequired] public bool CanExecuteFlow { get; set; }
+    [Parameter] [EditorRequired] public string ExecuteFlowButtonTitle { get; set; } = "Execute flow";
 
-    [Parameter, EditorRequired] public EventCallback<IBrowserFile> OnFlowFileSelected { get; set; }
-    [Parameter, EditorRequired] public EventCallback<bool> OnSaveFlow { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnClearButtonClicked { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnTerminateSession { get; set; }
-    [Parameter, EditorRequired] public EventCallback OnExecuteFlow { get; set; }
+    [Parameter] [EditorRequired] public EventCallback<IBrowserFile> OnFlowFileSelected { get; set; }
+    [Parameter] [EditorRequired] public EventCallback<bool> OnSaveFlow { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnClearButtonClicked { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnTerminateSession { get; set; }
+    [Parameter] [EditorRequired] public EventCallback OnExecuteFlow { get; set; }
 }

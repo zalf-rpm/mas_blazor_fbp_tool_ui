@@ -1,16 +1,16 @@
-namespace BlazorDrawFBP.Tests;
-
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Tests.TestDoubles;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class CapnpFbpPortLayoutTests
 {
-    private FakeFbpRuntimeService _runtimeService = null!;
     private BlazorDiagram _diagram = null!;
+    private FakeFbpRuntimeService _runtimeService = null!;
 
     [TestInitialize]
     public void Setup()
@@ -25,7 +25,7 @@ public class CapnpFbpPortLayoutTests
         var node = new CapnpFbpRunnableComponentModel("node1", new Point(0, 0))
         {
             RuntimeService = _runtimeService,
-            Diagram = _diagram
+            Diagram = _diagram,
         };
 
         var placements = CapnpFbpPortLayout.Calculate(node);
@@ -40,7 +40,7 @@ public class CapnpFbpPortLayoutTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentServiceId = "svc1",
-            Size = new Size(200, 150)
+            Size = new Size(200, 150),
         };
 
         var inPort = new CapnpFbpInPortModel(node, PortAlignment.Left) { Name = "IN" };

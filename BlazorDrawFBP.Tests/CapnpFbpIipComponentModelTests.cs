@@ -1,16 +1,15 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Tests.TestDoubles;
 
+namespace BlazorDrawFBP.Tests;
+
 [TestClass]
 public class CapnpFbpIipComponentModelTests
 {
-    private FakeFbpRuntimeService _runtimeService = null!;
     private BlazorDiagram _diagram = null!;
+    private FakeFbpRuntimeService _runtimeService = null!;
 
     [TestInitialize]
     public void Setup()
@@ -27,7 +26,7 @@ public class CapnpFbpIipComponentModelTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentId = "iip1",
-            Content = "test content"
+            Content = "test content",
         };
 
         Assert.AreEqual(ComponentLifecycleState.Idle, node.LifecycleState);
@@ -47,7 +46,7 @@ public class CapnpFbpIipComponentModelTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentId = "iip1",
-            Content = "test content"
+            Content = "test content",
         };
 
         await node.SendIip(_runtimeService.ConnectionManager);
@@ -67,7 +66,7 @@ public class CapnpFbpIipComponentModelTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentId = "iip1",
-            Content = "test content"
+            Content = "test content",
         };
 
         await node.SendIip(_runtimeService.ConnectionManager);

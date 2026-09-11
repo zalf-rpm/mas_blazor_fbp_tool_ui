@@ -1,7 +1,3 @@
-namespace BlazorDrawFBP.Tests;
-
-using System.Linq;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
@@ -9,17 +5,21 @@ using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Infrastructure.Common;
+using Mas.Schema.Common;
+using Mas.Schema.Fbp;
+
+namespace BlazorDrawFBP.Tests;
 
 [TestClass]
 public class FbpRuntimeServiceTests
 {
-    private FbpRuntimeService _runtimeService = null!;
     private BlazorDiagram _diagram = null!;
+    private FbpRuntimeService _runtimeService = null!;
 
     [TestInitialize]
     public void Setup()
     {
-        _runtimeService = new FbpRuntimeService(new ConnectionManager(), System.TimeSpan.Zero);
+        _runtimeService = new FbpRuntimeService(new ConnectionManager(), TimeSpan.Zero);
         _diagram = new BlazorDiagram();
         _runtimeService.Diagram = _diagram;
     }
@@ -60,7 +60,7 @@ public class FbpRuntimeServiceTests
             _runtimeService.ExecuteFlowButtonTitle
         );
 
-        var componentNode = new CapnpFbpComponentModel(new Blazor.Diagrams.Core.Geometry.Point(0, 0))
+        var componentNode = new CapnpFbpComponentModel(new Point(0, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
@@ -97,23 +97,23 @@ public class FbpRuntimeServiceTests
     public void InitDefaultComponents_LoadsComponentsCorrectly()
     {
         var sampleJson = """
-        {
-            "categories": [
-                { "id": "test_cat", "name": "Test Category", "description": "Category Description" }
-            ],
-            "entries": [
-                {
-                    "categoryId": "test_cat",
-                    "component": {
-                        "info": { "id": "test_id", "name": "Test Name", "description": "Test Description" },
-                        "type": "standard",
-                        "inPorts": [{ "name": "in1", "type": "standard", "contentType": "text" }],
-                        "outPorts": [{ "name": "out1", "type": "standard", "contentType": "text" }]
+            {
+                "categories": [
+                    { "id": "test_cat", "name": "Test Category", "description": "Category Description" }
+                ],
+                "entries": [
+                    {
+                        "categoryId": "test_cat",
+                        "component": {
+                            "info": { "id": "test_id", "name": "Test Name", "description": "Test Description" },
+                            "type": "standard",
+                            "inPorts": [{ "name": "in1", "type": "standard", "contentType": "text" }],
+                            "outPorts": [{ "name": "out1", "type": "standard", "contentType": "text" }]
+                        }
                     }
-                }
-            ]
-        }
-        """;
+                ]
+            }
+            """;
 
         _runtimeService.InitDefaultComponents(sampleJson);
 
@@ -137,7 +137,7 @@ public class FbpRuntimeServiceTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ComponentName = "Worker"
+            ComponentName = "Worker",
         };
         _diagram.Nodes.Add(node);
 
@@ -157,14 +157,14 @@ public class FbpRuntimeServiceTests
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentName = "Source",
-            ProcessName = "SourceProcess"
+            ProcessName = "SourceProcess",
         };
         var targetNode = new CapnpFbpRunnableComponentModel("target", new Point(200, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
             ComponentName = "Target",
-            ProcessName = "TargetProcess"
+            ProcessName = "TargetProcess",
         };
 
         var outPort = new CapnpFbpOutPortModel(sourceNode, PortAlignment.Right) { Name = "out" };
@@ -194,19 +194,19 @@ public class FbpRuntimeServiceTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "Producer"
+            ProcessName = "Producer",
         };
         var node2 = new CapnpFbpRunnableComponentModel("node2", new Point(100, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "Transformer"
+            ProcessName = "Transformer",
         };
         var node3 = new CapnpFbpRunnableComponentModel("node3", new Point(200, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "Consumer"
+            ProcessName = "Consumer",
         };
 
         var out1 = new CapnpFbpOutPortModel(node1, PortAlignment.Right);
@@ -241,13 +241,13 @@ public class FbpRuntimeServiceTests
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "NodeA"
+            ProcessName = "NodeA",
         };
         var nodeB = new CapnpFbpRunnableComponentModel("nodeB", new Point(100, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ProcessName = "NodeB"
+            ProcessName = "NodeB",
         };
 
         var outA = new CapnpFbpOutPortModel(nodeA, PortAlignment.Right);
@@ -277,9 +277,9 @@ public class FbpRuntimeServiceTests
     public void ServiceIdAndComponentId2Component_AllowsRepeatedRegistrationWithoutException()
     {
         var key = ("service-1", "comp-1");
-        var component = new Mas.Schema.Fbp.Component
+        var component = new Component
         {
-            Info = new Mas.Schema.Common.IdInformation { Id = "comp-1", Name = "Component 1" }
+            Info = new IdInformation { Id = "comp-1", Name = "Component 1" },
         };
 
         _runtimeService.ServiceIdAndComponentId2Component[key] = component;
@@ -297,9 +297,15 @@ public class FbpRuntimeServiceTests
         var fakeChan = new FakeStartChannelsService { ServiceId = "chan-1" };
 
         _runtimeService.ServiceId2Registries["reg-1"] = fakeReg;
-        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = ("Reg 1", "capnp://reg-1");
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = (
+            "Reg 1",
+            "capnp://reg-1"
+        );
         _runtimeService.ServiceId2ChannelStarterServices["chan-1"] = fakeChan;
-        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["chan-1"] = ("Chan 1", "capnp://chan-1");
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["chan-1"] = (
+            "Chan 1",
+            "capnp://chan-1"
+        );
 
         var pruned = await _runtimeService.CheckConnectedServicesHealthAsync();
 
@@ -314,18 +320,28 @@ public class FbpRuntimeServiceTests
     public async Task CheckConnectedServicesHealthAsync_UnresponsiveServices_PrunedAndCleanedUp()
     {
         var fakeReg = new FakeRegistryService { ServiceId = "dead-reg", ShouldFailPing = true };
-        var fakeChan = new FakeStartChannelsService { ServiceId = "dead-chan", ShouldFailPing = true };
+        var fakeChan = new FakeStartChannelsService
+        {
+            ServiceId = "dead-chan",
+            ShouldFailPing = true,
+        };
 
         _runtimeService.ServiceId2Registries["dead-reg"] = fakeReg;
-        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("Dead Reg", "capnp://dead-reg");
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = (
+            "Dead Reg",
+            "capnp://dead-reg"
+        );
         _runtimeService.ServiceId2ChannelStarterServices["dead-chan"] = fakeChan;
-        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = ("Dead Chan", "capnp://dead-chan");
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = (
+            "Dead Chan",
+            "capnp://dead-chan"
+        );
 
         var node = new CapnpFbpRunnableComponentModel("node1", new Point(0, 0))
         {
             RuntimeService = _runtimeService,
             Diagram = _diagram,
-            ComponentServiceId = "dead-reg"
+            ComponentServiceId = "dead-reg",
         };
         _diagram.Nodes.Add(node);
 
@@ -338,12 +354,19 @@ public class FbpRuntimeServiceTests
         Assert.IsTrue(fakeChan.IsDisposed);
 
         // Registry entry in RegistryServiceIdToPetNameAndSturdyRef should be marked unavailable because node is on canvas
-        Assert.IsTrue(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("dead-reg"));
+        Assert.IsTrue(
+            _runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("dead-reg")
+        );
         Assert.IsNull(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"].Item2);
-        StringAssert.Contains(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"].Item1, "unavailable!");
+        StringAssert.Contains(
+            _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"].Item1,
+            "unavailable!"
+        );
 
         // Channel service should be completely removed
-        Assert.IsFalse(_runtimeService.ChannelServiceIdToPetNameAndSturdyRef.ContainsKey("dead-chan"));
+        Assert.IsFalse(
+            _runtimeService.ChannelServiceIdToPetNameAndSturdyRef.ContainsKey("dead-chan")
+        );
     }
 
     [TestMethod]
@@ -351,28 +374,43 @@ public class FbpRuntimeServiceTests
     {
         var fakeReg = new FakeRegistryService { ServiceId = "reg-orphan" };
         _runtimeService.ServiceId2Registries["reg-orphan"] = fakeReg;
-        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-orphan"] = ("Orphan", "capnp://orphan");
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["reg-orphan"] = (
+            "Orphan",
+            "capnp://orphan"
+        );
 
         _runtimeService.DisconnectRegistryServiceById("reg-orphan");
 
         Assert.IsFalse(_runtimeService.ServiceId2Registries.ContainsKey("reg-orphan"));
-        Assert.IsFalse(_runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("reg-orphan"));
+        Assert.IsFalse(
+            _runtimeService.RegistryServiceIdToPetNameAndSturdyRef.ContainsKey("reg-orphan")
+        );
         Assert.IsTrue(fakeReg.IsDisposed);
     }
 
     [TestMethod]
     public async Task CheckConnectedServicesHealthAsync_FiresServiceConnectionDroppedEvent()
     {
-        var droppedEvents = new System.Collections.Generic.List<ServiceConnectionDroppedEventArgs>();
+        var droppedEvents = new List<ServiceConnectionDroppedEventArgs>();
         _runtimeService.ServiceConnectionDropped += args => droppedEvents.Add(args);
 
         var fakeReg = new FakeRegistryService { ServiceId = "dead-reg", ShouldFailPing = true };
         _runtimeService.ServiceId2Registries["dead-reg"] = fakeReg;
-        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = ("My Registry", "capnp://dead-reg");
+        _runtimeService.RegistryServiceIdToPetNameAndSturdyRef["dead-reg"] = (
+            "My Registry",
+            "capnp://dead-reg"
+        );
 
-        var fakeChan = new FakeStartChannelsService { ServiceId = "dead-chan", ShouldFailPing = true };
+        var fakeChan = new FakeStartChannelsService
+        {
+            ServiceId = "dead-chan",
+            ShouldFailPing = true,
+        };
         _runtimeService.ServiceId2ChannelStarterServices["dead-chan"] = fakeChan;
-        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = ("My Channel Starter", "capnp://dead-chan");
+        _runtimeService.ChannelServiceIdToPetNameAndSturdyRef["dead-chan"] = (
+            "My Channel Starter",
+            "capnp://dead-chan"
+        );
 
         await _runtimeService.CheckConnectedServicesHealthAsync();
 
@@ -382,13 +420,18 @@ public class FbpRuntimeServiceTests
         Assert.IsNotNull(chanEvent);
         Assert.AreEqual("Channel starter service", chanEvent.ServiceType);
         Assert.AreEqual("My Channel Starter", chanEvent.PetName);
-        StringAssert.Contains(chanEvent.Message, "Connection dropped: Channel starter service 'My Channel Starter' is unreachable.");
+        StringAssert.Contains(
+            chanEvent.Message,
+            "Connection dropped: Channel starter service 'My Channel Starter' is unreachable."
+        );
 
         var regEvent = droppedEvents.FirstOrDefault(e => e.ServiceId == "dead-reg");
         Assert.IsNotNull(regEvent);
         Assert.AreEqual("Component registry service", regEvent.ServiceType);
         Assert.AreEqual("My Registry", regEvent.PetName);
-        StringAssert.Contains(regEvent.Message, "Connection dropped: Component registry service 'My Registry' is unreachable.");
+        StringAssert.Contains(
+            regEvent.Message,
+            "Connection dropped: Component registry service 'My Registry' is unreachable."
+        );
     }
 }
-

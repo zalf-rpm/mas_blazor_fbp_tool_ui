@@ -1,24 +1,14 @@
-namespace BlazorDrawFBP.Pages;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Extensions;
-using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
 using BlazorDrawFBP.Services;
+using Capnp.Rpc;
 using Mas.Infrastructure.BlazorComponents;
 using Mas.Infrastructure.Common;
-using Mas.Schema.Common;
 using Mas.Schema.Fbp;
-using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
@@ -26,18 +16,32 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 using Newtonsoft.Json.Linq;
-using Proxy = Capnp.Rpc.Proxy;
+using Exception = System.Exception;
+
+namespace BlazorDrawFBP.Pages;
+
+using Proxy = Proxy;
 
 public partial class Editor : IAsyncDisposable
 {
     private const double ZoomToFitMargin = 80;
+    private ErrorBoundary? _canvasErrorBoundary;
+    private Component? _draggedComponent;
+    private string _draggedComponentServiceId = "";
+    private bool _hasRendered;
+    private bool _loadingFlow;
+    private JObject? _pendingServicesMergeDocument;
+
+    private CancellationTokenSource? _snapshotDebounceCts;
 
     [Parameter]
     public Guid? FlowId { get; set; }
 
     public FlowSession? CurrentSession { get; private set; }
-    public IFbpRuntimeService RuntimeService => CurrentSession?.RuntimeService ?? InjectedRuntimeService;
-    public ConnectionManager ConMan => CurrentSession?.RuntimeService.ConnectionManager ?? InjectedConMan;
+    public IFbpRuntimeService RuntimeService =>
+        CurrentSession?.RuntimeService ?? InjectedRuntimeService;
+    public ConnectionManager ConMan =>
+        CurrentSession?.RuntimeService.ConnectionManager ?? InjectedConMan;
     public BlazorDiagram Diagram { get; set; } = null!;
 
     public string ShortFlowId => FlowId.HasValue ? FlowId.Value.ToString("N")[..8] : "";
@@ -45,24 +49,49 @@ public partial class Editor : IAsyncDisposable
     public Dictionary<ulong, Type> InterfaceIdToType => RuntimeService.InterfaceIdToType;
     public Dictionary<string, Proxy> SturdyRef2Services => RuntimeService.SturdyRef2Services;
 
-    private CancellationTokenSource? _snapshotDebounceCts;
-    private Component? _draggedComponent;
-    private string _draggedComponentServiceId = "";
-    private bool _loadingFlow;
-    private bool _hasRendered;
-    private JObject? _pendingServicesMergeDocument;
-    private ErrorBoundary? _canvasErrorBoundary;
-
     public bool HasActiveExecution =>
         RuntimeService?.IsExecutingFlow == true
         || RuntimeService?.HasBusyLifecycleNodes == true
-        || (Diagram?.Nodes.Any(node => node switch
-        {
-            CapnpFbpComponentModel comp => comp.DisplayLifecycleState == ComponentLifecycleState.Running || comp.IsLifecycleBusy,
-            CapnpFbpViewComponentModel view => view.LifecycleState == ComponentLifecycleState.Running || view.IsLifecycleBusy,
-            CapnpFbpIipComponentModel iip => iip.DisplayLifecycleState == ComponentLifecycleState.Starting || iip.IsLifecycleBusy,
-            _ => false,
-        }) == true);
+        || Diagram?.Nodes.Any(node =>
+            node switch
+            {
+                CapnpFbpComponentModel comp => comp.DisplayLifecycleState
+                    == ComponentLifecycleState.Running
+                    || comp.IsLifecycleBusy,
+                CapnpFbpViewComponentModel view => view.LifecycleState
+                    == ComponentLifecycleState.Running
+                    || view.IsLifecycleBusy,
+                CapnpFbpIipComponentModel iip => iip.DisplayLifecycleState
+                    == ComponentLifecycleState.Starting
+                    || iip.IsLifecycleBusy,
+                _ => false,
+            }
+        ) == true;
+
+    public string CurrentTtlLabel =>
+        CurrentSession != null
+            ? FlowSession.FormatTtl(CurrentSession.Ttl)
+            : FlowSession.FormatTtl(TimeSpan.FromMinutes(30));
+
+    private IFbpNodeFactory EffectiveNodeFactory => NodeFactory ?? new FbpNodeFactory();
+    private IFbpDiagramFactory EffectiveDiagramFactory => DiagramFactory ?? new FbpDiagramFactory();
+
+    private IFlowDocumentService EffectiveFlowDocumentService =>
+        FlowDocumentService ?? new FlowDocumentService(EffectiveNodeFactory);
+
+    public async ValueTask DisposeAsync()
+    {
+        _snapshotDebounceCts?.Cancel();
+        _snapshotDebounceCts?.Dispose();
+        _snapshotDebounceCts = null;
+
+        _clearButtonCts?.Cancel();
+        _clearButtonCts?.Dispose();
+        _clearButtonCts = null;
+        RuntimeService.StateChanged -= OnRuntimeStateChanged;
+        RuntimeService.ServiceConnectionDropped -= OnServiceConnectionDropped;
+        CleanupService.UnregisterCleanup();
+    }
 
     private async Task OnBeforeInternalNavigation(LocationChangingContext context)
     {
@@ -71,14 +100,12 @@ public partial class Editor : IAsyncDisposable
             var confirmed = await DialogService.ShowMessageBoxAsync(
                 "Processes are Running",
                 "This flow has running processes or active executions. Navigating away will detach your session. Do you want to proceed?",
-                yesText: "Leave",
+                "Leave",
                 cancelText: "Stay"
             );
 
             if (confirmed != true)
-            {
                 context.PreventNavigation();
-            }
         }
     }
 
@@ -101,14 +128,17 @@ public partial class Editor : IAsyncDisposable
                     return;
 
                 if (CurrentSession != null)
-                {
-                    await CurrentSession.RuntimeService.CheckConnectedServicesHealthAsync(cts.Token);
-                }
+                    await CurrentSession.RuntimeService.CheckConnectedServicesHealthAsync(
+                        cts.Token
+                    );
 
                 var doc = await ExportFlowJsonAsync();
                 if (CurrentSession != null)
                 {
-                    doc["session"] = new JObject { { "ttlMinutes", CurrentSession.Ttl.TotalMinutes } };
+                    doc["session"] = new JObject
+                    {
+                        { "ttlMinutes", CurrentSession.Ttl.TotalMinutes },
+                    };
                     CurrentSession.FlowDocument = doc;
                     CurrentSession.Touch();
                 }
@@ -140,10 +170,6 @@ public partial class Editor : IAsyncDisposable
         }
     }
 
-    public string CurrentTtlLabel => CurrentSession != null
-        ? FlowSession.FormatTtl(CurrentSession.Ttl)
-        : FlowSession.FormatTtl(TimeSpan.FromMinutes(30));
-
     public void CycleFlowTtl()
     {
         if (CurrentSession == null)
@@ -164,7 +190,7 @@ public partial class Editor : IAsyncDisposable
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Terminate Flow Session?",
             "Are you sure you want to terminate this flow session? All running processes and channels will be stopped immediately and the session will be purged.",
-            yesText: "Terminate",
+            "Terminate",
             cancelText: "Cancel"
         );
 
@@ -175,13 +201,9 @@ public partial class Editor : IAsyncDisposable
         if (SessionStore.RemoveSession(targetFlowId, out var session))
         {
             if (session.RuntimeService is IAsyncDisposable disposable)
-            {
                 await disposable.DisposeAsync();
-            }
             else
-            {
                 await session.RuntimeService.ClearDiagramAsync();
-            }
         }
         else
         {
@@ -203,9 +225,7 @@ public partial class Editor : IAsyncDisposable
         }
 
         if (CurrentSession != null && CurrentSession.Id == FlowId.Value)
-        {
             return;
-        }
 
         if (CurrentSession != null)
         {
@@ -219,9 +239,7 @@ public partial class Editor : IAsyncDisposable
         CleanupService.RegisterCleanup(() =>
         {
             if (FlowId.HasValue)
-            {
                 SessionStore.MarkDetached(FlowId.Value);
-            }
             return Task.CompletedTask;
         });
         CurrentSession.RuntimeService.StateChanged += OnRuntimeStateChanged;
@@ -232,9 +250,7 @@ public partial class Editor : IAsyncDisposable
             CurrentSession.Diagram = CreateConfiguredDiagram(CurrentSession.RuntimeService);
             Diagram = CurrentSession.Diagram;
             if (CurrentSession.FlowDocument != null)
-            {
                 await LoadFlowFromJsonAsync(CurrentSession.FlowDocument);
-            }
         }
         else
         {
@@ -242,9 +258,7 @@ public partial class Editor : IAsyncDisposable
             CurrentSession.RuntimeService.Diagram = Diagram;
             await CurrentSession.RuntimeService.CheckConnectedServicesHealthAsync();
             if (CurrentSession.FlowDocument != null)
-            {
                 await TryMergeFlowServicesIntoLocalStorageAsync(CurrentSession.FlowDocument);
-            }
         }
 
         SafeStateHasChanged();
@@ -263,12 +277,10 @@ public partial class Editor : IAsyncDisposable
             allBookmarks.Sort();
 
             foreach (var ssrd in allBookmarks.Where(ssrd => ssrd.AutoConnect))
-            {
-                if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
+                if (ssrd.InterfaceId == Shared.Shared.ChannelStarterInterfaceId)
                     await ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
-                else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
+                else if (ssrd.InterfaceId == Shared.Shared.RegistryInterfaceId)
                     await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
-            }
         }
 
         if (_pendingServicesMergeDocument != null)
@@ -281,18 +293,13 @@ public partial class Editor : IAsyncDisposable
         SafeStateHasChanged();
     }
 
-    private IFbpNodeFactory EffectiveNodeFactory => NodeFactory ?? new FbpNodeFactory();
-    private IFbpDiagramFactory EffectiveDiagramFactory => DiagramFactory ?? new FbpDiagramFactory();
-    private IFlowDocumentService EffectiveFlowDocumentService =>
-        FlowDocumentService ?? new FlowDocumentService(EffectiveNodeFactory);
-
     private BlazorDiagram CreateConfiguredDiagram(IFbpRuntimeService runtime)
     {
         var diagram = EffectiveDiagramFactory.CreateConfiguredDiagram(
             runtime,
-            onStructureChanged: ScheduleSessionSnapshot,
-            onDiagramInteracted: SafeStateHasChanged,
-            onZoomToFit: ZoomToFitFlowAsync
+            ScheduleSessionSnapshot,
+            SafeStateHasChanged,
+            ZoomToFitFlowAsync
         );
         Diagram = diagram;
         return diagram;
@@ -316,7 +323,11 @@ public partial class Editor : IAsyncDisposable
     {
         if (Diagram == null)
             return (new JObject(), string.Empty);
-        return await EffectiveFlowDocumentService.ExportFlowDocumentAsync(Diagram, RuntimeService, asMermaid);
+        return await EffectiveFlowDocumentService.ExportFlowDocumentAsync(
+            Diagram,
+            RuntimeService,
+            asMermaid
+        );
     }
 
     public async Task LoadFlowFromJsonAsync(JObject dia)
@@ -336,12 +347,11 @@ public partial class Editor : IAsyncDisposable
             );
 
             if (CurrentSession != null && dia["session"]?["ttlMinutes"] != null)
-            {
-                if (double.TryParse(dia["session"]?["ttlMinutes"]?.ToString(), out var mins) && mins > 0)
-                {
+                if (
+                    double.TryParse(dia["session"]?["ttlMinutes"]?.ToString(), out var mins)
+                    && mins > 0
+                )
                     CurrentSession.Ttl = TimeSpan.FromMinutes(mins);
-                }
-            }
 
             await TryMergeFlowServicesIntoLocalStorageAsync(dia);
         }
@@ -368,7 +378,7 @@ public partial class Editor : IAsyncDisposable
     {
         await RuntimeService.CheckConnectedServicesHealthAsync();
         var (dia, mermaid) = await ExportFlowDocumentAsync(asMermaid);
-        var content = asMermaid ? (mermaid ?? "") : (dia?.ToString() ?? "{}");
+        var content = asMermaid ? mermaid ?? "" : dia?.ToString() ?? "{}";
         var ext = asMermaid ? "mmd" : "json";
         await JsRuntime.InvokeVoidAsync(
             "saveAsBase64",
@@ -410,7 +420,6 @@ public partial class Editor : IAsyncDisposable
         var addedCount = 0;
 
         if (flowDoc["services"]?["channels"] is JObject channelsObj)
-        {
             foreach (var prop in channelsObj.Properties())
             {
                 var serviceId = prop.Name;
@@ -419,36 +428,42 @@ public partial class Editor : IAsyncDisposable
                     continue;
 
                 var isAlive = RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
-                    entry.Value.Item2 == sturdyRef && RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(entry.Key));
+                    entry.Value.Item2 == sturdyRef
+                    && RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
+                );
 
                 if (!isAlive)
                     continue;
 
-                var petName = RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
-                    && !string.IsNullOrWhiteSpace(tuple.Item1)
-                    ? tuple.Item1
-                    : serviceId;
+                var petName =
+                    RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(
+                        serviceId,
+                        out var tuple
+                    ) && !string.IsNullOrWhiteSpace(tuple.Item1)
+                        ? tuple.Item1
+                        : serviceId;
 
                 var exists = bookmarks.Any(b =>
-                    b.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId
-                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal));
+                    b.InterfaceId == Shared.Shared.ChannelStarterInterfaceId
+                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal)
+                );
 
                 if (!exists)
                 {
-                    bookmarks.Add(new StoredSrData
-                    {
-                        InterfaceId = BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId,
-                        PetName = petName,
-                        SturdyRef = sturdyRef,
-                        AutoConnect = true,
-                    });
+                    bookmarks.Add(
+                        new StoredSrData
+                        {
+                            InterfaceId = Shared.Shared.ChannelStarterInterfaceId,
+                            PetName = petName,
+                            SturdyRef = sturdyRef,
+                            AutoConnect = true,
+                        }
+                    );
                     addedCount++;
                 }
             }
-        }
 
         if (flowDoc["services"]?["components"] is JObject componentsObj)
-        {
             foreach (var prop in componentsObj.Properties())
             {
                 var serviceId = prop.Name;
@@ -459,36 +474,41 @@ public partial class Editor : IAsyncDisposable
                 var isAlive = RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
                     entry.Key != "no_service"
                     && entry.Value.Item2 == sturdyRef
-                    && RuntimeService.ServiceId2Registries.ContainsKey(entry.Key));
+                    && RuntimeService.ServiceId2Registries.ContainsKey(entry.Key)
+                );
 
                 if (!isAlive)
                     continue;
 
-                var petName = RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
-                    && !string.IsNullOrWhiteSpace(tuple.Item1)
-                    ? tuple.Item1
-                    : serviceId;
+                var petName =
+                    RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(
+                        serviceId,
+                        out var tuple
+                    ) && !string.IsNullOrWhiteSpace(tuple.Item1)
+                        ? tuple.Item1
+                        : serviceId;
 
                 var exists = bookmarks.Any(b =>
-                    b.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId
-                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal));
+                    b.InterfaceId == Shared.Shared.RegistryInterfaceId
+                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal)
+                );
 
                 if (!exists)
                 {
-                    bookmarks.Add(new StoredSrData
-                    {
-                        InterfaceId = BlazorDrawFBP.Shared.Shared.RegistryInterfaceId,
-                        PetName = petName,
-                        SturdyRef = sturdyRef,
-                        AutoConnect = true,
-                    });
+                    bookmarks.Add(
+                        new StoredSrData
+                        {
+                            InterfaceId = Shared.Shared.RegistryInterfaceId,
+                            PetName = petName,
+                            SturdyRef = sturdyRef,
+                            AutoConnect = true,
+                        }
+                    );
                     addedCount++;
                 }
             }
-        }
 
         if (addedCount > 0)
-        {
             try
             {
                 bookmarks.Sort();
@@ -502,7 +522,6 @@ public partial class Editor : IAsyncDisposable
             {
                 Console.WriteLine($"Failed to save merged bookmarks to LocalStorage: {ex.Message}");
             }
-        }
 
         return addedCount;
     }
@@ -510,9 +529,7 @@ public partial class Editor : IAsyncDisposable
     public async Task ClearDiagram()
     {
         if (CurrentSession != null)
-        {
             CurrentSession.FlowDocument = null;
-        }
         await RuntimeService.ClearDiagramAsync();
     }
 
@@ -554,10 +571,10 @@ public partial class Editor : IAsyncDisposable
             return;
 
         Diagram.UnselectAll();
-        var bounds = DiagramExtensions.GetBounds(Diagram.Nodes);
+        var bounds = Diagram.Nodes.GetBounds();
         Diagram.ZoomToFit(ZoomToFitMargin);
         var extraHeight =
-            Diagram.Container.Height - ((bounds.Height + 2 * ZoomToFitMargin) * Diagram.Zoom);
+            Diagram.Container.Height - (bounds.Height + 2 * ZoomToFitMargin) * Diagram.Zoom;
         if (extraHeight > 0)
             Diagram.UpdatePan(0, extraHeight / 2);
 
@@ -593,24 +610,48 @@ public partial class Editor : IAsyncDisposable
         OnNodeDragEnd();
     }
 
-    private Task ExecuteNode(Model node) => RuntimeService.ExecuteNodeAsync(node);
-    private Task ResetNode(Model node) => RuntimeService.ResetNodeAsync(node);
-    private Task ExecuteFlow() => RuntimeService.ExecuteFlowAsync(() => InvokeAsync(StateHasChanged));
+    private Task ExecuteNode(Model node)
+    {
+        return RuntimeService.ExecuteNodeAsync(node);
+    }
 
-    private Task HandleSturdyRefConnectedAsync((ulong, string, string) connection) =>
-        RuntimeService.HandleSturdyRefConnectedAsync(connection);
+    private Task ResetNode(Model node)
+    {
+        return RuntimeService.ResetNodeAsync(node);
+    }
 
-    private Task HandleSturdyRefDisconnectedAsync((ulong, string) connection) =>
-        RuntimeService.HandleSturdyRefDisconnectedAsync(connection);
+    private Task ExecuteFlow()
+    {
+        return RuntimeService.ExecuteFlowAsync(() => InvokeAsync(StateHasChanged));
+    }
+
+    private Task HandleSturdyRefConnectedAsync((ulong, string, string) connection)
+    {
+        return RuntimeService.HandleSturdyRefConnectedAsync(connection);
+    }
+
+    private Task HandleSturdyRefDisconnectedAsync((ulong, string) connection)
+    {
+        return RuntimeService.HandleSturdyRefDisconnectedAsync(connection);
+    }
 
     private Task ConnectToStartChannelsService(
         ConnectionManager conMan,
         string petName,
         string sturdyRef
-    ) => RuntimeService.ConnectToStartChannelsServiceAsync(petName, sturdyRef);
+    )
+    {
+        return RuntimeService.ConnectToStartChannelsServiceAsync(petName, sturdyRef);
+    }
 
-    private Task ConnectToRegistryService(ConnectionManager conMan, string petName, string sturdyRef) =>
-        RuntimeService.ConnectToRegistryServiceAsync(petName, sturdyRef);
+    private Task ConnectToRegistryService(
+        ConnectionManager conMan,
+        string petName,
+        string sturdyRef
+    )
+    {
+        return RuntimeService.ConnectToRegistryServiceAsync(petName, sturdyRef);
+    }
 
     private void SafeStateHasChanged()
     {
@@ -625,7 +666,10 @@ public partial class Editor : IAsyncDisposable
         }
     }
 
-    private void OnRuntimeStateChanged() => SafeStateHasChanged();
+    private void OnRuntimeStateChanged()
+    {
+        SafeStateHasChanged();
+    }
 
     private void OnServiceConnectionDropped(ServiceConnectionDroppedEventArgs args)
     {
@@ -642,19 +686,5 @@ public partial class Editor : IAsyncDisposable
         {
             Console.WriteLine($"OnServiceConnectionDropped toast failed: {ex.Message}");
         }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _snapshotDebounceCts?.Cancel();
-        _snapshotDebounceCts?.Dispose();
-        _snapshotDebounceCts = null;
-
-        _clearButtonCts?.Cancel();
-        _clearButtonCts?.Dispose();
-        _clearButtonCts = null;
-        RuntimeService.StateChanged -= OnRuntimeStateChanged;
-        RuntimeService.ServiceConnectionDropped -= OnServiceConnectionDropped;
-        CleanupService.UnregisterCleanup();
     }
 }
