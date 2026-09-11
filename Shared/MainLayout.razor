@@ -1,6 +1,6 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider Theme="_currentTheme" />
+<MudThemeProvider Theme="_appTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider CloseButton="true" CloseOnEscapeKey="true" />
 <MudSnackbarProvider />
@@ -8,17 +8,12 @@
 @Body
 
 @code {
-    protected override void OnInitialized()
-    {
-        _currentTheme = _defaultTheme;
-    }
+    private bool _isDarkMode;
 
     void DarkMode()
     {
-        _currentTheme = _currentTheme == _defaultTheme ? _darkTheme : _defaultTheme;
+        _isDarkMode = !_isDarkMode;
     }
-
-    MudTheme _currentTheme = new();
 
     private static readonly string[] AppFontFamily = ["Adwaita Sans", "Helvetica Neue", "Arial", "sans-serif"];
 
@@ -40,7 +35,7 @@
         Overline = new OverlineTypography { FontFamily = AppFontFamily }
     };
 
-    readonly MudTheme _defaultTheme = new()
+    private readonly MudTheme _appTheme = new()
     {
         Typography = AppTypography,
         PaletteLight = new PaletteLight()
@@ -49,13 +44,7 @@
             Primary = "#4da950",
             Secondary = "#357537",
             AppbarBackground = "#4da950"
-        }
-    };
-
-    // The dark theme is just placed here for later use if needed
-    readonly MudTheme _darkTheme = new()
-    {
-        Typography = AppTypography,
+        },
         PaletteDark = new PaletteDark()
         {
             Black = "#27272f",
