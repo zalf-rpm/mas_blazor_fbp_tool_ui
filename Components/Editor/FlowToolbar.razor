@@ -1,4 +1,6 @@
 @using MudBlazor
+@inject BlazorDrawFBP.Services.IAppThemeService ThemeService
+@implements IDisposable
 
 <MudPaper Outlined="true">
     <MudToolBar Dense="true" Class="px-2">
@@ -57,7 +59,36 @@
                 Edit SturdyRefs
             </MudButton>
         </MudButtonGroup>
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End"/>
+        <MudMenu Icon="@Icons.Material.Filled.MoreVert"
+                 Color="Color.Inherit"
+                 Dense="true"
+                 AnchorOrigin="Origin.BottomRight"
+                 TransformOrigin="Origin.TopRight"
+                 AriaLabel="Settings">
+            <MudText Typo="Typo.caption" Class="px-4 py-1 mud-text-secondary">Theme</MudText>
+            <MudMenuItem Icon="@Icons.Material.Filled.LightMode"
+                         IconColor="@(!ThemeService.IsDarkMode ? Color.Primary : Color.Default)"
+                         OnClick="@(() => ThemeService.SetDarkModeAsync(false))">
+                <div class="d-flex align-center justify-space-between mud-width-full">
+                    <span>Light theme</span>
+                    @if (!ThemeService.IsDarkMode)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2" />
+                    }
+                </div>
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Filled.DarkMode"
+                         IconColor="@(ThemeService.IsDarkMode ? Color.Primary : Color.Default)"
+                         OnClick="@(() => ThemeService.SetDarkModeAsync(true))">
+                <div class="d-flex align-center justify-space-between mud-width-full">
+                    <span>Dark theme</span>
+                    @if (ThemeService.IsDarkMode)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="ml-2" />
+                    }
+                </div>
+            </MudMenuItem>
+        </MudMenu>
     </MudToolBar>
 </MudPaper>
 
@@ -74,4 +105,22 @@
     [Parameter, EditorRequired] public EventCallback OnAddComponentService { get; set; }
     [Parameter, EditorRequired] public EventCallback OnAddChannelService { get; set; }
     [Parameter, EditorRequired] public EventCallback OnShowSturdyRefDialog { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (ThemeService != null)
+        {
+            ThemeService.ThemeChanged += OnThemeChanged;
+        }
+    }
+
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (ThemeService != null)
+        {
+            ThemeService.ThemeChanged -= OnThemeChanged;
+        }
+    }
 }

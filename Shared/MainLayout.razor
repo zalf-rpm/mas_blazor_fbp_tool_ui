@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@inject BlazorDrawFBP.Services.IAppThemeService ThemeService
+@implements IDisposable
 
-<MudThemeProvider Theme="_appTheme" @bind-IsDarkMode="_isDarkMode" />
+<MudThemeProvider Theme="_appTheme" IsDarkMode="@ThemeService.IsDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider CloseButton="true" CloseOnEscapeKey="true" />
 <MudSnackbarProvider />
@@ -8,11 +10,26 @@
 @Body
 
 @code {
-    private bool _isDarkMode;
-
-    void DarkMode()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _isDarkMode = !_isDarkMode;
+        if (firstRender)
+        {
+            if (ThemeService != null)
+            {
+                ThemeService.ThemeChanged += OnThemeChanged;
+                await ThemeService.InitializeAsync();
+            }
+        }
+    }
+
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (ThemeService != null)
+        {
+            ThemeService.ThemeChanged -= OnThemeChanged;
+        }
     }
 
     private static readonly string[] AppFontFamily = ["Adwaita Sans", "Helvetica Neue", "Arial", "sans-serif"];

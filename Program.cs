@@ -23,6 +23,7 @@ builder.Services.AddMudServices(config =>
 
 builder.Services.AddScoped<Mas.Infrastructure.Common.ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddScoped<IAppThemeService, AppThemeService>();
 
 builder.Services.AddScoped<CleanupDiagramService>();
 builder.Services.AddScoped<CircuitHandler, AppCircuitHandler>();
