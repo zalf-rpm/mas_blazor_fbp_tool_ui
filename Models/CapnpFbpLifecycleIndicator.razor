@@ -15,8 +15,8 @@
 </span>
 
 @code {
-    [Parameter] public ComponentLifecycleState State { get; set; }
-    [Parameter] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public ComponentLifecycleState State { get; set; }
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
     [Parameter] public string Error { get; set; } = "";
     [Parameter] public string TooltipText { get; set; } = "";
     [Parameter] public string Top { get; set; } = "0";

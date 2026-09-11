@@ -171,7 +171,7 @@
 </MudPaper>
 
 @code {
-    [Parameter] public CapnpFbpComponentContentModel Node { get; set; } = null!;
+    [Parameter, EditorRequired] public CapnpFbpComponentContentModel Node { get; set; } = null!;
 
     bool _alreadyRemoved = false;
 

@@ -13,7 +13,7 @@
 </MudPaper>
 
 @code {
-    [Parameter] public UpdatePortNameNode Node { get; set; } = null!;
+    [Parameter, EditorRequired] public UpdatePortNameNode Node { get; set; } = null!;
 
     bool _alreadyRemoved = false;
     

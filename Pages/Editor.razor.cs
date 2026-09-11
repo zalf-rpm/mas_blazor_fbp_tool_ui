@@ -21,6 +21,7 @@ using Mas.Schema.Fbp;
 using Mas.Schema.Registry;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -29,7 +30,6 @@ using Proxy = Capnp.Rpc.Proxy;
 
 public partial class Editor : IAsyncDisposable
 {
-    private const string LoadFlowInputId = "load-flow-input";
     private const double ZoomToFitMargin = 80;
 
     [Parameter]
@@ -49,6 +49,38 @@ public partial class Editor : IAsyncDisposable
     private Component? _draggedComponent;
     private string _draggedComponentServiceId = "";
     private bool _loadingFlow;
+    private bool _hasRendered;
+    private JObject? _pendingServicesMergeDocument;
+    private ErrorBoundary? _canvasErrorBoundary;
+
+    public bool HasActiveExecution =>
+        RuntimeService?.IsExecutingFlow == true
+        || RuntimeService?.HasBusyLifecycleNodes == true
+        || (Diagram?.Nodes.Any(node => node switch
+        {
+            CapnpFbpComponentModel comp => comp.DisplayLifecycleState == ComponentLifecycleState.Running || comp.IsLifecycleBusy,
+            CapnpFbpViewComponentModel view => view.LifecycleState == ComponentLifecycleState.Running || view.IsLifecycleBusy,
+            CapnpFbpIipComponentModel iip => iip.DisplayLifecycleState == ComponentLifecycleState.Starting || iip.IsLifecycleBusy,
+            _ => false,
+        }) == true);
+
+    private async Task OnBeforeInternalNavigation(LocationChangingContext context)
+    {
+        if (HasActiveExecution)
+        {
+            var confirmed = await DialogService.ShowMessageBoxAsync(
+                "Processes are Running",
+                "This flow has running processes or active executions. Navigating away will detach your session. Do you want to proceed?",
+                yesText: "Leave",
+                cancelText: "Stay"
+            );
+
+            if (confirmed != true)
+            {
+                context.PreventNavigation();
+            }
+        }
+    }
 
     public void ScheduleSessionSnapshot()
     {
@@ -68,9 +100,15 @@ public partial class Editor : IAsyncDisposable
                 if (cts.Token.IsCancellationRequested)
                     return;
 
+                if (CurrentSession != null)
+                {
+                    await CurrentSession.RuntimeService.CheckConnectedServicesHealthAsync(cts.Token);
+                }
+
                 var doc = await ExportFlowJsonAsync();
                 if (CurrentSession != null)
                 {
+                    doc["session"] = new JObject { { "ttlMinutes", CurrentSession.Ttl.TotalMinutes } };
                     CurrentSession.FlowDocument = doc;
                     CurrentSession.Touch();
                 }
@@ -100,6 +138,22 @@ public partial class Editor : IAsyncDisposable
         {
             Snackbar.Add($"Flow URL: {NavigationManager.Uri}", Severity.Info);
         }
+    }
+
+    public string CurrentTtlLabel => CurrentSession != null
+        ? FlowSession.FormatTtl(CurrentSession.Ttl)
+        : FlowSession.FormatTtl(TimeSpan.FromMinutes(30));
+
+    public void CycleFlowTtl()
+    {
+        if (CurrentSession == null)
+            return;
+
+        var newTtl = CurrentSession.CycleTtl();
+        var label = FlowSession.FormatTtl(newTtl);
+        Snackbar.Add($"Session detached TTL set to {label}", Severity.Info);
+        ScheduleSessionSnapshot();
+        SafeStateHasChanged();
     }
 
     public async Task TerminateFlowSessionAsync()
@@ -156,6 +210,7 @@ public partial class Editor : IAsyncDisposable
         if (CurrentSession != null)
         {
             CurrentSession.RuntimeService.StateChanged -= OnRuntimeStateChanged;
+            CurrentSession.RuntimeService.ServiceConnectionDropped -= OnServiceConnectionDropped;
             SessionStore.MarkDetached(CurrentSession.Id);
         }
 
@@ -170,6 +225,7 @@ public partial class Editor : IAsyncDisposable
             return Task.CompletedTask;
         });
         CurrentSession.RuntimeService.StateChanged += OnRuntimeStateChanged;
+        CurrentSession.RuntimeService.ServiceConnectionDropped += OnServiceConnectionDropped;
 
         if (CurrentSession.Diagram == null)
         {
@@ -184,6 +240,11 @@ public partial class Editor : IAsyncDisposable
         {
             Diagram = CurrentSession.Diagram;
             CurrentSession.RuntimeService.Diagram = Diagram;
+            await CurrentSession.RuntimeService.CheckConnectedServicesHealthAsync();
+            if (CurrentSession.FlowDocument != null)
+            {
+                await TryMergeFlowServicesIntoLocalStorageAsync(CurrentSession.FlowDocument);
+            }
         }
 
         SafeStateHasChanged();
@@ -193,17 +254,28 @@ public partial class Editor : IAsyncDisposable
     {
         if (!firstRender)
             return;
-        if (!await LocalStorage.ContainKeyAsync("sturdy-ref-store"))
-            return;
-        var allBookmarks = await StoredSrData.GetAllData(LocalStorage);
-        allBookmarks.Sort();
 
-        foreach (var ssrd in allBookmarks.Where(ssrd => ssrd.AutoConnect))
+        _hasRendered = true;
+
+        if (await LocalStorage.ContainKeyAsync(StoredSrData.StorageKey))
         {
-            if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
-                await ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
-            else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
-                await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
+            var allBookmarks = await StoredSrData.GetAllData(LocalStorage);
+            allBookmarks.Sort();
+
+            foreach (var ssrd in allBookmarks.Where(ssrd => ssrd.AutoConnect))
+            {
+                if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId)
+                    await ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
+                else if (ssrd.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId)
+                    await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
+            }
+        }
+
+        if (_pendingServicesMergeDocument != null)
+        {
+            var doc = _pendingServicesMergeDocument;
+            _pendingServicesMergeDocument = null;
+            await MergeFlowServicesIntoLocalStorageAsync(doc);
         }
 
         SafeStateHasChanged();
@@ -262,15 +334,29 @@ public partial class Editor : IAsyncDisposable
                 ZoomToFitFlowAsync,
                 RegisterNodeLayoutEvents
             );
+
+            if (CurrentSession != null && dia["session"]?["ttlMinutes"] != null)
+            {
+                if (double.TryParse(dia["session"]?["ttlMinutes"]?.ToString(), out var mins) && mins > 0)
+                {
+                    CurrentSession.Ttl = TimeSpan.FromMinutes(mins);
+                }
+            }
+
+            await TryMergeFlowServicesIntoLocalStorageAsync(dia);
         }
         finally
         {
             _loadingFlow = false;
         }
+
+        ScheduleSessionSnapshot();
     }
 
-    protected async Task LoadFlow(IBrowserFile file)
+    protected async Task LoadFlow(IBrowserFile? file)
     {
+        if (file == null)
+            return;
         var s = file.OpenReadStream();
         if (s.Length > 1 * 1024 * 1024)
             return; // 1 MB
@@ -278,23 +364,9 @@ public partial class Editor : IAsyncDisposable
         await LoadFlowFromJsonAsync(dia);
     }
 
-    protected async Task LoadFlowSelected(InputFileChangeEventArgs args)
-    {
-        try
-        {
-            if (args.FileCount > 0)
-            {
-                await LoadFlow(args.File);
-            }
-        }
-        finally
-        {
-            _loadFlowInputVersion++;
-        }
-    }
-
     protected async Task SaveFlow(bool asMermaid)
     {
+        await RuntimeService.CheckConnectedServicesHealthAsync();
         var (dia, mermaid) = await ExportFlowDocumentAsync(asMermaid);
         var content = asMermaid ? (mermaid ?? "") : (dia?.ToString() ?? "{}");
         var ext = asMermaid ? "mmd" : "json";
@@ -303,6 +375,136 @@ public partial class Editor : IAsyncDisposable
             $"flow.{ext}",
             Convert.ToBase64String(Encoding.UTF8.GetBytes(content))
         );
+    }
+
+    public async Task TryMergeFlowServicesIntoLocalStorageAsync(JObject? flowDoc)
+    {
+        if (flowDoc == null)
+            return;
+
+        if (!_hasRendered)
+        {
+            _pendingServicesMergeDocument = flowDoc;
+            return;
+        }
+
+        await MergeFlowServicesIntoLocalStorageAsync(flowDoc);
+    }
+
+    public async Task<int> MergeFlowServicesIntoLocalStorageAsync(JObject flowDoc)
+    {
+        if (LocalStorage == null)
+            return 0;
+
+        List<StoredSrData> bookmarks;
+        try
+        {
+            bookmarks = await StoredSrData.GetAllData(LocalStorage);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to retrieve bookmarks from LocalStorage: {ex.Message}");
+            return 0;
+        }
+
+        var addedCount = 0;
+
+        if (flowDoc["services"]?["channels"] is JObject channelsObj)
+        {
+            foreach (var prop in channelsObj.Properties())
+            {
+                var serviceId = prop.Name;
+                var sturdyRef = prop.Value?.ToString();
+                if (string.IsNullOrWhiteSpace(sturdyRef))
+                    continue;
+
+                var isAlive = RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
+                    entry.Value.Item2 == sturdyRef && RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(entry.Key));
+
+                if (!isAlive)
+                    continue;
+
+                var petName = RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                    && !string.IsNullOrWhiteSpace(tuple.Item1)
+                    ? tuple.Item1
+                    : serviceId;
+
+                var exists = bookmarks.Any(b =>
+                    b.InterfaceId == BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId
+                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal));
+
+                if (!exists)
+                {
+                    bookmarks.Add(new StoredSrData
+                    {
+                        InterfaceId = BlazorDrawFBP.Shared.Shared.ChannelStarterInterfaceId,
+                        PetName = petName,
+                        SturdyRef = sturdyRef,
+                        AutoConnect = true,
+                    });
+                    addedCount++;
+                }
+            }
+        }
+
+        if (flowDoc["services"]?["components"] is JObject componentsObj)
+        {
+            foreach (var prop in componentsObj.Properties())
+            {
+                var serviceId = prop.Name;
+                var sturdyRef = prop.Value?.ToString();
+                if (string.IsNullOrWhiteSpace(sturdyRef))
+                    continue;
+
+                var isAlive = RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
+                    entry.Key != "no_service"
+                    && entry.Value.Item2 == sturdyRef
+                    && RuntimeService.ServiceId2Registries.ContainsKey(entry.Key));
+
+                if (!isAlive)
+                    continue;
+
+                var petName = RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple)
+                    && !string.IsNullOrWhiteSpace(tuple.Item1)
+                    ? tuple.Item1
+                    : serviceId;
+
+                var exists = bookmarks.Any(b =>
+                    b.InterfaceId == BlazorDrawFBP.Shared.Shared.RegistryInterfaceId
+                    && string.Equals(b.SturdyRef, sturdyRef, StringComparison.Ordinal));
+
+                if (!exists)
+                {
+                    bookmarks.Add(new StoredSrData
+                    {
+                        InterfaceId = BlazorDrawFBP.Shared.Shared.RegistryInterfaceId,
+                        PetName = petName,
+                        SturdyRef = sturdyRef,
+                        AutoConnect = true,
+                    });
+                    addedCount++;
+                }
+            }
+        }
+
+        if (addedCount > 0)
+        {
+            try
+            {
+                bookmarks.Sort();
+                await StoredSrData.SaveAllData(LocalStorage, bookmarks);
+                Snackbar?.Add(
+                    $"Imported {addedCount} service bookmark{(addedCount > 1 ? "s" : "")} from flow to local storage.",
+                    Severity.Success
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to save merged bookmarks to LocalStorage: {ex.Message}");
+            }
+        }
+
+        return addedCount;
     }
 
     public async Task ClearDiagram()
@@ -425,6 +627,23 @@ public partial class Editor : IAsyncDisposable
 
     private void OnRuntimeStateChanged() => SafeStateHasChanged();
 
+    private void OnServiceConnectionDropped(ServiceConnectionDroppedEventArgs args)
+    {
+        try
+        {
+            _ = InvokeAsync(() =>
+            {
+                Snackbar.Add(args.Message, Severity.Warning);
+                SafeStateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"OnServiceConnectionDropped toast failed: {ex.Message}");
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _snapshotDebounceCts?.Cancel();
@@ -435,6 +654,7 @@ public partial class Editor : IAsyncDisposable
         _clearButtonCts?.Dispose();
         _clearButtonCts = null;
         RuntimeService.StateChanged -= OnRuntimeStateChanged;
+        RuntimeService.ServiceConnectionDropped -= OnServiceConnectionDropped;
         CleanupService.UnregisterCleanup();
     }
 }

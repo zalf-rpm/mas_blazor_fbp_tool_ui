@@ -12,9 +12,9 @@
 
 @code
 {
-    [Parameter]
+    [Parameter, EditorRequired]
     public AddPortControl Control { get; set; } = null!;
 
-    [Parameter]
+    [Parameter, EditorRequired]
     public Model Model { get; set; } = null!;
 }

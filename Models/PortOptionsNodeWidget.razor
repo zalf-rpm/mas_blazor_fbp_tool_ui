@@ -41,7 +41,7 @@
 </MudPaper>
 
 @code {
-    [Parameter] public PortOptionsNode Node { get; set; } = null!;
+    [Parameter, EditorRequired] public PortOptionsNode Node { get; set; } = null!;
 
     bool _alreadyRemoved = false;
 

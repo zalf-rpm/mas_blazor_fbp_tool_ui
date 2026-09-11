@@ -29,12 +29,16 @@
 @using Mas.Schema.Registry
 
 <div class="editor-shell mud-background-gray pa-1">
+<NavigationLock ConfirmExternalNavigation="@HasActiveExecution"
+                OnBeforeInternalNavigation="@OnBeforeInternalNavigation" />
 <MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
     <FlowToolbar ComponentListVisible="@_componentListVisible"
                  FlowId="@FlowId"
                  ShortFlowId="@ShortFlowId"
+                 TtlLabel="@CurrentTtlLabel"
                  OnToggleComponentList="@ToggleComponentList"
                  OnCopyFlowUrl="@CopyFlowUrlToClipboard"
+                 OnCycleTtl="@CycleFlowTtl"
                  OnCreateNewFlow="@CreateNewFlow"
                  OnAddComponentService="@AddComponentServiceSturdyRef"
                  OnAddChannelService="@AddChannelServiceSturdyRef"
@@ -56,13 +60,11 @@
                   Class="diagram-container flex-grow-1"
                   ondragover="event.preventDefault();"
                   @ondrop="OnNodeDrop">
-            <FlowCanvasControls LoadFlowInputId="@LoadFlowInputId"
-                                LoadFlowInputVersion="@_loadFlowInputVersion"
-                                ClearButtonDisabled="@ClearButtonDisabled"
+            <FlowCanvasControls ClearButtonDisabled="@ClearButtonDisabled"
                                 CanTerminateSession="@FlowId.HasValue"
                                 CanExecuteFlow="@CanExecuteFlow"
                                 ExecuteFlowButtonTitle="@ExecuteFlowButtonTitle"
-                                OnLoadFlowSelected="@LoadFlowSelected"
+                                OnFlowFileSelected="@LoadFlow"
                                 OnSaveFlow="@SaveFlow"
                                 OnClearButtonClicked="@ClearButtonClicked"
                                 OnTerminateSession="@TerminateFlowSessionAsync"
@@ -70,16 +72,36 @@
 
             @if (Diagram != null)
             {
-                <CascadingValue Value="Diagram">
-                    <DiagramCanvas @key="FlowId">
-                        <Widgets>
-                            <NavigatorWidget Width="200"
-                                             Height="120"
-                                             Class="editor-minimap border border-black absolute"
-                                             Style="bottom: 15px; right: 15px;"/>
-                        </Widgets>
-                    </DiagramCanvas>
-                </CascadingValue>
+                <ErrorBoundary @ref="_canvasErrorBoundary">
+                    <ChildContent>
+                        <CascadingValue Value="Diagram" IsFixed="true">
+                            <DiagramCanvas @key="FlowId">
+                                <Widgets>
+                                    <NavigatorWidget Width="200"
+                                                     Height="120"
+                                                     Class="editor-minimap border border-black absolute"
+                                                     Style="bottom: 15px; right: 15px;"/>
+                                </Widgets>
+                            </DiagramCanvas>
+                        </CascadingValue>
+                    </ChildContent>
+                    <ErrorContent Context="ex">
+                        <div class="pa-4">
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="my-2">
+                                <div class="d-flex flex-column gap-2">
+                                    <MudText Typo="Typo.subtitle2">An error occurred while rendering the diagram canvas.</MudText>
+                                    <MudText Typo="Typo.body2">@ex.Message</MudText>
+                                    <MudButton Color="Color.Primary"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               OnClick="@(() => _canvasErrorBoundary?.Recover())">
+                                        Recover Canvas
+                                    </MudButton>
+                                </div>
+                            </MudAlert>
+                        </div>
+                    </ErrorContent>
+                </ErrorBoundary>
             }
             else
             {
@@ -96,7 +118,6 @@
     private CancellationTokenSource? _clearButtonCts;
     private bool ClearButtonDisabled { get; set; } = true;
     private bool _componentListVisible = true;
-    private int _loadFlowInputVersion;
 
     private bool CanExecuteFlow => RuntimeService.CanExecuteFlow;
     private string ExecuteFlowButtonTitle => RuntimeService.ExecuteFlowButtonTitle;
@@ -138,12 +159,14 @@
 
     private async Task AddComponentServiceSturdyRef()
     {
-        var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<NewSturdyRefDialog>
+        {
+            { x => x.InterfaceId, typeof(IRegistry).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0UL }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
-        var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })
+        var nb = await dia.GetReturnValueAsync<StoredSrData>();
+        if (nb != null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -155,12 +178,14 @@
 
     private async Task AddChannelServiceSturdyRef()
     {
-        var parameters = new DialogParameters();
-        parameters.Add("InterfaceId", typeof(IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id);
-        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<NewSturdyRefDialog>
+        {
+            { x => x.InterfaceId, typeof(IStartChannelsService).GetCustomAttribute<Capnp.TypeIdAttribute>(false)?.Id ?? 0UL }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
-        var res = await dia.Result;
-        if (res is { Data: StoredSrData nb })
+        var nb = await dia.GetReturnValueAsync<StoredSrData>();
+        if (nb != null)
         {
             if (nb.SturdyRef.Length == 0) return;
             await StoredSrData.SaveNew(LocalStorage, nb);
@@ -174,17 +199,17 @@
     {
         EventCallback<(ulong, string, string)> connectedCallback = new(this, HandleSturdyRefConnectedAsync);
         EventCallback<(ulong, string)> disconnectedCallback = new(this, HandleSturdyRefDisconnectedAsync);
-        var parameters = new DialogParameters();
-        parameters.Add("InterfaceIdToType", InterfaceIdToType);
-        parameters.Add("SturdyRef2Services", SturdyRef2Services);
-        parameters.Add("ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged", connectedCallback);
-        parameters.Add("DisconnectedFromInterfaceIdAndSturdyRefChanged", disconnectedCallback);
+        var parameters = new DialogParameters<LocallyStoredSturdyRefsDialog>
+        {
+            { x => x.InterfaceIdToType, InterfaceIdToType },
+            { x => x.SturdyRef2Services, SturdyRef2Services },
+            { x => x.ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged, connectedCallback },
+            { x => x.DisconnectedFromInterfaceIdAndSturdyRefChanged, disconnectedCallback }
+        };
 
         var options = new DialogOptions
         {
-            CloseButton = true,
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
+            MaxWidth = MaxWidth.ExtraLarge,
             FullWidth = true,
         };
         var dialog = await DialogService.ShowAsync<LocallyStoredSturdyRefsDialog>(

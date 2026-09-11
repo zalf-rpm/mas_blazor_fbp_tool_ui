@@ -20,10 +20,10 @@
 
 @code
 {
-    [Parameter]
+    [Parameter, EditorRequired]
     public NodeInformationControl Control { get; set; } = null!;
 
-    [Parameter]
+    [Parameter, EditorRequired]
     public Model Model { get; set; } = null!;
 
     public NodeModel Node => (Model as NodeModel)!;

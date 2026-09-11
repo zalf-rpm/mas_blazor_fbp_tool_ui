@@ -12,39 +12,24 @@
         <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
                                     Label="@Node.LifecycleLabel"
                                     Error="@Node.LifecycleError" />
-        <MudGrid Justify="Justify.Center" Spacing="1">
-            <MudItem xs="4">
-                <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    <MudButton Color="@Color.Primary"
-                               Disabled="@Node.IsLifecycleBusy"
-                               StartIcon="@LifecycleButtonIcon"
-                               OnClick="@HandleLifecycleAction">
-                        @LifecycleButtonText
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
-            <MudItem Class="align-content-end" xs="4">
-                <MudPaper Class="d-flex justify-center mud-width-full pr-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    <MudButton Color="@Color.Primary"
-                               EndIcon="@Icons.Material.Filled.OpenInNew"
-                               OnClick="@ShowDetails">
-                        Large
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
-            <MudItem Class="align-content-end" xs="4">
-                <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    <MudButton Color="@Color.Primary"
-                               OnClick="@Node.ResetViewContent"
-                               EndIcon="@Icons.Material.Filled.Clear">
-                        Clear
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="pl-3 pr-3 pt-3">
+            <MudButton Color="@Color.Primary"
+                       Disabled="@Node.IsLifecycleBusy"
+                       StartIcon="@LifecycleButtonIcon"
+                       OnClick="@HandleLifecycleAction">
+                @LifecycleButtonText
+            </MudButton>
+            <MudButton Color="@Color.Primary"
+                       EndIcon="@Icons.Material.Filled.OpenInNew"
+                       OnClick="@ShowDetails">
+                Large
+            </MudButton>
+            <MudButton Color="@Color.Primary"
+                       OnClick="@Node.ResetViewContent"
+                       EndIcon="@Icons.Material.Filled.Clear">
+                Clear
+            </MudButton>
+        </MudStack>
         <MudGrid Class="flex-grow-1" Justify="Justify.Center" Spacing="0">
             <MudItem xs="12" Class="pl-3 pr-3 pt-2 pb-3">
                 <Display WidthPx="@Node.DisplayWidthPx"
@@ -74,7 +59,7 @@
 </div>
 
 @code {
-    [Parameter] public CapnpFbpViewComponentModel Node { get; set; } = null!;
+    [Parameter, EditorRequired] public CapnpFbpViewComponentModel Node { get; set; } = null!;
 
     private string CardStyle =>
         $"height: {(Node.Size?.Height ?? 200)}px; width: {(Node.Size?.Width ?? 350)}px;{FrameWidth};{FrameColor}";
@@ -120,11 +105,11 @@
     {
         DialogOptions options = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
 
-        var parameters = new DialogParameters
+        var parameters = new DialogParameters<MarkupDisplayDialog>
         {
-            ["Content"] = Node.ViewContent,
-            ["EnableZoom"] = EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = true; }),
-            ["DisableZoom"] = EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = false; }),
+            { x => x.Content, Node.ViewContent },
+            { x => x.EnableZoom, EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = true; }) },
+            { x => x.DisableZoom, EventCallback.Factory.Create(this, () => { Node.Diagram.Options.Zoom.Enabled = false; }) },
         };
 
         await DialogService.ShowAsync<MarkupDisplayDialog>("View Content", parameters, options);

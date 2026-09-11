@@ -8,9 +8,9 @@
 
 @code
 {
-    [Parameter]
+    [Parameter, EditorRequired]
     public RemoveProcessControl Control { get; set; } = null!;
 
-    [Parameter]
+    [Parameter, EditorRequired]
     public Model Model { get; set; } = null!;
 }

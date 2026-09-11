@@ -15,10 +15,9 @@
                       Outlined="true">
                 <div class="d-flex align-center">
                     <div class="d-flex align-center gap-1 flex-grow-1">
-                        <MudText Class="mud-text-secondary" Typo="Typo.caption">Channel</MudText>
+                        <MudText Color="Color.Secondary" Typo="Typo.caption">Channel</MudText>
                         <MudTooltip Text="@Label.ConnectionLabel" Arrow="true">
-                            <MudIcon Class="mud-text-secondary"
-                                     Color="Color.Inherit"
+                            <MudIcon Color="Color.Secondary"
                                      Icon="@Icons.Material.Filled.Info"
                                      Size="Size.Small" />
                         </MudTooltip>
@@ -44,7 +43,7 @@
                                         Value="@QueueFillPercent"
                                         Color="@BufferFillColor" />
                     <div class="d-flex justify-end">
-                        <MudText Class="mud-text-secondary" Typo="Typo.caption">
+                        <MudText Color="Color.Secondary" Typo="Typo.caption">
                             @QueueFillText
                         </MudText>
                     </div>
@@ -74,7 +73,7 @@
                 <MudDivider Class="my-2" />
 
                 <div class="mt-1">
-                    <MudText Class="mud-text-secondary d-block mb-1" Typo="Typo.caption">
+                    <MudText Color="Color.Secondary" Class="d-block mb-1" Typo="Typo.caption">
                         Increase buffer size
                     </MudText>
                     <div class="d-flex gap-1">
@@ -126,7 +125,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.Storage"
                                  Size="Size.Small"
                                  Color="@BufferFillColor" />
-                        <MudText Class="mud-text-secondary" Typo="Typo.caption">
+                        <MudText Color="Color.Secondary" Typo="Typo.caption">
                             Buffer
                         </MudText>
                     </div>
@@ -152,7 +151,7 @@
 {
     private static readonly Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats EmptyStats = new();
 
-    [Parameter] public ChannelLinkLabelModel Label { get; set; } = null!;
+    [Parameter, EditorRequired] public ChannelLinkLabelModel Label { get; set; } = null!;
 
     private Mas.Schema.Fbp.Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel.Stats ?? EmptyStats;
     private ulong BufferSize => Label?.BufferSize ?? 1;

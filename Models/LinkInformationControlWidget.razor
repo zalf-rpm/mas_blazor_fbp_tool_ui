@@ -10,10 +10,10 @@
 
 @code
 {
-    [Parameter]
+    [Parameter, EditorRequired]
     public LinkInformationControl Control { get; set; } = null!;
 
-    [Parameter]
+    [Parameter, EditorRequired]
     public Model Model { get; set; } = null!;
 
     public LinkModel Link => (Model as LinkModel)!;

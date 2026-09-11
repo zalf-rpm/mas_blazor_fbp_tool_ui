@@ -7,6 +7,7 @@
           Class="d-flex flex-column flex-shrink-0 overflow-hidden pb-2 gap-1"
           Style="width: 24rem; min-height: 0;">
     <MudTextField @bind-Value="@_searchText"
+                  @bind-Value:after="OnSearchTextChanged"
                   Placeholder="Search components"
                   Variant="Variant.Text"
                   Margin="Margin.Dense"
@@ -15,9 +16,7 @@
                   AdornmentIcon="@Icons.Material.Filled.Search"
                   Immediate="true"
                   DebounceInterval="300"
-                  OnDebounceIntervalElapsed="ApplyComponentSearch"
                   Clearable="true"
-                  OnClearButtonClick="ClearComponentSearch"
                   ClearIcon="@Icons.Material.Filled.Close"/>
     <MudNavMenu Dense="true"
                 Class="components-list d-flex flex-column gap-1 flex-grow-1 overflow-auto">
@@ -92,13 +91,8 @@
                             }
                             else
                             {
-                                <MudTooltip @key="compId">
-                                    <ChildContent>
-                                        @componentItem
-                                    </ChildContent>
-                                    <TooltipContent>
-                                        <MudText Typo="Typo.body2">@comp.Info.Description</MudText>
-                                    </TooltipContent>
+                                <MudTooltip @key="compId" Text="@comp.Info.Description">
+                                    @componentItem
                                 </MudTooltip>
                             }
                         }
@@ -111,8 +105,8 @@
 
 @code {
     [Parameter, EditorRequired] public IFbpRuntimeService RuntimeService { get; set; } = null!;
-    [Parameter] public EventCallback<(Component Component, string ServiceId)> OnComponentDragStart { get; set; }
-    [Parameter] public EventCallback OnComponentDragEnd { get; set; }
+    [Parameter, EditorRequired] public EventCallback<(Component Component, string ServiceId)> OnComponentDragStart { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnComponentDragEnd { get; set; }
 
     private string _searchText = "";
     private string _query = "";
@@ -140,18 +134,10 @@
             comp.Type != Component.ComponentType.subflow &&
             (!SearchActive || CategoryMatchesSearch(catId) || ComponentMatchesSearch(comp)));
 
-    private Task ApplyComponentSearch(string searchText)
+    private void OnSearchTextChanged()
     {
-        _searchText = searchText ?? "";
-        var trimmedSearchText = _searchText.Trim();
+        var trimmedSearchText = _searchText?.Trim() ?? "";
         _query = trimmedSearchText.Length >= MinSearchChars ? trimmedSearchText : "";
-        return Task.CompletedTask;
-    }
-
-    private void ClearComponentSearch()
-    {
-        _searchText = "";
-        _query = "";
     }
 
     private bool CategoryHasMatchingComponent(string catId) =>

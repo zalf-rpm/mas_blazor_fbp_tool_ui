@@ -16,32 +16,25 @@
         <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
                                     Label="@Node.LifecycleLabel"
                                     Error="@Node.LifecycleError" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="pl-3 pr-3 pt-3">
+            <MudButton Color="@Color.Primary"
+                       Disabled="@Node.IsLifecycleBusy"
+                       StartIcon="@LifecycleButtonIcon"
+                       OnClick="@SendIip">
+                @LifecycleButtonText
+            </MudButton>
+            <MudButton Color="@Color.Primary"
+                       EndIcon="@Icons.Material.Filled.OpenInNew"
+                       OnClick="@ShowDetails">
+                Large
+            </MudButton>
+        </MudStack>
         <MudGrid Justify="Justify.Center" Spacing="1">
-            <MudItem xs="5">
-                <MudPaper Class="d-flex justify-start mud-width-full pl-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    <MudButton Color="@Color.Primary"
-                               Disabled="@Node.IsLifecycleBusy"
-                               StartIcon="@LifecycleButtonIcon"
-                               OnClick="@SendIip">
-                        @LifecycleButtonText
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
-            <MudItem Class="align-content-end" xs="7">
-                <MudPaper Class="d-flex justify-end mud-width-full pr-3 pt-3" Outlined="false"
-                          Elevation="0">
-                    <MudButton Color="@Color.Primary"
-                               EndIcon="@Icons.Material.Filled.OpenInNew"
-                               OnClick="@ShowDetails">
-                        Large
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
             <MudItem Class="pt-0" xs="12">
                 <div @onpointerenter="@(_ => { Node.Locked = true; })"
                      @onpointerleave="@(_ => { Node.Locked = false; })">
-                    <MudSelect Class="pl-3 pr-3"
+                    <MudSelect T="(bool, StructuredText.Type)"
+                               Class="pl-3 pr-3"
                                @bind-Value="Node.PlainTextOrContentType"
                                Margin="Margin.Dense"
                                Variant="Variant.Text">
@@ -86,7 +79,7 @@
 
 @code
 {
-    [Parameter] public CapnpFbpIipComponentModel Node { get; set; } = null!;
+    [Parameter, EditorRequired] public CapnpFbpIipComponentModel Node { get; set; } = null!;
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private const string FrameWidth = "border-width: 1px";
@@ -128,14 +121,16 @@
 
     private async Task ShowDetails(MouseEventArgs e)
     {
-        var parameters = new DialogParameters
+        var parameters = new DialogParameters<TextEditorDialog>
         {
-            ["Text"] = Node.Content
+            { x => x.Text, Node.Content }
         };
 
         var dialog = await DialogService.ShowAsync<TextEditorDialog>("Edit IIP Content", parameters);
-        var result = await dialog.Result;
-        if (result == null || result.Canceled) return;
-        Node.Content = result.Data as string ?? "";
+        var newContent = await dialog.GetReturnValueAsync<string>();
+        if (newContent != null)
+        {
+            Node.Content = newContent;
+        }
     }
 }
