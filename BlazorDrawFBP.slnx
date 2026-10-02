@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="BlazorDrawFBP.csproj" />
+  <Project Path="capnproto-dotnetcore/Capnp.Net.Runtime/Capnp.Net.Runtime.csproj" />
+  <Project Path="mas_blazor_components/BlazorComponents.csproj" />
+  <Project Path="mas_capnproto_schemas/gen/csharp/zalfmas_capnpschemas.csproj" />
+  <Project Path="mas_csharp_common/common.csproj" />
+</Solution>

@@ -18,4 +18,4 @@ CHANGELOG.md
 docker-bake.hcl
 release-please-config.json
 .release-please-manifest.json
-BlazorDrawFBP.sln
+BlazorDrawFBP.slnx
