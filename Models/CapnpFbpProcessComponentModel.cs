@@ -1151,6 +1151,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (Process == null || inPort.ReaderSturdyRef == null)
             return;
 
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: ConnectInputPortAsync sending readerSturdyRef for '{inPort.Name}': {ConnectionManager.DescribeSturdyRef(inPort.ReaderSturdyRef)}"
+        );
         var (connected, disconnect) = await Process.ConnectInPort(
             inPort.Name,
             inPort.ReaderSturdyRef,
@@ -1169,6 +1172,9 @@ public class CapnpFbpProcessComponentModel : CapnpFbpComponentModel
         if (Process == null || link.WriterSturdyRef == null)
             return;
 
+        Console.WriteLine(
+            $"T{Environment.CurrentManagedThreadId} {ProcessName}: ConnectOutputPortAsync sending writerSturdyRef for '{link.OutPortModel.Name}': {ConnectionManager.DescribeSturdyRef(link.WriterSturdyRef)}"
+        );
         var (connected, disconnect) = await Process.ConnectOutPort(
             link.OutPortModel.Name,
             link.WriterSturdyRef,

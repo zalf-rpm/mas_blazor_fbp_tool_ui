@@ -1,0 +1,11 @@
+[workspace]
+authors = ["Michael Berg-Mohnicke <michael.berg@zalf.de>"]
+channels = ["conda-forge"]
+name = "mas_blazor_fbp_tool_ui"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+flow_ui = { cmd = "dotnet run --project BlazorDrawFBP.csproj", env = { ASPNETCORE_ENVIRONMENT = "Development", ASPNETCORE_URLS = "https://localhost:5003;http://localhost:5002", CAPNP_TRACE_DIR = ".capnp-trace", DOTNET_ROOT = "$HOME/.dotnet", PATH = "$HOME/.dotnet:$HOME/.dotnet/tools:$PATH" }, description = "Run the app (dev settings, capnp RPC tracing to .capnp-trace)" }
+
+[dependencies]

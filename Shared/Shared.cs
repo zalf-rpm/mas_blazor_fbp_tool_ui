@@ -128,6 +128,9 @@ public static class Shared
                     return;
 
                 var writerSturdyRef = si.Item1[0].WriterSRs[0];
+                Console.WriteLine(
+                    $"T{Environment.CurrentManagedThreadId} CreateChannel: writerSturdyRef captured from channel service: {ConnectionManager.DescribeSturdyRef(writerSturdyRef)}"
+                );
                 var writer = (
                     si.Item1[0].Writers[0] as Channel<object>.Writer_Proxy
                 )?.Cast<Channel<IP>.IWriter>(false);
@@ -144,6 +147,9 @@ public static class Shared
                 outPort.Parent?.Refresh();
 
                 inPort.ReaderSturdyRef = si.Item1[0].ReaderSRs[0];
+                Console.WriteLine(
+                    $"T{Environment.CurrentManagedThreadId} CreateChannel: readerSturdyRef captured from channel service: {ConnectionManager.DescribeSturdyRef(inPort.ReaderSturdyRef)}"
+                );
                 inPort.Reader = (
                     si.Item1[0].Readers[0] as Channel<object>.Reader_Proxy
                 )?.Cast<Channel<IP>.IReader>(false);

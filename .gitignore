@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Cap'n Proto RPC frame trace dumps (see CAPNP_TRACE_DIR)
+.capnp-trace/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
