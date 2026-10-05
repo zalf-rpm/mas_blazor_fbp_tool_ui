@@ -2,7 +2,7 @@ using System.Reflection;
 using Blazor.Diagrams;
 using BlazorDrawFBP.Components.Editor;
 using BlazorDrawFBP.Models;
-using BlazorDrawFBP.Pages;
+using BlazorDrawFBP.Components.Pages;
 using BlazorDrawFBP.Services;
 using BlazorDrawFBP.Tests.TestDoubles;
 using Mas.Infrastructure.BlazorComponents;

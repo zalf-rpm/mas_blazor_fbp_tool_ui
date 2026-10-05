@@ -18,7 +18,7 @@ using MudBlazor;
 using Newtonsoft.Json.Linq;
 using Exception = System.Exception;
 
-namespace BlazorDrawFBP.Pages;
+namespace BlazorDrawFBP.Components.Pages;
 
 using Proxy = Proxy;
 

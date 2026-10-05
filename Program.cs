@@ -1,4 +1,4 @@
-using BlazorDrawFBP;
+using BlazorDrawFBP.Components;
 using BlazorDrawFBP.Services;
 using Blazored.LocalStorage;
 using Mas.Infrastructure.Common;
