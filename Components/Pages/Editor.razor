@@ -10,6 +10,7 @@
 @using Capnp
 @using BlazorDrawFBP.Components.Dialogs
 @using BlazorDrawFBP.Data
+@using BlazorDrawFBP.Models
 @using Mas.Infrastructure.Common
 @using Mas.Schema.Fbp
 @using Mas.Schema.Registry
@@ -74,6 +75,7 @@
                 {
                     <ErrorBoundary @ref="_canvasErrorBoundary">
                         <ChildContent>
+                            <NodeStackingStyle @key="FlowId" Diagram="Diagram"/>
                             <CascadingValue Value="Diagram" IsFixed="true">
                                 <DiagramCanvas @key="FlowId">
                                     <Widgets>

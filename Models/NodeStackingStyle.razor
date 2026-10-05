@@ -1,0 +1,48 @@
+@implements IDisposable
+@using Blazor.Diagrams.Core
+@using BlazorDrawFBP.Services
+
+@* z-index per node, see NodeStack. Rendering only this element when the stacking changes keeps the nodes untouched. *@
+<style>@((MarkupString)_css)</style>
+
+@code
+{
+    [Parameter] [EditorRequired] public Diagram Diagram { get; set; } = null!;
+
+    private NodeStack? _stack;
+    private string _css = "";
+
+    protected override void OnParametersSet()
+    {
+        var stack = NodeStack.For(Diagram);
+        if (!ReferenceEquals(stack, _stack))
+        {
+            Unsubscribe();
+            _stack = stack;
+            _stack.Changed += OnChanged;
+        }
+
+        _css = _stack.BuildCss();
+    }
+
+    public void Dispose()
+    {
+        Unsubscribe();
+    }
+
+    private void Unsubscribe()
+    {
+        if (_stack != null)
+            _stack.Changed -= OnChanged;
+        _stack = null;
+    }
+
+    private void OnChanged()
+    {
+        InvokeAsync(() =>
+        {
+            _css = _stack?.BuildCss() ?? "";
+            StateHasChanged();
+        });
+    }
+}

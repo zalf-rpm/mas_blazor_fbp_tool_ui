@@ -5,7 +5,7 @@
 @inject IDialogService DialogService
 @* @inject BlazorDispatcher Dispatcher *@
 
-<div>
+<div @onfocusin="@BringToFront">
     <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between activity-state-frame"
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.LifecycleState"
@@ -59,6 +59,11 @@
 
 @code {
     [Parameter] [EditorRequired] public CapnpFbpViewComponentModel Node { get; set; } = null!;
+
+    private void BringToFront()
+    {
+        BlazorDrawFBP.Services.NodeStack.For(Node.Diagram).Raise(Node);
+    }
 
     private string CardStyle =>
         $"height: {Node.Size?.Height ?? 200}px; width: {Node.Size?.Width ?? 350}px;{FrameWidth};{FrameColor}";

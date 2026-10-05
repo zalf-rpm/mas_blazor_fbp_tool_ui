@@ -175,6 +175,31 @@ a, .btn-link {
 }
 
 /*
+ * Every node is its own stacking context. Ports, status circle, process rows etc. use small
+ * z-indexes (1-4) to order things inside one node; without isolation they would compete across
+ * all nodes of the nodes layer and paint over a node that is in front of theirs. Nodes order
+ * against each other by the z-index NodeStack renders for them.
+ */
+.diagram-node {
+    isolation: isolate;
+}
+
+/*
+ * The controls layer (selection toolbars, expanded channel cards) is rendered after the nodes but
+ * nodes carry explicit z-indexes (NodeStack), so lift it above all of them. It has no size of its
+ * own; its children are positioned against the same origin as the nodes.
+ */
+.diagram-html-layer > .controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: visible;
+    z-index: 2000000;
+}
+
+/*
  * Tooltip bubbles are portalled outside of the diagram node and are only ever read. If a bubble
  * can take the pointer (it may open right under it, e.g. when it is flipped at a viewport edge),
  * the anchor loses :hover, the bubble closes, the anchor gets :hover again and so on - which

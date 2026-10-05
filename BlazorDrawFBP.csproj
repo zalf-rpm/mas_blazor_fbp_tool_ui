@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+    <!-- RZ10012: a component tag Razor can not resolve (missing @using) silently renders as an unknown HTML element -->
+    <WarningsAsErrors>$(WarningsAsErrors);RZ10012</WarningsAsErrors>
     <version>1.3.2</version>
     <!-- x-release-please-version -->
   </PropertyGroup>

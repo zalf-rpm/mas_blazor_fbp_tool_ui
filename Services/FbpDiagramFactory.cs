@@ -184,6 +184,25 @@ public class FbpDiagramFactory : IFbpDiagramFactory
             FbpLayoutHelper.QueueProcStructureSyncForLink(l);
         };
 
+        // the node the user works with goes to the front (the library never reorders on its own)
+        diagram.SelectionChanged += model =>
+        {
+            if (model.Selected && model is NodeModel node)
+                NodeStack.For(diagram).Raise(node);
+        };
+        diagram.PointerDown += (model, _) =>
+        {
+            switch (model)
+            {
+                case NodeModel node:
+                    NodeStack.For(diagram).Raise(node);
+                    break;
+                case PortModel { Parent: NodeModel owner }:
+                    NodeStack.For(diagram).Raise(owner);
+                    break;
+            }
+        };
+
         diagram.PointerClick += (m, e) =>
         {
             if (m is CapnpFbpPortModel port)

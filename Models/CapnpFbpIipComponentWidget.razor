@@ -6,7 +6,7 @@
 @inject ConnectionManager ConMan
 @* @inject BlazorDispatcher Dispatcher *@
 
-<div>
+<div @onfocusin="@BringToFront">
     <MudPaper Style="@CardStyle" Class="position-relative overflow-visible d-flex flex-column align-content-space-between activity-state-frame"
               Elevation="0">
         <CapnpFbpLifecycleIndicator State="@Node.DisplayLifecycleState"
@@ -77,6 +77,11 @@
 @code
 {
     [Parameter] [EditorRequired] public CapnpFbpIipComponentModel Node { get; set; } = null!;
+
+    private void BringToFront()
+    {
+        BlazorDrawFBP.Services.NodeStack.For(Node.Diagram).Raise(Node);
+    }
 
     private string CardStyle => $"height: {Shared.CardHeight}px; width: {Shared.CardWidth}px;{FrameWidth};{FrameColor}";
     private const string FrameWidth = "border-width: 1px";
