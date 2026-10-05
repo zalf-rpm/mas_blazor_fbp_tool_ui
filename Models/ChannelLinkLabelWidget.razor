@@ -1,148 +1,40 @@
 @using Mas.Schema.Fbp
 @if (Label?.ShowWidget == true)
 {
+    @* Compact label on the link. The expanded card is a control, see ChannelInfoCardControlWidget. *@
     <span class="d-inline-block" style="@CanvasStyle">
-        @if (Label.IsExpanded)
-        {
-            <div class="d-inline-flex pa-1 channel-link-label__shell--expanded"
-                 style="@ShellAnchorStyle"
-                 @onclick:stopPropagation="true"
-                 @onpointerdown:stopPropagation="true">
-                <MudPaper Class="d-flex flex-column px-3 py-3"
-                          Style="min-width: 16rem; max-width: 16rem;"
-                          Elevation="4"
+        <div class="d-inline-flex pa-1 channel-link-label__shell--compact"
+             style="@CompactShellStyle"
+             @onclick="Expand"
+             @onclick:stopPropagation="true"
+             @onpointerdown:stopPropagation="true">
+            <MudTooltip Text="Click for channel details and buffer controls" Arrow="true" Inline="true">
+                <MudPaper Class="d-flex flex-column pa-2"
+                          Style="min-width: 5.75rem; max-width: 5.75rem;"
+                          Elevation="2"
                           Outlined="true">
-                    <div class="d-flex align-center">
-                        <div class="d-flex align-center gap-1 flex-grow-1">
-                            <MudText Color="Color.Secondary" Typo="Typo.caption">Channel</MudText>
-                            <MudTooltip Text="@Label.ConnectionLabel" Arrow="true">
-                                <MudIcon Color="Color.Secondary"
-                                         Icon="@Icons.Material.Filled.Info"
-                                         Size="Size.Small"/>
-                            </MudTooltip>
-                        </div>
-                        <span @onclick:stopPropagation="true">
-                            <MudIconButton Icon="@Icons.Material.Filled.CloseFullscreen"
-                                           Size="Size.Small"
-                                           Color="Color.Default"
-                                           Disabled="@Label.IsResizingBuffer"
-                                           OnClick="@Collapse"/>
-                        </span>
-                    </div>
-
-                    <div class="mt-1">
-                        <div class="d-flex align-center">
-                            <MudText Class="flex-grow-1" Typo="Typo.caption">Messages in buffer</MudText>
-                            <MudText Typo="Typo.caption">
-                                @BufferSummaryText
-                            </MudText>
-                        </div>
-                        <MudProgressLinear Class="my-1"
-                                           Rounded="true"
-                                           Value="@QueueFillPercent"
-                                           Color="@BufferFillColor"/>
-                        <div class="d-flex justify-end">
-                            <MudText Color="Color.Secondary" Typo="Typo.caption">
-                                @QueueFillText
-                            </MudText>
-                        </div>
-                    </div>
-
-                    <div class="d-flex align-stretch gap-1 mt-1">
-                        <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption">Waiting writers</MudText>
-                            <MudText Typo="Typo.body2">@Stats.NoOfWaitingWriters</MudText>
-                        </MudPaper>
-                        <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption">Waiting readers</MudText>
-                            <MudText Typo="Typo.body2">@Stats.NoOfWaitingReaders</MudText>
-                        </MudPaper>
-                    </div>
-                    <div class="d-flex align-stretch gap-1 mt-1">
-                        <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption">Received</MudText>
-                            <MudText Typo="Typo.body2">@Stats.TotalNoOfIpsReceived</MudText>
-                        </MudPaper>
-                        <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption">Update</MudText>
-                            <MudText Typo="Typo.body2">@($"{Stats.UpdateIntervalInMs} ms")</MudText>
-                        </MudPaper>
-                    </div>
-
-                    <MudDivider Class="my-2"/>
-
-                    <div class="mt-1">
-                        <MudText Color="Color.Secondary" Class="d-block mb-1" Typo="Typo.caption">
-                            Increase buffer size
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Storage"
+                                 Size="Size.Small"
+                                 Color="@BufferFillColor"/>
+                        <MudText Color="Color.Secondary" Typo="Typo.caption">
+                            Buffer
                         </MudText>
-                        <div class="d-flex gap-1">
-                            <span class="flex-grow-1" @onclick:stopPropagation="true">
-                                <MudButton Size="Size.Small"
-                                           Class="mud-width-full"
-                                           Variant="Variant.Outlined"
-                                           Disabled="@BufferControlsDisabled"
-                                           OnClick="@(() => IncreaseBufferSizeAsync(1))">
-                                    +1
-                                </MudButton>
-                            </span>
-                            <span class="flex-grow-1" @onclick:stopPropagation="true">
-                                <MudButton Size="Size.Small"
-                                           Class="mud-width-full"
-                                           Variant="Variant.Outlined"
-                                           Disabled="@BufferControlsDisabled"
-                                           OnClick="@(() => IncreaseBufferSizeAsync(5))">
-                                    +5
-                                </MudButton>
-                            </span>
-                            <span class="flex-grow-1" @onclick:stopPropagation="true">
-                                <MudButton Size="Size.Small"
-                                           Class="mud-width-full"
-                                           Variant="Variant.Outlined"
-                                           Disabled="@BufferControlsDisabled"
-                                           OnClick="@DoubleBufferSizeAsync">
-                                    x2
-                                </MudButton>
-                            </span>
-                        </div>
+                    </div>
+                    <MudText Align="Align.Center" Typo="Typo.subtitle2">
+                        @BufferSummaryText
+                    </MudText>
+                    <MudProgressLinear Class="my-1"
+                                       Rounded="true"
+                                       Value="@QueueFillPercent"
+                                       Color="@BufferFillColor"/>
+                    <div class="d-flex mt-1 mud-text-secondary">
+                        <span class="mr-2">W @Stats.NoOfWaitingWriters</span>
+                        <span>R @Stats.NoOfWaitingReaders</span>
                     </div>
                 </MudPaper>
-            </div>
-        }
-        else
-        {
-            <div class="d-inline-flex pa-1 channel-link-label__shell--compact"
-                 style="@CompactShellStyle"
-                 @onclick="Expand"
-                 @onclick:stopPropagation="true"
-                 @onpointerdown:stopPropagation="true">
-                <MudTooltip Text="Click for channel details and buffer controls" Arrow="true" Inline="true">
-                    <MudPaper Class="d-flex flex-column pa-2"
-                              Style="min-width: 5.75rem; max-width: 5.75rem;"
-                              Elevation="2"
-                              Outlined="true">
-                        <div class="d-flex align-center gap-1">
-                            <MudIcon Icon="@Icons.Material.Filled.Storage"
-                                     Size="Size.Small"
-                                     Color="@BufferFillColor"/>
-                            <MudText Color="Color.Secondary" Typo="Typo.caption">
-                                Buffer
-                            </MudText>
-                        </div>
-                        <MudText Align="Align.Center" Typo="Typo.subtitle2">
-                            @BufferSummaryText
-                        </MudText>
-                        <MudProgressLinear Class="my-1"
-                                           Rounded="true"
-                                           Value="@QueueFillPercent"
-                                           Color="@BufferFillColor"/>
-                        <div class="d-flex mt-1 mud-text-secondary">
-                            <span class="mr-2">W @Stats.NoOfWaitingWriters</span>
-                            <span>R @Stats.NoOfWaitingReaders</span>
-                        </div>
-                    </MudPaper>
-                </MudTooltip>
-            </div>
-        }
+            </MudTooltip>
+        </div>
     </span>
 }
 
@@ -152,56 +44,19 @@
 
     [Parameter] [EditorRequired] public ChannelLinkLabelModel Label { get; set; } = null!;
 
-    private Channel<IP>.StatsCallback.Stats Stats => Label?.LinkModel.Stats ?? EmptyStats;
-    private ulong BufferSize => Label?.BufferSize ?? 1;
-    private ulong MessagesInBuffer => Stats.NoOfIpsInQueue;
+    private Channel<IP>.StatsCallback.Stats Stats => Label?.Stats ?? EmptyStats;
+    private string BufferSummaryText => Label?.BufferSummaryText ?? "";
+    private double QueueFillPercent => Label?.QueueFillPercent ?? 0;
+    private Color BufferFillColor => ChannelBufferColors.For(QueueFillPercent);
 
-    private double QueueFillPercent =>
-        BufferSize == 0 ? 0 : Math.Min(100d, (double)MessagesInBuffer / BufferSize * 100d);
+    private static readonly string CanvasStyle =
+        $"position: relative; width: {ChannelLinkLabelModel.CompactInteractionCanvasWidth}px; height: {ChannelLinkLabelModel.CompactInteractionCanvasHeight}px; overflow: visible; pointer-events: none;";
 
-    private string BufferSummaryText => $"{MessagesInBuffer} / {BufferSize}";
-    private string QueueFillText => $"{QueueFillPercent:0}% full";
-
-    private bool BufferControlsDisabled =>
-        Label == null || Label.IsResizingBuffer || !Label.CanResizeBuffer;
-
-    private string CanvasStyle =>
-        Label?.IsExpanded == true
-            ? $"position: relative; width: {ChannelLinkLabelModel.ExpandedInteractionCanvasWidth}px; height: {ChannelLinkLabelModel.ExpandedInteractionCanvasHeight}px; overflow: visible; pointer-events: none;"
-            : $"position: relative; width: {ChannelLinkLabelModel.CompactInteractionCanvasWidth}px; height: {ChannelLinkLabelModel.CompactInteractionCanvasHeight}px; overflow: visible; pointer-events: none;";
-
-    private string ShellAnchorStyle => "position: absolute; left: 50%; top: 50%; pointer-events: auto;";
-    private string CompactShellStyle => $"{ShellAnchorStyle} cursor: pointer; user-select: none;";
-
-    private const string ExpandedStatCardClass =
-        "d-flex flex-column justify-space-between pa-2 flex-grow-1 mud-height-full";
-
-    private const string ExpandedStatCardStyle = "min-height: 4.5rem;";
-
-    private Color BufferFillColor => QueueFillPercent switch
-    {
-        >= 90 => Color.Error,
-        >= 65 => Color.Warning,
-        _ => Color.Success
-    };
+    private const string ShellAnchorStyle = "position: absolute; left: 50%; top: 50%; pointer-events: auto;";
+    private const string CompactShellStyle = $"{ShellAnchorStyle} cursor: pointer; user-select: none;";
 
     private void Expand()
     {
         Label?.Expand();
-    }
-
-    private void Collapse()
-    {
-        Label?.Collapse();
-    }
-
-    private Task IncreaseBufferSizeAsync(ulong delta)
-    {
-        return Label?.IncreaseBufferSizeAsync(delta) ?? Task.CompletedTask;
-    }
-
-    private Task DoubleBufferSizeAsync()
-    {
-        return Label?.DoubleBufferSizeAsync() ?? Task.CompletedTask;
     }
 }

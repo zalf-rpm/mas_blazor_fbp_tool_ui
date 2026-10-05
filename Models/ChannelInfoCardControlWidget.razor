@@ -1,0 +1,62 @@
+@using Blazor.Diagrams.Core.Geometry
+@using Blazor.Diagrams.Core.Models.Base
+@implements IDisposable
+
+@if (Label is { IsExpanded: true, ShowWidget: true, CanvasPosition: { } position })
+{
+    <div style="@CardStyle(position)"
+         @onclick:stopPropagation="true"
+         @onpointerdown:stopPropagation="true">
+        <ChannelInfoCard Label="@Label"/>
+    </div>
+}
+
+@code
+{
+    [Parameter] [EditorRequired] public ChannelInfoCardControl Control { get; set; } = null!;
+
+    [Parameter] [EditorRequired] public Model Model { get; set; } = null!;
+
+    private ChannelLinkLabelModel? Label => Model as ChannelLinkLabelModel;
+    private ChannelLinkLabelModel? _subscribedTo;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribedTo, Label))
+            return;
+
+        Unsubscribe();
+        _subscribedTo = Label;
+        if (_subscribedTo == null)
+            return;
+
+        _subscribedTo.Changed += OnChanged;
+        // buffer stats and resize state are published through the link
+        _subscribedTo.LinkModel.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Unsubscribe();
+    }
+
+    private void Unsubscribe()
+    {
+        if (_subscribedTo == null)
+            return;
+
+        _subscribedTo.Changed -= OnChanged;
+        _subscribedTo.LinkModel.Changed -= OnChanged;
+        _subscribedTo = null;
+    }
+
+    private void OnChanged(Model _)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string CardStyle(Point position)
+    {
+        return $"position: absolute; left: {position.X.ToInvariantString()}px; top: {position.Y.ToInvariantString()}px; transform: translate(-50%, -50%); pointer-events: auto;";
+    }
+}

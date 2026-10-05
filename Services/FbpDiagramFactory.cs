@@ -104,6 +104,7 @@ public class FbpDiagramFactory : IFbpDiagramFactory
         diagram.RegisterComponent<RemoveLinkControl, RemoveLinkControlWidget>();
         diagram.RegisterComponent<LinkModel, FbpLinkWidget>(true);
         diagram.RegisterComponent<ChannelLinkLabelModel, ChannelLinkLabelWidget>();
+        diagram.RegisterComponent<ChannelInfoCardControl, ChannelInfoCardControlWidget>();
     }
 
     private static void RegisterDiagramEvents(

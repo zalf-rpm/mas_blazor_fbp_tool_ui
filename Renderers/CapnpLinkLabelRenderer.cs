@@ -26,12 +26,26 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
     {
         Label.Changed -= OnLabelChanged;
         Label.VisibilityChanged -= OnLabelChanged;
+
+        // only when the link is gone; a replaced renderer instance of a living link keeps the control
+        if (Label is ChannelLinkLabelModel && !BlazorDiagram.Links.Contains(Label.Parent))
+            BlazorDiagram.Controls.RemoveFor(Label);
     }
 
     protected override void OnInitialized()
     {
         Label.Changed += OnLabelChanged;
         Label.VisibilityChanged += OnLabelChanged;
+
+        // the expanded channel card is drawn above the nodes by the controls layer (it renders nothing
+        // unless the label is expanded)
+        if (Label is ChannelLinkLabelModel)
+        {
+            var container = BlazorDiagram.Controls.AddFor(Label);
+            if (container.Count == 0)
+                container.Add(new ChannelInfoCardControl());
+            container.Show();
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -45,17 +59,15 @@ public class CapnpLinkLabelRenderer : ComponentBase, IDisposable
         var componentType = type;
         if (Label is ChannelLinkLabelModel channelLabel)
         {
-            if (!channelLabel.ShowWidget)
+            channelLabel.UpdateCanvasPosition(new Point(x, y));
+            // expanded: the card is rendered by ChannelInfoCardControlWidget, above the nodes
+            if (!channelLabel.ShowWidget || channelLabel.IsExpanded)
                 return;
 
             builder.OpenElement(0, "foreignObject");
             builder.AddAttribute(1, "class", "diagram-link-label");
-            var width = channelLabel.IsExpanded
-                ? ChannelLinkLabelModel.ExpandedInteractionCanvasWidth
-                : ChannelLinkLabelModel.CompactInteractionCanvasWidth;
-            var height = channelLabel.IsExpanded
-                ? ChannelLinkLabelModel.ExpandedInteractionCanvasHeight
-                : ChannelLinkLabelModel.CompactInteractionCanvasHeight;
+            const int width = ChannelLinkLabelModel.CompactInteractionCanvasWidth;
+            const int height = ChannelLinkLabelModel.CompactInteractionCanvasHeight;
             builder.AddAttribute(2, "x", (x - width / 2.0).ToInvariantString());
             builder.AddAttribute(3, "y", (y - height / 2.0).ToInvariantString());
             builder.AddAttribute(4, "width", width.ToString());

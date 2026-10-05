@@ -1,5 +1,6 @@
 using Blazor.Diagrams.Core.Geometry;
 using Blazor.Diagrams.Core.Models;
+using Mas.Schema.Fbp;
 
 namespace BlazorDrawFBP.Models;
 
@@ -7,8 +8,6 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
 {
     public const int CompactInteractionCanvasWidth = 160;
     public const int CompactInteractionCanvasHeight = 120;
-    public const int ExpandedInteractionCanvasWidth = 320;
-    public const int ExpandedInteractionCanvasHeight = 320;
     private readonly CapnpFbpInPortModel _inPort;
 
     // public ChannelLinkLabelModel(
@@ -39,6 +38,19 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public bool IsExpanded { get; private set; }
     public bool IsResizingBuffer { get; private set; }
 
+    /// <summary>
+    /// Where the label sits on the link, in diagram coordinates. Set while rendering the link, so the
+    /// expanded card (rendered above the nodes by the controls layer) can follow it.
+    /// </summary>
+    public Point? CanvasPosition { get; private set; }
+
+    public Channel<IP>.StatsCallback.Stats Stats => LinkModel.Stats;
+    public ulong MessagesInBuffer => Stats.NoOfIpsInQueue;
+    public double QueueFillPercent =>
+        BufferSize == 0 ? 0 : Math.Min(100d, (double)MessagesInBuffer / BufferSize * 100d);
+    public string BufferSummaryText => $"{MessagesInBuffer} / {BufferSize}";
+    public string QueueFillText => $"{QueueFillPercent:0}% full";
+
     public RememberCapnpPortsLinkModel LinkModel => (RememberCapnpPortsLinkModel)Parent;
     public ulong BufferSize => _inPort.ChannelBufferSize;
     public bool CanResizeBuffer => _inPort.Channel != null;
@@ -49,6 +61,20 @@ public class ChannelLinkLabelModel : LinkLabelModel, IDisposable
     public void Dispose()
     {
         Console.WriteLine("ChannelLinkLabelModel::Dispose()");
+    }
+
+    public void UpdateCanvasPosition(Point position)
+    {
+        if (
+            CanvasPosition is { } current
+            && Math.Abs(current.X - position.X) < 0.01
+            && Math.Abs(current.Y - position.Y) < 0.01
+        )
+            return;
+
+        CanvasPosition = position;
+        if (IsExpanded)
+            Refresh();
     }
 
     public void Expand()

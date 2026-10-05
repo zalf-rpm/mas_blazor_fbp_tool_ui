@@ -1,0 +1,124 @@
+@using Mas.Schema.Fbp
+@* The expanded channel details, shown above the nodes by ChannelInfoCardControlWidget. *@
+    <MudPaper Class="d-flex flex-column px-3 py-3"
+              Style="min-width: 16rem; max-width: 16rem;"
+              Elevation="4"
+              Outlined="true">
+        <div class="d-flex align-center">
+            <div class="d-flex align-center gap-1 flex-grow-1">
+                <MudText Color="Color.Secondary" Typo="Typo.caption">Channel</MudText>
+                <MudTooltip Text="@Label.ConnectionLabel" Arrow="true">
+                    <MudIcon Color="Color.Secondary"
+                             Icon="@Icons.Material.Filled.Info"
+                             Size="Size.Small"/>
+                </MudTooltip>
+            </div>
+            <span @onclick:stopPropagation="true">
+                <MudIconButton Icon="@Icons.Material.Filled.CloseFullscreen"
+                               Size="Size.Small"
+                               Color="Color.Default"
+                               Disabled="@Label.IsResizingBuffer"
+                               OnClick="@Collapse"/>
+            </span>
+        </div>
+
+        <div class="mt-1">
+            <div class="d-flex align-center">
+                <MudText Class="flex-grow-1" Typo="Typo.caption">Messages in buffer</MudText>
+                <MudText Typo="Typo.caption">
+                    @BufferSummaryText
+                </MudText>
+            </div>
+            <MudProgressLinear Class="my-1"
+                               Rounded="true"
+                               Value="@QueueFillPercent"
+                               Color="@BufferFillColor"/>
+            <div class="d-flex justify-end">
+                <MudText Color="Color.Secondary" Typo="Typo.caption">
+                    @QueueFillText
+                </MudText>
+            </div>
+        </div>
+
+        <div class="d-flex align-stretch gap-1 mt-1">
+            <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.caption">Waiting writers</MudText>
+                <MudText Typo="Typo.body2">@Stats.NoOfWaitingWriters</MudText>
+            </MudPaper>
+            <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.caption">Waiting readers</MudText>
+                <MudText Typo="Typo.body2">@Stats.NoOfWaitingReaders</MudText>
+            </MudPaper>
+        </div>
+        <div class="d-flex align-stretch gap-1 mt-1">
+            <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.caption">Received</MudText>
+                <MudText Typo="Typo.body2">@Stats.TotalNoOfIpsReceived</MudText>
+            </MudPaper>
+            <MudPaper Class="@ExpandedStatCardClass" Style="@ExpandedStatCardStyle" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.caption">Update</MudText>
+                <MudText Typo="Typo.body2">@($"{Stats.UpdateIntervalInMs} ms")</MudText>
+            </MudPaper>
+        </div>
+
+        <MudDivider Class="my-2"/>
+
+        <div class="mt-1">
+            <MudText Color="Color.Secondary" Class="d-block mb-1" Typo="Typo.caption">
+                Increase buffer size
+            </MudText>
+            <div class="d-flex gap-1">
+                <span class="flex-grow-1" @onclick:stopPropagation="true">
+                    <MudButton Size="Size.Small"
+                               Class="mud-width-full"
+                               Variant="Variant.Outlined"
+                               Disabled="@BufferControlsDisabled"
+                               OnClick="@(() => IncreaseBufferSizeAsync(1))">
+                        +1
+                    </MudButton>
+                </span>
+                <span class="flex-grow-1" @onclick:stopPropagation="true">
+                    <MudButton Size="Size.Small"
+                               Class="mud-width-full"
+                               Variant="Variant.Outlined"
+                               Disabled="@BufferControlsDisabled"
+                               OnClick="@(() => IncreaseBufferSizeAsync(5))">
+                        +5
+                    </MudButton>
+                </span>
+                <span class="flex-grow-1" @onclick:stopPropagation="true">
+                    <MudButton Size="Size.Small"
+                               Class="mud-width-full"
+                               Variant="Variant.Outlined"
+                               Disabled="@BufferControlsDisabled"
+                               OnClick="@DoubleBufferSizeAsync">
+                        x2
+                    </MudButton>
+                </span>
+            </div>
+        </div>
+    </MudPaper>
+
+@code
+{
+    [Parameter] [EditorRequired] public ChannelLinkLabelModel Label { get; set; } = null!;
+
+    private Channel<IP>.StatsCallback.Stats Stats => Label.Stats;
+    private string BufferSummaryText => Label.BufferSummaryText;
+    private double QueueFillPercent => Label.QueueFillPercent;
+    private string QueueFillText => Label.QueueFillText;
+    private Color BufferFillColor => ChannelBufferColors.For(QueueFillPercent);
+
+    private bool BufferControlsDisabled => Label.IsResizingBuffer || !Label.CanResizeBuffer;
+
+    private const string ExpandedStatCardClass =
+        "d-flex flex-column justify-space-between pa-2 flex-grow-1 mud-height-full";
+
+    private const string ExpandedStatCardStyle = "min-height: 4.5rem;";
+
+    private void Collapse() => Label.Collapse();
+
+    private Task IncreaseBufferSizeAsync(ulong delta) => Label.IncreaseBufferSizeAsync(delta);
+
+    private Task DoubleBufferSizeAsync() => Label.DoubleBufferSizeAsync();
+}
