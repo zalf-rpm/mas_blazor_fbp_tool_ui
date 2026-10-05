@@ -1,13 +1,13 @@
 # Build and run Blazor Server app (net10.0)
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS base
 WORKDIR /app
 
 EXPOSE 8080
 
 RUN useradd -m -s /usr/sbin/nologin appuser
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
 WORKDIR /src
 
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
