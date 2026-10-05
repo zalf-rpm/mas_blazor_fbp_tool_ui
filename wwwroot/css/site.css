@@ -174,6 +174,16 @@ a, .btn-link {
         transform 220ms ease;
 }
 
+/*
+ * Tooltip bubbles are portalled outside of the diagram node and are only ever read. If a bubble
+ * can take the pointer (it may open right under it, e.g. when it is flipped at a viewport edge),
+ * the anchor loses :hover, the bubble closes, the anchor gets :hover again and so on - which
+ * shows up as the cursor flickering between the bubble's and the node's cursor.
+ */
+.mud-tooltip {
+    pointer-events: none;
+}
+
 .diagram-port-label {
     position: absolute;
     white-space: nowrap;
