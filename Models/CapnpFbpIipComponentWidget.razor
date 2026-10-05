@@ -58,19 +58,12 @@
             </MudItem>
         </MudGrid>
     </MudPaper>
-    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
-        @CardToolTipText
-    </MudText>
-
     @foreach (var port in Node.Ports)
     {
         if (port is not CapnpFbpOutPortModel iipPort) continue;
-        <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(iipPort))"
-             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="iipPort"
-                                  Port="iipPort"
-                                  SocketColor="@GetSocketColor(iipPort)"/>
-        </div>
+        <CapnpFbpPortRenderer @key="iipPort"
+                              Port="iipPort"
+                              SocketColor="@GetSocketColor(iipPort)"/>
     }
 </div>
 
@@ -104,9 +97,6 @@
     };
 
     private string LifecycleButtonIcon => Icons.Material.Filled.Send;
-
-    private MarkupString CardToolTipText { get; set; }
-    private static string CardToolTipStyle => $"width: {Shared.CardWidth}px;";
 
     protected override void OnInitialized()
     {

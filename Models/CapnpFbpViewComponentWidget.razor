@@ -40,20 +40,13 @@
             </MudItem>
         </MudGrid>
     </MudPaper>
-    <MudText Style="@CardToolTipStyle" Typo="Typo.subtitle1" Align="Align.Center">
-        @CardToolTipText
-    </MudText>
-
     @foreach (var port in Node.Ports)
     {
         if (port is not CapnpFbpPortModel capnpPort) continue;
 
-        <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
-             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-            <CapnpFbpPortRenderer @key="capnpPort"
-                                  Port="capnpPort"
-                                  SocketColor="@GetSocketColor(capnpPort)"/>
-        </div>
+        <CapnpFbpPortRenderer @key="capnpPort"
+                              Port="capnpPort"
+                              SocketColor="@GetSocketColor(capnpPort)"/>
     }
 </div>
 
@@ -94,9 +87,6 @@
         ComponentLifecycleState.Running or ComponentLifecycleState.Stopping => Icons.Material.Filled.StopCircle,
         _ => Icons.Material.Filled.PlayCircle
     };
-
-    private MarkupString CardToolTipText { get; set; }
-    private string CardToolTipStyle => $"width: {Node.Size?.Width ?? 350}px;";
 
     protected override void OnInitialized()
     {

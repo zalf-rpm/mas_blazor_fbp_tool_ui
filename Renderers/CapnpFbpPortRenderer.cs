@@ -145,17 +145,23 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         }
         else
         {
-            builder.OpenElement(9, "span");
-            builder.AddAttribute(10, "class", "diagram-port-shell");
-
-            builder.OpenElement(11, "span");
-            builder.AddAttribute(
-                12,
-                "class",
-                "diagram-port-icon " + Port.ThePortType.ToString().ToLowerInvariant()
-            );
-            builder.CloseElement();
-            builder.CloseElement();
+            if (_isParentSvg)
+            {
+                BuildShell(builder);
+            }
+            else
+            {
+                // A real tooltip (portalled above everything, styled like the others) anchored on the
+                // port icon. Block level, so the port keeps its box and position.
+                builder.OpenComponent<MudBlazor.MudTooltip>(9);
+                builder.AddAttribute(10, nameof(MudBlazor.MudTooltip.Inline), false);
+                builder.AddAttribute(11, nameof(MudBlazor.MudTooltip.Arrow), true);
+                builder.AddAttribute(12, nameof(MudBlazor.MudTooltip.Delay), 200d);
+                builder.AddAttribute(13, nameof(MudBlazor.MudTooltip.Placement), MudBlazor.Placement.Bottom);
+                builder.AddAttribute(14, nameof(MudBlazor.MudTooltip.TooltipContent), (RenderFragment)BuildTooltipContent);
+                builder.AddAttribute(15, nameof(MudBlazor.MudTooltip.ChildContent), (RenderFragment)BuildShell);
+                builder.CloseComponent();
+            }
 
             if (!string.IsNullOrWhiteSpace(PortLabelText))
             {
@@ -167,6 +173,33 @@ public class CapnpFbpPortRenderer : ComponentBase, IDisposable
         }
 
         builder.CloseElement();
+    }
+
+    private void BuildShell(RenderTreeBuilder builder)
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "diagram-port-shell");
+        builder.OpenElement(2, "span");
+        builder.AddAttribute(
+            3,
+            "class",
+            "diagram-port-icon " + Port.ThePortType.ToString().ToLowerInvariant()
+        );
+        builder.CloseElement();
+        builder.CloseElement();
+    }
+
+    private void BuildTooltipContent(RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<MudBlazor.MudText>(0);
+        builder.AddAttribute(1, nameof(MudBlazor.MudText.Typo), MudBlazor.Typo.body2);
+        builder.AddAttribute(2, "Style", "max-width: 420px; overflow-wrap: anywhere;");
+        builder.AddAttribute(
+            3,
+            nameof(MudBlazor.MudText.ChildContent),
+            (RenderFragment)(content => content.AddContent(0, Shared.Shared.MakePortToolTipText(Port)))
+        );
+        builder.CloseComponent();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

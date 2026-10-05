@@ -206,7 +206,8 @@
             var inputPorts = GetProcPorts(procNode, CapnpFbpPortModel.PortType.In);
             var outputPorts = GetProcPorts(procNode, CapnpFbpPortModel.PortType.Out);
             var procRowHeight = row.HeightPx;
-            <MudTooltip @key="procNode.Id" Text="@GetProcRowLifecycleLabel(procNode)" Delay="300" Arrow="true">
+            <MudTooltip @key="procNode.Id" Text="@GetProcRowLifecycleLabel(procNode)" Delay="300" Arrow="true"
+                        Disabled="@(_hoveredProcPortRowId == procNode.Id)">
                 <MudPaper Class="@GetProcRowClass(procNode)"
                           Outlined="true"
                           Elevation="0"
@@ -216,11 +217,18 @@
                         var port = inputPorts[portIndex];
                         <div class="@GetProcDiagramPortClass(port, CapnpFbpPortModel.PortType.In)"
                              style="@GetProcDiagramPortStyle(procNode, port, procRowHeight, portIndex, inputPorts.Count)"
-                             @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(port))"
-                             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-                            <span class="diagram-port-shell">
-                                <span class="diagram-port-icon in"></span>
-                            </span>
+                             @onmouseenter="@(() => _hoveredProcPortRowId = procNode.Id)"
+                             @onmouseleave="@(() => _hoveredProcPortRowId = null)">
+                            <MudTooltip Inline="false" Arrow="true" Delay="200" Placement="Placement.Bottom">
+                                <TooltipContent>
+                                    <MudText Typo="Typo.body2" Style="max-width: 420px; overflow-wrap: anywhere;">@Shared.MakePortToolTipText(port)</MudText>
+                                </TooltipContent>
+                                <ChildContent>
+                                    <span class="diagram-port-shell">
+                                        <span class="diagram-port-icon in"></span>
+                                    </span>
+                                </ChildContent>
+                            </MudTooltip>
                             @if (!string.IsNullOrWhiteSpace(GetProcPortLabel(port)))
                             {
                                 <span class="diagram-port-label">@GetProcPortLabel(port)</span>
@@ -241,11 +249,18 @@
                         var port = outputPorts[portIndex];
                         <div class="@GetProcDiagramPortClass(port, CapnpFbpPortModel.PortType.Out)"
                              style="@GetProcDiagramPortStyle(procNode, port, procRowHeight, portIndex, outputPorts.Count)"
-                             @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(port))"
-                             @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-                            <span class="diagram-port-shell">
-                                <span class="diagram-port-icon out"></span>
-                            </span>
+                             @onmouseenter="@(() => _hoveredProcPortRowId = procNode.Id)"
+                             @onmouseleave="@(() => _hoveredProcPortRowId = null)">
+                            <MudTooltip Inline="false" Arrow="true" Delay="200" Placement="Placement.Bottom">
+                                <TooltipContent>
+                                    <MudText Typo="Typo.body2" Style="max-width: 420px; overflow-wrap: anywhere;">@Shared.MakePortToolTipText(port)</MudText>
+                                </TooltipContent>
+                                <ChildContent>
+                                    <span class="diagram-port-shell">
+                                        <span class="diagram-port-icon out"></span>
+                                    </span>
+                                </ChildContent>
+                            </MudTooltip>
                             @if (!string.IsNullOrWhiteSpace(GetProcPortLabel(port)))
                             {
                                 <span class="diagram-port-label">@GetProcPortLabel(port)</span>
@@ -257,21 +272,15 @@
         }
     </MudStack>
 }
-<MudText Class="mud-width-full" Typo="Typo.subtitle1" Align="Align.Center">
-    @CardToolTipText
-</MudText>
 
 @foreach (var port in Node.Ports)
 {
     if (port is not CapnpFbpPortModel capnpPort) continue;
 
-    <div @onmouseenter="@(() => CardToolTipText = Shared.MakePortToolTipText(capnpPort))"
-         @onmouseleave="@(() => CardToolTipText = new MarkupString())">
-        <CapnpFbpPortRenderer @key="port"
-                              Port="capnpPort"
-                              SocketColor="@GetSocketColor(capnpPort)"
-                              IconColor="@GetPortIconColor(capnpPort)"/>
-    </div>
+    <CapnpFbpPortRenderer @key="port"
+                          Port="capnpPort"
+                          SocketColor="@GetSocketColor(capnpPort)"
+                          IconColor="@GetPortIconColor(capnpPort)"/>
 }
 </div>
 
@@ -326,7 +335,8 @@
 
     private string LifecycleIndicatorTooltip => GetLifecycleTooltip(Node, true);
 
-    private MarkupString CardToolTipText { get; set; }
+    // the row tooltip (lifecycle) steps aside while the tooltip of one of its ports is shown
+    private string? _hoveredProcPortRowId;
 
     private IReadOnlyList<CapnpFbpComponentModel.ProcDisplayRowLayout> ExpandedProcRows =>
         Node.GetExpandedProcRowLayouts();
