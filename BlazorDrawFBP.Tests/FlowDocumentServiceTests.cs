@@ -231,6 +231,47 @@ public class FlowDocumentServiceTests
     }
 
     [TestMethod]
+    public async Task LoadFlowFromJsonAsync_ServiceAlreadyConnectedById_IsNotReportedMissingOrReconnected()
+    {
+        _runtime.ServiceId2ChannelStarterServices["chan-1"] = null!;
+        _runtime.ChannelServiceIdToPetNameAndSturdyRef["chan-1"] = (
+            "Channels",
+            "capnp://connected-host:9989/chan"
+        );
+        _runtime.ServiceId2Registries["reg-1"] = null!;
+        _runtime.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = (
+            "Registry",
+            "capnp://connected-host:9988/reg"
+        );
+        List<ServiceConnectionDroppedEventArgs> dropped = [];
+        _runtime.ServiceConnectionDropped += dropped.Add;
+
+        var flowJson = new JObject
+        {
+            {
+                "services",
+                new JObject
+                {
+                    {
+                        "components",
+                        new JObject { { "reg-1", "capnp://other-host:9988/reg" } }
+                    },
+                    {
+                        "channels",
+                        new JObject { { "chan-1", "capnp://other-host:9989/chan" } }
+                    },
+                }
+            },
+            { "nodes", new JArray() },
+            { "links", new JArray() },
+        };
+
+        await _flowDocService.LoadFlowFromJsonAsync(_diagram, _runtime, flowJson);
+
+        Assert.AreEqual(0, dropped.Count);
+    }
+
+    [TestMethod]
     public async Task ExportFlowJsonAsync_ScopesComponentServicesToThoseUsedByDiagramNodes()
     {
         _runtime.ServiceId2Registries["used-reg"] = null!;

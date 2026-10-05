@@ -48,7 +48,6 @@ public partial class Editor : IAsyncDisposable
     public string ShortFlowId => FlowId.HasValue ? FlowId.Value.ToString("N")[..8] : "";
 
     public Dictionary<ulong, Type> InterfaceIdToType => RuntimeService.InterfaceIdToType;
-    public Dictionary<string, Proxy> SturdyRef2Services => RuntimeService.SturdyRef2Services;
 
     public bool HasActiveExecution =>
         RuntimeService?.IsExecutingFlow == true
@@ -246,12 +245,23 @@ public partial class Editor : IAsyncDisposable
         CurrentSession.RuntimeService.StateChanged += OnRuntimeStateChanged;
         CurrentSession.RuntimeService.ServiceConnectionDropped += OnServiceConnectionDropped;
 
+        // Every session has its own connections. Local storage is only reachable once rendered; the
+        // very first page load is covered by OnAfterRenderAsync. Needed for "new flow" and after
+        // terminating a session, where this component instance is reused.
+        var autoConnect = _hasRendered
+            ? BookmarkConnections.AutoConnectAsync(CurrentSession.RuntimeService)
+            : Task.CompletedTask;
+
         if (CurrentSession.Diagram == null)
         {
             CurrentSession.Diagram = CreateConfiguredDiagram(CurrentSession.RuntimeService);
             Diagram = CurrentSession.Diagram;
             if (CurrentSession.FlowDocument != null)
+            {
+                // connect first, so the flow finds its services instead of connecting to them itself
+                await autoConnect;
                 await LoadFlowFromJsonAsync(CurrentSession.FlowDocument);
+            }
         }
         else
         {
@@ -272,17 +282,7 @@ public partial class Editor : IAsyncDisposable
 
         _hasRendered = true;
 
-        if (await LocalStorage.ContainKeyAsync(StoredSrData.StorageKey))
-        {
-            var allBookmarks = await StoredSrData.GetAllData(LocalStorage);
-            allBookmarks.Sort();
-
-            foreach (var ssrd in allBookmarks.Where(ssrd => ssrd.AutoConnect))
-                if (ssrd.InterfaceId == Shared.Shared.ChannelStarterInterfaceId)
-                    await ConnectToStartChannelsService(ConMan, ssrd.PetName, ssrd.SturdyRef);
-                else if (ssrd.InterfaceId == Shared.Shared.RegistryInterfaceId)
-                    await ConnectToRegistryService(ConMan, ssrd.PetName, ssrd.SturdyRef);
-        }
+        await BookmarkConnections.AutoConnectAsync(RuntimeService);
 
         if (_pendingServicesMergeDocument != null)
         {
@@ -418,6 +418,8 @@ public partial class Editor : IAsyncDisposable
             return 0;
         }
 
+        var bookmarksChanged = RecordConnectedServiceIds(bookmarks);
+
         var addedCount = 0;
 
         if (flowDoc["services"]?["channels"] is JObject channelsObj)
@@ -428,12 +430,32 @@ public partial class Editor : IAsyncDisposable
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isAlive = RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
-                    entry.Value.Item2 == sturdyRef
-                    && RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
-                );
+                // already saved: a bookmark that resolved to this service id before
+                if (
+                    bookmarks.Any(b =>
+                        b.InterfaceId == Shared.Shared.ChannelStarterInterfaceId
+                        && b.ServiceId == serviceId
+                    )
+                )
+                    continue;
 
-                if (!isAlive)
+                // A service connected under this id is judged by the sturdy ref it is
+                // actually connected with, so the flow's (possibly different) sturdy ref
+                // does not create a duplicate bookmark.
+                if (
+                    RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(serviceId)
+                    && RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.TryGetValue(
+                        serviceId,
+                        out var connectedChan
+                    )
+                )
+                    sturdyRef = connectedChan.Item2;
+                else if (
+                    !RuntimeService.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
+                        entry.Value.Item2 == sturdyRef
+                        && RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
+                    )
+                )
                     continue;
 
                 var petName =
@@ -472,13 +494,32 @@ public partial class Editor : IAsyncDisposable
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isAlive = RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
-                    entry.Key != "no_service"
-                    && entry.Value.Item2 == sturdyRef
-                    && RuntimeService.ServiceId2Registries.ContainsKey(entry.Key)
-                );
+                // already saved: a bookmark that resolved to this service id before
+                if (
+                    bookmarks.Any(b =>
+                        b.InterfaceId == Shared.Shared.RegistryInterfaceId
+                        && b.ServiceId == serviceId
+                    )
+                )
+                    continue;
 
-                if (!isAlive)
+                if (
+                    serviceId != "no_service"
+                    && RuntimeService.ServiceId2Registries.ContainsKey(serviceId)
+                    && RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(
+                        serviceId,
+                        out var connectedReg
+                    )
+                    && !string.IsNullOrWhiteSpace(connectedReg.Item2)
+                )
+                    sturdyRef = connectedReg.Item2;
+                else if (
+                    !RuntimeService.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
+                        entry.Key != "no_service"
+                        && entry.Value.Item2 == sturdyRef
+                        && RuntimeService.ServiceId2Registries.ContainsKey(entry.Key)
+                    )
+                )
                     continue;
 
                 var petName =
@@ -509,15 +550,16 @@ public partial class Editor : IAsyncDisposable
                 }
             }
 
-        if (addedCount > 0)
+        if (addedCount > 0 || bookmarksChanged)
             try
             {
                 bookmarks.Sort();
                 await StoredSrData.SaveAllData(LocalStorage, bookmarks);
-                Snackbar?.Add(
-                    $"Imported {addedCount} service bookmark{(addedCount > 1 ? "s" : "")} from flow to local storage.",
-                    Severity.Success
-                );
+                if (addedCount > 0)
+                    Snackbar?.Add(
+                        $"Imported {addedCount} service bookmark{(addedCount > 1 ? "s" : "")} from flow to local storage.",
+                        Severity.Success
+                    );
             }
             catch (Exception ex)
             {
@@ -525,6 +567,41 @@ public partial class Editor : IAsyncDisposable
             }
 
         return addedCount;
+    }
+
+    /// <summary>
+    /// Remembers on each bookmark which service id it resolved to, so that a flow referring to the
+    /// service by id (possibly with another sturdy ref) is recognized as already saved.
+    /// </summary>
+    private bool RecordConnectedServiceIds(List<StoredSrData> bookmarks)
+    {
+        var changed = false;
+
+        void Record(ulong interfaceId, string serviceId, string? connectedRef)
+        {
+            if (string.IsNullOrWhiteSpace(connectedRef))
+                return;
+            foreach (
+                var b in bookmarks.Where(b =>
+                    b.InterfaceId == interfaceId
+                    && string.Equals(b.SturdyRef, connectedRef, StringComparison.Ordinal)
+                    && b.ServiceId != serviceId
+                )
+            )
+            {
+                b.ServiceId = serviceId;
+                changed = true;
+            }
+        }
+
+        foreach (var (id, info) in RuntimeService.ChannelServiceIdToPetNameAndSturdyRef)
+            if (RuntimeService.ServiceId2ChannelStarterServices.ContainsKey(id))
+                Record(Shared.Shared.ChannelStarterInterfaceId, id, info.Item2);
+        foreach (var (id, info) in RuntimeService.RegistryServiceIdToPetNameAndSturdyRef)
+            if (id != "no_service" && RuntimeService.ServiceId2Registries.ContainsKey(id))
+                Record(Shared.Shared.RegistryInterfaceId, id, info.Item2);
+
+        return changed;
     }
 
     public async Task ClearDiagram()
@@ -624,34 +701,6 @@ public partial class Editor : IAsyncDisposable
     private Task ExecuteFlow()
     {
         return RuntimeService.ExecuteFlowAsync(() => InvokeAsync(StateHasChanged));
-    }
-
-    private Task HandleSturdyRefConnectedAsync((ulong, string, string) connection)
-    {
-        return RuntimeService.HandleSturdyRefConnectedAsync(connection);
-    }
-
-    private Task HandleSturdyRefDisconnectedAsync((ulong, string) connection)
-    {
-        return RuntimeService.HandleSturdyRefDisconnectedAsync(connection);
-    }
-
-    private Task ConnectToStartChannelsService(
-        ConnectionManager conMan,
-        string petName,
-        string sturdyRef
-    )
-    {
-        return RuntimeService.ConnectToStartChannelsServiceAsync(petName, sturdyRef);
-    }
-
-    private Task ConnectToRegistryService(
-        ConnectionManager conMan,
-        string petName,
-        string sturdyRef
-    )
-    {
-        return RuntimeService.ConnectToRegistryServiceAsync(petName, sturdyRef);
     }
 
     private void SafeStateHasChanged()

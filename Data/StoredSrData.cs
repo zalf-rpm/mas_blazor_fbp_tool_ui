@@ -7,6 +7,8 @@ public class StoredSrData : IComparable<StoredSrData>
     public ulong InterfaceId { get; set; }
     public string SturdyRef { get; set; } = "";
     public string PetName { get; set; } = "";
+    /// <summary>Id of the service this bookmark resolved to the last time it was connected ("" = not yet seen).</summary>
+    public string ServiceId { get; set; } = "";
     public bool AutoConnect { get; set; }
     public bool DefaultSelect { get; set; }
 
@@ -29,6 +31,7 @@ public class StoredSrData : IComparable<StoredSrData>
             InterfaceId = InterfaceId,
             SturdyRef = SturdyRef,
             PetName = PetName,
+            ServiceId = ServiceId,
             AutoConnect = AutoConnect,
             DefaultSelect = DefaultSelect,
         };

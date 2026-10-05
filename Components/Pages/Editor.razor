@@ -18,6 +18,7 @@
 @inject IDialogService DialogService
 @inject ConnectionManager InjectedConMan
 @inject ILocalStorageService LocalStorage
+@inject IBookmarkConnectionService BookmarkConnections
 @inject IJSRuntime JsRuntime
 @inject CleanupDiagramService CleanupService
 @inject IFbpRuntimeService InjectedRuntimeService
@@ -29,8 +30,7 @@
 @inject IFbpNodeFactory NodeFactory
 
 <div class="editor-shell mud-background-gray pa-1">
-    <NavigationLock ConfirmExternalNavigation="@HasActiveExecution"
-                    OnBeforeInternalNavigation="@OnBeforeInternalNavigation"/>
+    <NavigationLock OnBeforeInternalNavigation="@OnBeforeInternalNavigation"/>
     <MudStack Spacing="1" Class="mud-height-full" Style="min-height: 0;">
         <FlowToolbar ComponentListVisible="@_componentListVisible"
                      FlowId="@FlowId"
@@ -164,39 +164,36 @@
         }
     }
 
-    private async Task AddComponentServiceSturdyRef()
+    private Task AddComponentServiceSturdyRef()
     {
-        var parameters = new DialogParameters<NewSturdyRefDialog>
-        {
-            { x => x.InterfaceId, typeof(IRegistry).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0UL }
-        };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add components service sturdy reference", parameters, options);
-        var nb = await dia.GetReturnValueAsync<StoredSrData>();
-        if (nb != null)
-        {
-            if (nb.SturdyRef.Length == 0) return;
-            await StoredSrData.SaveNew(LocalStorage, nb);
-            if (nb.AutoConnect) await ConnectToRegistryService(ConMan, nb.PetName, nb.SturdyRef);
-        }
-
-        SafeStateHasChanged();
+        return AddServiceSturdyRefAsync(
+            typeof(IRegistry),
+            "Add components service sturdy reference"
+        );
     }
 
-    private async Task AddChannelServiceSturdyRef()
+    private Task AddChannelServiceSturdyRef()
+    {
+        return AddServiceSturdyRefAsync(
+            typeof(IStartChannelsService),
+            "Add channel service sturdy reference"
+        );
+    }
+
+    private async Task AddServiceSturdyRefAsync(Type serviceInterface, string title)
     {
         var parameters = new DialogParameters<NewSturdyRefDialog>
         {
-            { x => x.InterfaceId, typeof(IStartChannelsService).GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0UL }
+            { x => x.InterfaceId, serviceInterface.GetCustomAttribute<TypeIdAttribute>(false)?.Id ?? 0UL }
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dia = await DialogService.ShowAsync<NewSturdyRefDialog>("Add channel service sturdy reference", parameters, options);
-        var nb = await dia.GetReturnValueAsync<StoredSrData>();
-        if (nb != null)
+        var dialog = await DialogService.ShowAsync<NewSturdyRefDialog>(title, parameters, options);
+        var bookmark = await dialog.GetReturnValueAsync<StoredSrData>();
+        if (bookmark is { SturdyRef.Length: > 0 })
         {
-            if (nb.SturdyRef.Length == 0) return;
-            await StoredSrData.SaveNew(LocalStorage, nb);
-            if (nb.AutoConnect) await ConnectToStartChannelsService(ConMan, nb.PetName, nb.SturdyRef);
+            await StoredSrData.SaveNew(LocalStorage, bookmark);
+            if (bookmark.AutoConnect)
+                await BookmarkConnections.ConnectAsync(RuntimeService, bookmark);
         }
 
         SafeStateHasChanged();
@@ -204,14 +201,9 @@
 
     private async Task ShowSturdyRefDialog()
     {
-        EventCallback<(ulong, string, string)> connectedCallback = new(this, HandleSturdyRefConnectedAsync);
-        EventCallback<(ulong, string)> disconnectedCallback = new(this, HandleSturdyRefDisconnectedAsync);
         var parameters = new DialogParameters<LocallyStoredSturdyRefsDialog>
         {
-            { x => x.InterfaceIdToType, InterfaceIdToType },
-            { x => x.SturdyRef2Services, SturdyRef2Services },
-            { x => x.ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged, connectedCallback },
-            { x => x.DisconnectedFromInterfaceIdAndSturdyRefChanged, disconnectedCallback }
+            { x => x.Runtime, RuntimeService }
         };
 
         var options = new DialogOptions

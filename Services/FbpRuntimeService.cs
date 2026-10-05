@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Models;
@@ -293,7 +294,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
     [];
     public Dictionary<string, IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
     public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
-    public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
+    public ConcurrentDictionary<string, Proxy> SturdyRef2Services { get; } = [];
     public Dictionary<(string, string), Component> ServiceIdAndComponentId2Component { get; } = [];
     public Dictionary<
         string,
@@ -456,9 +457,9 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             NotifyStateChanged();
             return service;
         }
-        catch (RpcException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Console.WriteLine("Couldn't connect to channel starter service @ " + sturdyRef);
+            Console.WriteLine($"Couldn't connect to channel starter service @ {sturdyRef}: {ex.Message}");
         }
 
         return null;
@@ -481,9 +482,9 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
             Console.WriteLine("added petName2: " + petName2 + " and sturdyRef: " + sturdyRef);
         }
-        catch (RpcException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Console.WriteLine("Couldn't connect to components registry @ " + sturdyRef);
+            Console.WriteLine($"Couldn't connect to components registry @ {sturdyRef}: {ex.Message}");
             return null;
         }
 
@@ -494,58 +495,68 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         return reg;
     }
 
-    public async Task HandleSturdyRefConnectedAsync(
-        (ulong interfaceId, string sturdyRef, string petName) connection
-    )
+    public bool IsConnected(string sturdyRef)
     {
-        var (interfaceId, sturdyRef, petName) = connection;
-        if (!SturdyRef2Services.TryGetValue(sturdyRef, out var value))
-            return;
-
-        var updatedConnections = false;
-        if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
-        {
-            if (value is IStartChannelsService service)
-            {
-                var info = await service.Info();
-                var petName2 = Shared.Shared.MakeUniqueKey(
-                    ServiceId2ChannelStarterServices,
-                    petName
-                );
-                ServiceId2ChannelStarterServices[info.Id] = service;
-                ChannelServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
-                updatedConnections = true;
-            }
-        }
-        else if (interfaceId == Shared.Shared.RegistryInterfaceId && value is IRegistry reg)
-        {
-            var info = await reg.Info();
-            var petName2 = Shared.Shared.MakeUniqueKey(ServiceId2Registries, petName);
-            ServiceId2Registries[info.Id] = Proxy.Share(reg);
-            RegistryServiceIdToPetNameAndSturdyRef[info.Id] = (petName2, sturdyRef);
-            await LoadComponentsFromRegistryAsync(Proxy.Share(reg), sturdyRef);
-            updatedConnections = true;
-        }
-
-        if (updatedConnections)
-            NotifyStateChanged();
+        return !string.IsNullOrWhiteSpace(sturdyRef)
+            && SturdyRef2Services.TryGetValue(sturdyRef, out var proxy)
+            && proxy is { IsNull: false, IsDisposed: false };
     }
 
-    public async Task HandleSturdyRefDisconnectedAsync(
-        (ulong interfaceId, string sturdyRef) connection
+    public async Task<bool> ConnectBookmarkAsync(
+        ulong interfaceId,
+        string petName,
+        string sturdyRef
     )
     {
-        var (interfaceId, sturdyRef) = connection;
+        if (string.IsNullOrWhiteSpace(sturdyRef))
+            return false;
+        if (IsConnected(sturdyRef))
+            return true;
+
+        try
+        {
+            if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
+                return await ConnectToStartChannelsServiceAsync(petName, sturdyRef) != null;
+            if (interfaceId == Shared.Shared.RegistryInterfaceId)
+                return await ConnectToRegistryServiceAsync(petName, sturdyRef) != null;
+
+            // any other persistent capability: just hold on to the connection
+            if (!InterfaceIdToType.TryGetValue(interfaceId, out var type))
+                return false;
+            var connect =
+                typeof(ConnectionManager).GetMethod(
+                    nameof(ConnectionManager.Connect),
+                    [typeof(string)]
+                ) ?? throw new InvalidOperationException("ConnectionManager.Connect not found.");
+            var service = await connect.MakeGenericMethod(type).InvokeAsync(ConnectionManager, sturdyRef);
+            if (service is not Proxy proxy)
+                return false;
+            SturdyRef2Services[sturdyRef] = proxy;
+            NotifyStateChanged();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Couldn't connect to {sturdyRef}: {ex.Message}");
+            return false;
+        }
+    }
+
+    public void DisconnectBookmark(ulong interfaceId, string sturdyRef)
+    {
         if (interfaceId == Shared.Shared.ChannelStarterInterfaceId)
             DisconnectChannelStarterService(sturdyRef);
         else if (interfaceId == Shared.Shared.RegistryInterfaceId)
             DisconnectRegistryService(sturdyRef);
 
-        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
-            proxy.Dispose();
+        if (SturdyRef2Services.TryRemove(sturdyRef, out var proxy))
+            try
+            {
+                proxy.Dispose();
+            }
+            catch (ObjectDisposedException) { }
 
         NotifyStateChanged();
-        await Task.CompletedTask;
     }
 
     public void DisconnectChannelStarterServiceById(string serviceId)
@@ -560,7 +571,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         if (ChannelServiceIdToPetNameAndSturdyRef.Remove(serviceId, out var tuple))
             if (
                 !string.IsNullOrEmpty(tuple.Item2)
-                && SturdyRef2Services.Remove(tuple.Item2, out var proxy)
+                && SturdyRef2Services.TryRemove(tuple.Item2, out var proxy)
             )
                 try
                 {
@@ -584,7 +595,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         if (RegistryServiceIdToPetNameAndSturdyRef.TryGetValue(serviceId, out var tuple))
             sturdyRef = tuple.Item2;
 
-        if (!string.IsNullOrEmpty(sturdyRef) && SturdyRef2Services.Remove(sturdyRef, out var proxy))
+        if (!string.IsNullOrEmpty(sturdyRef) && SturdyRef2Services.TryRemove(sturdyRef, out var proxy))
             try
             {
                 proxy.Dispose();
@@ -624,7 +635,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         foreach (var serviceId in serviceIds)
             DisconnectChannelStarterServiceById(serviceId);
 
-        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
+        if (SturdyRef2Services.TryRemove(sturdyRef, out var proxy))
             try
             {
                 proxy.Dispose();
@@ -644,7 +655,7 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         foreach (var serviceId in serviceIds)
             DisconnectRegistryServiceById(serviceId);
 
-        if (SturdyRef2Services.Remove(sturdyRef, out var proxy))
+        if (SturdyRef2Services.TryRemove(sturdyRef, out var proxy))
             try
             {
                 proxy.Dispose();
@@ -1039,6 +1050,8 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
             }
 
             Console.WriteLine("Loaded entries from " + sturdyRef);
+
+            await ReattachUnavailableNodesAsync(info.Id);
         }
         catch (RpcException)
         {
@@ -1046,6 +1059,34 @@ public class FbpRuntimeService : IFbpRuntimeService, IAsyncDisposable
         }
 
         NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Nodes loaded from a flow while their component service was not (yet) connected only carry
+    /// a placeholder binding. Once that service connects under the same id, bind them to the real
+    /// component so the flow is usable without re-importing it.
+    /// </summary>
+    public async Task ReattachUnavailableNodesAsync(string serviceId)
+    {
+        if (Diagram == null || string.IsNullOrWhiteSpace(serviceId))
+            return;
+
+        var unavailableNodes = Diagram
+            .Nodes.OfType<CapnpFbpComponentModel>()
+            .Where(n => n.ComponentServiceId == serviceId && string.IsNullOrEmpty(n.ComponentName))
+            .ToList();
+        foreach (var node in unavailableNodes)
+            try
+            {
+                if (TryGetBindableComponent(node, serviceId, out var component))
+                    await node.RebindToComponentServiceAsync(component, serviceId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Couldn't attach node '{node.ProcessName}' to service {serviceId}: {ex.Message}"
+                );
+            }
     }
 
     public static Component? CreateFromJson(JToken jComp)

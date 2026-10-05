@@ -321,4 +321,90 @@ public class EditorRouteAndFlowTests
         var dragEndProp = paletteProps.First(p => p.Name == "OnComponentDragEnd");
         Assert.IsNotNull(dragEndProp.GetCustomAttribute<EditorRequiredAttribute>());
     }
+
+    private static (Editor Editor, FakeFbpRuntimeService Runtime, FakeLocalStorageService Storage) CreateEditorWithStorage()
+    {
+        var editor = new Editor();
+        var storage = new FakeLocalStorageService();
+        var runtime = new FakeFbpRuntimeService();
+        typeof(Editor)
+            .GetProperty("LocalStorage", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .SetValue(editor, storage);
+        typeof(Editor)
+            .GetProperty("InjectedRuntimeService", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .SetValue(editor, runtime);
+        return (editor, runtime, storage);
+    }
+
+    private static JObject FlowWithServices(string regId, string regRef, string chanId, string chanRef)
+    {
+        return new JObject
+        {
+            {
+                "services",
+                new JObject
+                {
+                    { "components", new JObject { { regId, regRef } } },
+                    { "channels", new JObject { { chanId, chanRef } } },
+                }
+            },
+        };
+    }
+
+    [TestMethod]
+    public async Task Editor_MergeFlowServices_ConnectedBookmarkWithOtherRefInFlow_IsNotImportedAgainAndLearnsServiceId()
+    {
+        var (editor, runtime, storage) = CreateEditorWithStorage();
+        await storage.SetItemAsync(
+            StoredSrData.StorageKey,
+            new List<StoredSrData>
+            {
+                new() { InterfaceId = Shared.Shared.RegistryInterfaceId, SturdyRef = "capnp://reg-in-cluster", PetName = "Reg" },
+                new() { InterfaceId = Shared.Shared.ChannelStarterInterfaceId, SturdyRef = "capnp://chan-in-cluster", PetName = "Chan" },
+            }
+        );
+        runtime.ServiceId2Registries["reg-1"] = null!;
+        runtime.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = ("Reg", "capnp://reg-in-cluster");
+        runtime.ServiceId2ChannelStarterServices["chan-1"] = null!;
+        runtime.ChannelServiceIdToPetNameAndSturdyRef["chan-1"] = ("Chan", "capnp://chan-in-cluster");
+
+        var added = await editor.MergeFlowServicesIntoLocalStorageAsync(
+            FlowWithServices("reg-1", "capnp://reg-from-flow-file", "chan-1", "capnp://chan-from-flow-file")
+        );
+
+        Assert.AreEqual(0, added);
+        var saved = await StoredSrData.GetAllData(storage);
+        Assert.AreEqual(2, saved.Count);
+        Assert.AreEqual("reg-1", saved.Single(b => b.SturdyRef == "capnp://reg-in-cluster").ServiceId);
+        Assert.AreEqual("chan-1", saved.Single(b => b.SturdyRef == "capnp://chan-in-cluster").ServiceId);
+    }
+
+    [TestMethod]
+    public async Task Editor_MergeFlowServices_BookmarkWithKnownServiceId_IsNotImportedEvenWhenConnectedViaFlowRef()
+    {
+        var (editor, runtime, storage) = CreateEditorWithStorage();
+        await storage.SetItemAsync(
+            StoredSrData.StorageKey,
+            new List<StoredSrData>
+            {
+                new()
+                {
+                    InterfaceId = Shared.Shared.RegistryInterfaceId,
+                    SturdyRef = "capnp://reg-saved",
+                    PetName = "Reg",
+                    ServiceId = "reg-1",
+                },
+            }
+        );
+        // connected through the flow's own ref, the saved bookmark itself is not connected
+        runtime.ServiceId2Registries["reg-1"] = null!;
+        runtime.RegistryServiceIdToPetNameAndSturdyRef["reg-1"] = ("Reg", "capnp://reg-from-flow-file");
+
+        var added = await editor.MergeFlowServicesIntoLocalStorageAsync(
+            FlowWithServices("reg-1", "capnp://reg-from-flow-file", "none", "")
+        );
+
+        Assert.AreEqual(0, added);
+        Assert.AreEqual(1, (await StoredSrData.GetAllData(storage)).Count);
+    }
 }

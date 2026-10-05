@@ -434,4 +434,57 @@ public class FbpRuntimeServiceTests
             "Connection dropped: Component registry service 'My Registry' is unreachable."
         );
     }
+
+    [TestMethod]
+    public async Task LoadComponentsFromRegistryAsync_AttachesNodesLoadedWhileServiceWasUnavailable()
+    {
+        // node as created for a flow whose component service was not connected yet
+        var node = new CapnpFbpRunnableComponentModel("node1", new Point(0, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ComponentId = "comp-1",
+            ComponentServiceId = "reg-late",
+            ComponentName = "",
+        };
+        _diagram.Nodes.Add(node);
+        var otherServiceNode = new CapnpFbpRunnableComponentModel("node2", new Point(100, 0))
+        {
+            RuntimeService = _runtimeService,
+            Diagram = _diagram,
+            ComponentId = "comp-1",
+            ComponentServiceId = "reg-other",
+            ComponentName = "",
+        };
+        _diagram.Nodes.Add(otherServiceNode);
+        _runtimeService.ServiceIdAndComponentId2Component[("reg-late", "comp-1")] = new Component
+        {
+            Info = new IdInformation
+            {
+                Id = "comp-1",
+                Name = "Real Component",
+                Description = "from the registry",
+            },
+            Type = Component.ComponentType.standard,
+        };
+        _runtimeService.ServiceIdAndComponentId2Component[("reg-other", "comp-1")] = new Component
+        {
+            Info = new IdInformation { Id = "comp-1", Name = "Other Component" },
+            Type = Component.ComponentType.standard,
+        };
+
+        await _runtimeService.LoadComponentsFromRegistryAsync(
+            new FakeRegistryService { ServiceId = "reg-late" },
+            "capnp://late"
+        );
+
+        Assert.AreEqual("Real Component", node.ComponentName);
+        Assert.AreEqual("from the registry", node.ShortDescription);
+        Assert.AreEqual("reg-late", node.ComponentServiceId);
+        Assert.AreEqual(
+            "",
+            otherServiceNode.ComponentName,
+            "Nodes bound to a different, still unavailable service must stay untouched."
+        );
+    }
 }

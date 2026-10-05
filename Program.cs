@@ -24,6 +24,7 @@ builder.Services.AddMudServices(config =>
 
 builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddScoped<IBookmarkConnectionService, BookmarkConnectionService>();
 builder.Services.AddScoped<IAppThemeService, AppThemeService>();
 
 builder.Services.AddScoped<CleanupDiagramService>();

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
@@ -41,7 +42,7 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
     [];
     public Dictionary<string, IStartChannelsService> ServiceId2ChannelStarterServices { get; } = [];
     public Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; } = [];
-    public Dictionary<string, Proxy> SturdyRef2Services { get; } = [];
+    public ConcurrentDictionary<string, Proxy> SturdyRef2Services { get; } = [];
     public Dictionary<(string, string), Component> ServiceIdAndComponentId2Component { get; } = [];
     public Dictionary<
         string,
@@ -119,16 +120,24 @@ public class FakeFbpRuntimeService : IFbpRuntimeService
         return Task.FromResult<IRegistry?>(null);
     }
 
-    public Task HandleSturdyRefConnectedAsync(
-        (ulong interfaceId, string sturdyRef, string petName) connection
-    )
+    public List<(ulong InterfaceId, string SturdyRef)> ConnectBookmarkCalls { get; } = [];
+    public List<(ulong InterfaceId, string SturdyRef)> DisconnectBookmarkCalls { get; } = [];
+    public bool ConnectBookmarkResult { get; set; } = true;
+
+    public bool IsConnected(string sturdyRef)
     {
-        return Task.CompletedTask;
+        return SturdyRef2Services.ContainsKey(sturdyRef);
     }
 
-    public Task HandleSturdyRefDisconnectedAsync((ulong interfaceId, string sturdyRef) connection)
+    public Task<bool> ConnectBookmarkAsync(ulong interfaceId, string petName, string sturdyRef)
     {
-        return Task.CompletedTask;
+        ConnectBookmarkCalls.Add((interfaceId, sturdyRef));
+        return Task.FromResult(ConnectBookmarkResult);
+    }
+
+    public void DisconnectBookmark(ulong interfaceId, string sturdyRef)
+    {
+        DisconnectBookmarkCalls.Add((interfaceId, sturdyRef));
     }
 
     public void DisconnectChannelStarterService(string sturdyRef) { }

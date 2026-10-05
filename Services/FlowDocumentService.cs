@@ -616,10 +616,15 @@ public class FlowDocumentService : IFlowDocumentService
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isConnected = runtime.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
-                    entry.Value.Item2 == sturdyRef
-                    && runtime.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
-                );
+                // The key in the flow file is the service id; match on it first so a
+                // service that is already connected (possibly via a different sturdy ref
+                // string) is neither reported as missing nor connected a second time.
+                var isConnected =
+                    runtime.ServiceId2ChannelStarterServices.ContainsKey(prop.Name)
+                    || runtime.ChannelServiceIdToPetNameAndSturdyRef.Any(entry =>
+                        entry.Value.Item2 == sturdyRef
+                        && runtime.ServiceId2ChannelStarterServices.ContainsKey(entry.Key)
+                    );
 
                 if (!isConnected)
                 {
@@ -644,11 +649,16 @@ public class FlowDocumentService : IFlowDocumentService
                 if (string.IsNullOrWhiteSpace(sturdyRef))
                     continue;
 
-                var isConnected = runtime.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
-                    entry.Key != NoRegistryServiceId
-                    && entry.Value.Item2 == sturdyRef
-                    && runtime.ServiceId2Registries.ContainsKey(entry.Key)
-                );
+                var isConnected =
+                    (
+                        prop.Name != NoRegistryServiceId
+                        && runtime.ServiceId2Registries.ContainsKey(prop.Name)
+                    )
+                    || runtime.RegistryServiceIdToPetNameAndSturdyRef.Any(entry =>
+                        entry.Key != NoRegistryServiceId
+                        && entry.Value.Item2 == sturdyRef
+                        && runtime.ServiceId2Registries.ContainsKey(entry.Key)
+                    );
 
                 if (!isConnected)
                 {

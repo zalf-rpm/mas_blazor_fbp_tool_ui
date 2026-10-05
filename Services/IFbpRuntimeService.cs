@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Blazor.Diagrams;
 using Blazor.Diagrams.Core.Models.Base;
 using BlazorDrawFBP.Models;
@@ -28,7 +29,7 @@ public interface IFbpRuntimeService
     Dictionary<string, (string, string?)> RegistryServiceIdToPetNameAndSturdyRef { get; }
     Dictionary<string, IStartChannelsService> ServiceId2ChannelStarterServices { get; }
     Dictionary<string, (string, string)> ChannelServiceIdToPetNameAndSturdyRef { get; }
-    Dictionary<string, Proxy> SturdyRef2Services { get; }
+    ConcurrentDictionary<string, Proxy> SturdyRef2Services { get; }
     Dictionary<(string, string), Component> ServiceIdAndComponentId2Component { get; }
     Dictionary<string, HashSet<(string, string)>> CatId2CompServiceIdAndComponentIds { get; }
     Dictionary<string, IdInformation> CatId2Info { get; }
@@ -47,10 +48,9 @@ public interface IFbpRuntimeService
         string sturdyRef
     );
     Task<IRegistry?> ConnectToRegistryServiceAsync(string petName, string sturdyRef);
-    Task HandleSturdyRefConnectedAsync(
-        (ulong interfaceId, string sturdyRef, string petName) connection
-    );
-    Task HandleSturdyRefDisconnectedAsync((ulong interfaceId, string sturdyRef) connection);
+    bool IsConnected(string sturdyRef);
+    Task<bool> ConnectBookmarkAsync(ulong interfaceId, string petName, string sturdyRef);
+    void DisconnectBookmark(ulong interfaceId, string sturdyRef);
     void DisconnectChannelStarterService(string sturdyRef);
     void DisconnectRegistryService(string sturdyRef);
     void DisconnectChannelStarterServiceById(string serviceId);
