@@ -1,6 +1,6 @@
 using Blazored.LocalStorage;
 
-namespace Mas.Infrastructure.BlazorComponents;
+namespace BlazorDrawFBP.Data;
 
 public class StoredSrData : IComparable<StoredSrData>
 {

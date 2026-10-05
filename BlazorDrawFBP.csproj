@@ -21,10 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Anchors\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Remove="capnproto-dotnetcore\**" />
     <Compile Remove="mas_csharp_common\**" />
     <Compile Remove="mas_capnproto_schemas\**" />

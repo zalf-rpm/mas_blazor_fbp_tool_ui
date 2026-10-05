@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Mas.Infrastructure.BlazorComponents;
+namespace BlazorDrawFBP.Services;
 
 public static class MethodInfoExtensions
 {
