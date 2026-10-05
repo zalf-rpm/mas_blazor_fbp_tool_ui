@@ -1,0 +1,30 @@
+@using MudBlazor
+@namespace Mas.Infrastructure.BlazorComponents
+
+<MudDialog>
+    <DialogContent>
+        <Display EnableZoom="@EnableZoom"
+                 DisableZoom="@DisableZoom"
+                 HeightPx="600">
+            @Content
+        </Display>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public MarkupString Content { get; set; }
+
+    [Parameter] public EventCallback EnableZoom { get; set; }
+    [Parameter] public EventCallback DisableZoom { get; set; }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+}

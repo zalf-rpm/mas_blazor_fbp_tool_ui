@@ -1,0 +1,160 @@
+﻿@using System.Globalization
+@using MudBlazor
+@namespace Mas.Infrastructure.BlazorComponents
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@DialogTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="2" Class="pt-1">
+                @if (AllowInterfaceIdEdit)
+                {
+                    <MudTextField T="string"
+                                  @bind-Value="_interfaceIdText"
+                                  Label="Interface ID"
+                                  HelperText="Use decimal or a 0x-prefixed hex value."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  Immediate="true"
+                                  Validation="@(new Func<string?, string?>(ValidateInterfaceId))"/>
+                }
+                else
+                {
+                    <MudTextField T="string"
+                                  Value="@FormatInterfaceId(InterfaceId)"
+                                  Label="Interface ID"
+                                  HelperText="Fixed by the calling view."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  ReadOnly="true"/>
+                }
+
+                <MudTextField @bind-Value="_editBookmark.PetName"
+                              Label="Pet name"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Clearable="true"/>
+
+                <MudTextField @bind-Value="_editBookmark.SturdyRef"
+                              Label="Sturdy reference"
+                              HelperText="capnp://vatId@host:port/srToken"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              Immediate="true"
+                              Validation="@(new Func<string?, string?>(ValidateSturdyRef))"
+                              Lines="3"/>
+
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+                    <MudSwitch @bind-Value="_editBookmark.AutoConnect"
+                               Label="Connect automatically"
+                               Color="@Color.Primary"/>
+                    <MudSwitch @bind-Value="_editBookmark.DefaultSelect"
+                               Label="Select by default"
+                               Color="@Color.Primary"/>
+                </MudStack>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@Close">
+            @SubmitLabel
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public ulong InterfaceId { get; set; }
+
+    [Parameter] public StoredSrData? EditData { get; set; }
+
+    [Parameter] public bool AllowInterfaceIdEdit { get; set; }
+
+    private MudForm? _form;
+    private StoredSrData _editBookmark = new();
+    private string _interfaceIdText = "";
+
+    private bool IsEditing => EditData != null;
+    private string DialogTitle => IsEditing ? "Edit sturdy reference" : "Add sturdy reference";
+    private string SubmitLabel => IsEditing ? "Save" : "Add";
+
+    protected override void OnParametersSet()
+    {
+        var interfaceId = EditData?.InterfaceId ?? InterfaceId;
+        _editBookmark = EditData?.Clone() ?? new StoredSrData { InterfaceId = interfaceId };
+        _interfaceIdText = interfaceId == 0 ? "" : FormatInterfaceId(interfaceId);
+    }
+
+    private async Task Close()
+    {
+        if (_form != null)
+        {
+            await _form.ValidateAsync();
+            if (!_form.IsValid)
+                return;
+        }
+
+        var interfaceId = InterfaceId;
+        if (AllowInterfaceIdEdit)
+        {
+            if (!TryParseInterfaceId(_interfaceIdText, out interfaceId) || interfaceId == 0)
+                return;
+        }
+
+        _editBookmark.InterfaceId = interfaceId;
+        MudDialog?.Close(DialogResult.Ok(_editBookmark));
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private static string FormatInterfaceId(ulong interfaceId)
+    {
+        return $"0x{interfaceId:x16}";
+    }
+
+    private static bool TryParseInterfaceId(string? value, out ulong interfaceId)
+    {
+        interfaceId = 0;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ulong.TryParse(
+                trimmed[2..],
+                NumberStyles.HexNumber,
+                CultureInfo.InvariantCulture,
+                out interfaceId
+            );
+        }
+
+        return ulong.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out interfaceId);
+    }
+
+    private string? ValidateInterfaceId(string? value)
+    {
+        if (!AllowInterfaceIdEdit)
+            return null;
+
+        if (!TryParseInterfaceId(value, out var interfaceId) || interfaceId == 0)
+            return "Enter a valid interface ID.";
+
+        return null;
+    }
+
+    private static string? ValidateSturdyRef(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Enter a sturdy reference." : null;
+    }
+
+}

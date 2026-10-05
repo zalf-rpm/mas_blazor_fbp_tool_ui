@@ -1,0 +1,654 @@
+@using MudBlazor
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@namespace Mas.Infrastructure.BlazorComponents
+
+<MudDialog>
+    <DialogContent>
+        @if (_errorMessage != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            @foreach (var entry in _entries)
+            {
+                <div class="mb-3">
+                    @RenderEntryEditor(entry)
+                </div>
+            }
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public string? JsonString { get; set; }
+    [Parameter] public string? DefaultsJsonString { get; set; }
+
+    private readonly List<JsonEntry> _entries = new();
+    private readonly Dictionary<string, DefaultMetadata> _defaults = new();
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        // Parse defaults first
+        if (!string.IsNullOrWhiteSpace(DefaultsJsonString))
+        {
+            try
+            {
+                var defaultsObject = JObject.Parse(DefaultsJsonString);
+                ParseDefaults(defaultsObject);
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Failed to parse defaults JSON: {ex.Message}";
+                return;
+            }
+        }
+
+        // Then parse the actual data, or use defaults if no data provided
+        if (!string.IsNullOrWhiteSpace(JsonString))
+        {
+            try
+            {
+                var jObject = JObject.Parse(JsonString);
+                ParseJObject(jObject);
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Failed to parse JSON: {ex.Message}";
+            }
+        }
+        else if (_defaults.Count > 0)
+        {
+            // No actual data provided, create entries from defaults
+            CreateEntriesFromDefaults();
+        }
+    }
+
+    private void ParseDefaults(JObject defaultsObject)
+    {
+        foreach (var property in defaultsObject.Properties())
+        {
+            if (property.Value is JObject metadataObj)
+            {
+                var metadata = new DefaultMetadata
+                {
+                    ValueToken = metadataObj["value"],
+                    Description = metadataObj["desc"]?.Value<string>()
+                };
+
+                // Type can be either a string or an array
+                var typeToken = metadataObj["type"];
+                if (typeToken?.Type == JTokenType.Array)
+                {
+                    metadata.TypeArray = new List<string>();
+                    foreach (var item in (JArray)typeToken)
+                    {
+                        metadata.TypeArray.Add(item.ToString(Formatting.None));
+                    }
+                }
+                else
+                {
+                    metadata.Type = typeToken?.Value<string>() ?? "string";
+                }
+
+                _defaults[property.Name] = metadata;
+            }
+        }
+    }
+
+    private void CreateEntriesFromDefaults()
+    {
+        foreach (var kvp in _defaults)
+        {
+            // If value is an array and type is also an array, create array with select
+            if (kvp.Value.ValueToken?.Type == JTokenType.Array && kvp.Value.TypeArray != null && kvp.Value.TypeArray.Count > 0)
+            {
+                var entry = CreateArrayEntryWithSelect(kvp.Key, (JArray)kvp.Value.ValueToken, kvp.Value.TypeArray);
+                _entries.Add(entry);
+            }
+            else
+            {
+                var entry = CreateEntryFromValue(kvp.Key, kvp.Value.ValueToken);
+                _entries.Add(entry);
+            }
+        }
+    }
+
+    private void ParseJObject(JObject jObject)
+    {
+        // First, add all entries from the actual JSON
+        var existingKeys = new HashSet<string>();
+        foreach (var property in jObject.Properties())
+        {
+            _entries.Add(CreateEntryFromValue(property.Name, property.Value));
+            existingKeys.Add(property.Name);
+        }
+
+        // Then, add missing entries from defaults
+        foreach (var kvp in _defaults)
+        {
+            if (!existingKeys.Contains(kvp.Key))
+            {
+                // Create entry from default value
+                var entry = CreateEntryFromValue(kvp.Key, kvp.Value.ValueToken);
+                _entries.Add(entry);
+            }
+        }
+    }
+
+    private JsonEntry CreateEntryFromValue(string key, JToken? value)
+    {
+        var isNull = value == null || value.Type == JTokenType.Null;
+
+        // Check if we have metadata for this key to determine type
+        if (_defaults.TryGetValue(key, out var metadata))
+        {
+            // If type is an array, create select fields
+            if (metadata.TypeArray != null && metadata.TypeArray.Count > 0)
+            {
+                // If value is an array, create array entry with select options
+                if (!isNull && value!.Type == JTokenType.Array)
+                {
+                    return CreateArrayEntryWithSelect(key, (JArray)value, metadata.TypeArray);
+                }
+
+                // Otherwise, create a single select field
+                var currentValue = isNull ? "" : value!.ToString(Formatting.None);
+                return new JsonEntry
+                {
+                    Key = key,
+                    ValueType = JsonValueType.Select,
+                    StringValue = currentValue,
+                    SelectOptions = metadata.TypeArray,
+                    IsNullable = true,
+                    IsNull = isNull
+                };
+            }
+
+            // Use type string to determine field type for null values
+            if (isNull && !string.IsNullOrWhiteSpace(metadata.Type))
+            {
+                return metadata.Type.ToLower() switch
+                {
+                    "string" => new JsonEntry { Key = key, ValueType = JsonValueType.String, StringValue = "", IsNullable = true, IsNull = true },
+                    "int" or "integer" or "float" or "double" or "number" => new JsonEntry { Key = key, ValueType = JsonValueType.Number, NumberValue = 0, IsNullable = true, IsNull = true },
+                    "boolean" or "bool" => new JsonEntry { Key = key, ValueType = JsonValueType.Boolean, BooleanValue = false, IsNullable = true, IsNull = true },
+                    _ => new JsonEntry { Key = key, ValueType = JsonValueType.Null }
+                };
+            }
+        }
+
+        // Handle null without metadata
+        if (isNull)
+        {
+            return new JsonEntry { Key = key, ValueType = JsonValueType.Null };
+        }
+
+        return value!.Type switch
+        {
+            JTokenType.String => new JsonEntry { Key = key, ValueType = JsonValueType.String, StringValue = value.Value<string>() ?? "", IsNullable = _defaults.ContainsKey(key) },
+            JTokenType.Integer => new JsonEntry { Key = key, ValueType = JsonValueType.Number, NumberValue = value.Value<double>(), IsNullable = _defaults.ContainsKey(key) },
+            JTokenType.Float => new JsonEntry { Key = key, ValueType = JsonValueType.Number, NumberValue = value.Value<double>(), IsNullable = _defaults.ContainsKey(key) },
+            JTokenType.Boolean => new JsonEntry { Key = key, ValueType = JsonValueType.Boolean, BooleanValue = value.Value<bool>() },
+            JTokenType.Object => CreateObjectEntry(key, (JObject)value),
+            JTokenType.Array => CreateArrayEntry(key, (JArray)value),
+            _ => new JsonEntry { Key = key, ValueType = JsonValueType.String, StringValue = value.ToString() }
+        };
+    }
+
+    private JsonEntry CreateObjectEntry(string key, JObject jObject)
+    {
+        var entry = new JsonEntry
+        {
+            Key = key,
+            ValueType = JsonValueType.Object,
+            ObjectEntries = new List<ObjectKeyValue>()
+        };
+
+        foreach (var property in jObject.Properties())
+        {
+            entry.ObjectEntries.Add(new ObjectKeyValue
+            {
+                Key = property.Name,
+                Value = property.Value.ToString(Formatting.None)
+            });
+        }
+
+        return entry;
+    }
+
+    private JsonEntry CreateArrayEntry(string key, JArray jArray)
+    {
+        var entry = new JsonEntry
+        {
+            Key = key,
+            ValueType = JsonValueType.Array,
+            ArrayItems = new List<string>()
+        };
+
+        foreach (var item in jArray)
+        {
+            entry.ArrayItems.Add(item.ToString(Formatting.None));
+        }
+
+        return entry;
+    }
+
+    private JsonEntry CreateArrayEntryWithSelect(string key, JArray jArray, List<string> selectOptions)
+    {
+        var entry = new JsonEntry
+        {
+            Key = key,
+            ValueType = JsonValueType.ArrayWithSelect,
+            ArrayItems = new List<string>(),
+            SelectOptions = selectOptions
+        };
+
+        foreach (var item in jArray)
+        {
+            entry.ArrayItems.Add(item.ToString(Formatting.None));
+        }
+
+        return entry;
+    }
+
+    private string GetHelperText(string key)
+    {
+        if (_defaults.TryGetValue(key, out var metadata))
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(metadata.Type))
+            {
+                parts.Add($"Type: {metadata.Type}");
+            }
+            else if (metadata.TypeArray != null && metadata.TypeArray.Count > 0)
+            {
+                parts.Add("Type: select from options");
+            }
+
+            if (!string.IsNullOrWhiteSpace(metadata.Description))
+            {
+                parts.Add(metadata.Description);
+            }
+
+            return string.Join(" - ", parts);
+        }
+
+        return "";
+    }
+
+    private RenderFragment RenderEntryEditor(JsonEntry entry)
+    {
+        var helperText = GetHelperText(entry.Key);
+
+        return entry.ValueType switch
+        {
+            JsonValueType.Select => @<MudSelect T="string"
+                                                Value="@entry.StringValue"
+                                                ValueChanged="@(val =>
+                                                              {
+                                                                  entry.IsNull = string.IsNullOrEmpty(val);
+                                                                  entry.StringValue = val;
+                                                              })"
+                                                Label="@entry.Key"
+                                                Variant="Variant.Outlined"
+                                                HelperText="@helperText"
+                                                Clearable="@entry.IsNullable"
+                                                Class="flex-grow-1">
+                                        @if (entry.IsNullable)
+                                        {
+                                            <MudSelectItem Value="@((string)null!)">None</MudSelectItem>
+                                        }
+                                        @foreach (var option in entry.SelectOptions)
+                                        {
+                                            <MudSelectItem Value="@option">@option</MudSelectItem>
+                                        }
+                                    </MudSelect>,
+
+            JsonValueType.String => @<div class="d-flex align-center">
+                                        <MudTextField Value="@entry.StringValue"
+                                                      ValueChanged="@((string val) =>
+                                                                    {
+                                                                        entry.StringValue = val;
+                                                                        if (!string.IsNullOrEmpty(val)) entry.IsNull = false;
+                                                                    })"
+                                                      Label="@entry.Key"
+                                                      Variant="Variant.Outlined"
+                                                      ShrinkLabel="true"
+                                                      HelperText="@helperText"
+                                                      Class="flex-grow-1"/>
+                                        @if (entry.IsNullable)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Clear"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() =>
+                                                                    {
+                                                                        entry.IsNull = true;
+                                                                        entry.StringValue = "";
+                                                                    })"
+                                                           Class="ml-2"/>
+                                        }
+                                    </div>,
+
+            JsonValueType.Number => @<div class="d-flex align-center">
+                                        <MudNumericField Value="@entry.NumberValue"
+                                                         ValueChanged="@((double val) =>
+                                                                       {
+                                                                           entry.NumberValue = val;
+                                                                           entry.IsNull = false;
+                                                                       })"
+                                                         Label="@entry.Key"
+                                                         Variant="Variant.Outlined"
+                                                         ShrinkLabel="true"
+                                                         HelperText="@helperText"
+                                                         Class="flex-grow-1"/>
+                                        @if (entry.IsNullable)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Clear"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() =>
+                                                                    {
+                                                                        entry.IsNull = true;
+                                                                        entry.NumberValue = 0;
+                                                                    })"
+                                                           Class="ml-2"/>
+                                        }
+                                    </div>,
+
+            JsonValueType.Boolean => @<div>
+                                         <MudSwitch @bind-Value="entry.BooleanValue"
+                                                    Label="@entry.Key"
+                                                    LabelPlacement="Placement.End"
+                                                    Color="Color.Primary"/>
+                                         @if (!string.IsNullOrEmpty(helperText))
+                                         {
+                                             <div>
+                                                 <MudText Typo="Typo.caption" Color="Color.Secondary" Style="margin-left: 0px; margin-top: -8px;">@helperText</MudText>
+                                             </div>
+                                         }
+                                     </div>,
+
+            JsonValueType.Null => @<MudTextField Value="@("null")"
+                                                 Label="@entry.Key"
+                                                 Variant="Variant.Outlined"
+                                                 ShrinkLabel="true"
+                                                 ReadOnly="true"
+                                                 Class="flex-grow-1"
+                                                 T="string"/>,
+
+            JsonValueType.Object => @<MudPaper Class="pa-3" Elevation="1">
+                                        <MudText Typo="Typo.subtitle1">@entry.Key (Object)</MudText>
+                                        @if (!string.IsNullOrEmpty(helperText))
+                                        {
+                                            <div class="mb-3">
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">@helperText</MudText>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mb-2"></div>
+                                        }
+                                        @foreach (var objEntry in entry.ObjectEntries)
+                                        {
+                                            <div class="d-flex align-center mb-2">
+                                                <MudTextField @bind-Value="objEntry.Key"
+                                                              Label="Key"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense"
+                                                              Class="mr-2 flex-grow-0"
+                                                              Style="width: 150px;"/>
+                                                <MudTextField @bind-Value="objEntry.Value"
+                                                              Label="Value (JSON)"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense"
+                                                              Class="mr-2 flex-grow-1"/>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Color="Color.Error"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => entry.ObjectEntries.Remove(objEntry))"/>
+                                            </div>
+                                        }
+                                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => entry.ObjectEntries.Add(new ObjectKeyValue { Key = "", Value = "" }))">
+                                            Add Property
+                                        </MudButton>
+                                    </MudPaper>,
+
+            JsonValueType.Array => @<MudPaper Class="pa-3" Elevation="1">
+                                       <MudText Typo="Typo.subtitle1">@entry.Key (Array)</MudText>
+                                       @if (!string.IsNullOrEmpty(helperText))
+                                       {
+                                           <div class="mb-3">
+                                               <MudText Typo="Typo.caption" Color="Color.Secondary">@helperText</MudText>
+                                           </div>
+                                       }
+                                       else
+                                       {
+                                           <div class="mb-2"></div>
+                                       }
+                                       @for (var i = 0; i < entry.ArrayItems.Count; i++)
+                                       {
+                                           var index = i;
+                                           <div class="d-flex align-center mb-2">
+                                               <MudText Class="mr-2" Style="min-width: 30px;">[@index]</MudText>
+                                               <MudTextField @bind-Value="entry.ArrayItems[index]"
+                                                             Label="Value (JSON)"
+                                                             Variant="Variant.Outlined"
+                                                             Margin="Margin.Dense"
+                                                             Class="mr-2 flex-grow-1"/>
+                                               <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                              Color="Color.Error"
+                                                              Size="Size.Small"
+                                                              OnClick="@(() => entry.ArrayItems.RemoveAt(index))"/>
+                                           </div>
+                                       }
+                                       <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                  Size="Size.Small"
+                                                  OnClick="@(() => entry.ArrayItems.Add(""))">
+                                           Add Item
+                                       </MudButton>
+                                   </MudPaper>,
+
+            JsonValueType.ArrayWithSelect => @<MudPaper Class="pa-3" Elevation="1">
+                                                 <MudText Typo="Typo.subtitle1">@entry.Key (Array)</MudText>
+                                                 @if (!string.IsNullOrEmpty(helperText))
+                                                 {
+                                                     <div class="mb-3">
+                                                         <MudText Typo="Typo.caption" Color="Color.Secondary">@helperText</MudText>
+                                                     </div>
+                                                 }
+                                                 else
+                                                 {
+                                                     <div class="mb-2"></div>
+                                                 }
+                                                 @for (var i = 0; i < entry.ArrayItems.Count; i++)
+                                                 {
+                                                     var index = i;
+                                                     <div class="d-flex align-center mb-2">
+                                                         <MudText Class="mr-2" Style="min-width: 30px;">[@index]</MudText>
+                                                         <MudSelect T="string"
+                                                                    @bind-Value="entry.ArrayItems[index]"
+                                                                    Label="Value"
+                                                                    Variant="Variant.Outlined"
+                                                                    Margin="Margin.Dense"
+                                                                    Class="mr-2 flex-grow-1">
+                                                             @foreach (var option in entry.SelectOptions)
+                                                             {
+                                                                 <MudSelectItem Value="@option">@option</MudSelectItem>
+                                                             }
+                                                         </MudSelect>
+                                                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                        Color="Color.Error"
+                                                                        Size="Size.Small"
+                                                                        OnClick="@(() => entry.ArrayItems.RemoveAt(index))"/>
+                                                     </div>
+                                                 }
+                                                 <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                            Size="Size.Small"
+                                                            OnClick="@(() => entry.ArrayItems.Add(entry.SelectOptions.FirstOrDefault() ?? ""))">
+                                                     Add Item
+                                                 </MudButton>
+                                             </MudPaper>,
+
+            _ => @<div></div>
+        };
+    }
+
+    private void Save()
+    {
+        try
+        {
+            var jObject = new JObject();
+
+            foreach (var entry in _entries)
+            {
+                jObject[entry.Key] = ConvertEntryToJToken(entry);
+            }
+
+            var jsonString = jObject.ToString(Formatting.Indented);
+            MudDialog?.Close(DialogResult.Ok(jsonString));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to generate JSON: {ex.Message}";
+        }
+    }
+
+    private JToken? ConvertEntryToJToken(JsonEntry entry)
+    {
+        // Handle nullable fields that are set to null
+        if (entry.IsNullable && entry.IsNull)
+        {
+            return JValue.CreateNull();
+        }
+
+        switch (entry.ValueType)
+        {
+            case JsonValueType.Select:
+                // Try to parse the selected value as JSON, otherwise treat as string
+                if (string.IsNullOrEmpty(entry.StringValue))
+                {
+                    return JValue.CreateNull();
+                }
+
+                try
+                {
+                    return JToken.Parse(entry.StringValue);
+                }
+                catch
+                {
+                    return new JValue(entry.StringValue);
+                }
+
+            case JsonValueType.String:
+                return new JValue(entry.StringValue);
+
+            case JsonValueType.Number:
+                return new JValue(entry.NumberValue);
+
+            case JsonValueType.Boolean:
+                return new JValue(entry.BooleanValue);
+
+            case JsonValueType.Null:
+                return JValue.CreateNull();
+
+            case JsonValueType.Object:
+                var jObject = new JObject();
+                foreach (var objEntry in entry.ObjectEntries)
+                {
+                    if (!string.IsNullOrWhiteSpace(objEntry.Key))
+                    {
+                        try
+                        {
+                            var parsedValue = JToken.Parse(objEntry.Value);
+                            jObject[objEntry.Key] = parsedValue;
+                        }
+                        catch
+                        {
+                            // If parsing fails, treat as string
+                            jObject[objEntry.Key] = new JValue(objEntry.Value);
+                        }
+                    }
+                }
+
+                return jObject;
+
+            case JsonValueType.Array:
+            case JsonValueType.ArrayWithSelect:
+                var jArray = new JArray();
+                foreach (var item in entry.ArrayItems)
+                {
+                    try
+                    {
+                        var parsedItem = JToken.Parse(item);
+                        jArray.Add(parsedItem);
+                    }
+                    catch
+                    {
+                        // If parsing fails, treat as string
+                        jArray.Add(new JValue(item));
+                    }
+                }
+
+                return jArray;
+
+            default:
+                return new JValue(entry.StringValue);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private class JsonEntry
+    {
+        public string Key { get; set; } = "";
+        public JsonValueType ValueType { get; set; }
+        public string? StringValue { get; set; }
+        public double NumberValue { get; set; }
+        public bool BooleanValue { get; set; }
+        public List<ObjectKeyValue> ObjectEntries { get; set; } = new();
+        public List<string> ArrayItems { get; set; } = new();
+        public List<string> SelectOptions { get; set; } = new();
+        public bool IsNullable { get; set; }
+        public bool IsNull { get; set; }
+    }
+
+    private class ObjectKeyValue
+    {
+        public string Key { get; set; } = "";
+        public string Value { get; set; } = "";
+    }
+
+    private class DefaultMetadata
+    {
+        public JToken? ValueToken { get; set; }
+        public string Type { get; set; } = "";
+        public List<string>? TypeArray { get; set; }
+        public string? Description { get; set; }
+    }
+
+    private enum JsonValueType
+    {
+        String,
+        Number,
+        Boolean,
+        Null,
+        Object,
+        Array,
+        Select,
+        ArrayWithSelect
+    }
+
+}

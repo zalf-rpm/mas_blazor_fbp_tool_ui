@@ -1,0 +1,545 @@
+@using Blazored.LocalStorage
+@using Capnp.Rpc
+@using Mas.Infrastructure.Common
+@using MudBlazor
+@namespace Mas.Infrastructure.BlazorComponents
+
+@inject ISnackbar Snackbar
+@inject ILocalStorageService LocalStorage
+@inject ConnectionManager ConMan
+@inject IDialogService DialogService
+
+<MudDialog ContentClass="overflow-hidden d-flex flex-column"
+           ActionsClass="px-6 py-2">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Sturdy reference bookmarks</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Class="mud-width-full">
+            <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="flex-shrink-0">
+                Stored sturdy references live in this browser and can be reused for registries,
+                channel services, and other persistent capabilities.
+            </MudAlert>
+
+            <MudStack Row="true"
+                      Wrap="Wrap.Wrap"
+                      AlignItems="AlignItems.Center"
+                      Justify="Justify.SpaceBetween"
+                      Spacing="2"
+                      Class="flex-shrink-0">
+                <MudTextField T="string"
+                              @bind-Value="_searchText"
+                              Placeholder="Search bookmarks"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true"
+                              Class="flex-grow-1"/>
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="@AddBookmarkAsync">
+                    Add bookmark
+                </MudButton>
+            </MudStack>
+
+            @if (_loadingBookmarks)
+            {
+                <MudPaper Outlined="true" Class="d-flex justify-center align-center pa-8">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+                </MudPaper>
+            }
+            else
+            {
+                <MudTable T="StoredSrData"
+                          Items="@FilteredBookmarks"
+                          Hover="true"
+                          Dense="true"
+                          Breakpoint="Breakpoint.Md"
+                          FixedHeader="true"
+                          Height="58vh"
+                          Elevation="0"
+                          Class="mud-width-full">
+                    <ColGroup>
+                        <col style="width: 20%;"/>
+                        <col style="width: 16%;"/>
+                        <col/>
+                        <col style="width: 7.5rem;"/>
+                    </ColGroup>
+                    <HeaderContent>
+                        <MudTh>Bookmark</MudTh>
+                        <MudTh>Behavior</MudTh>
+                        <MudTh>Sturdy reference</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Bookmark">
+                            @if (IsEditing(context))
+                            {
+                                <MudStack Spacing="1">
+                                    <MudTextField @bind-Value="_editingBookmark.PetName"
+                                                  Label="Pet name"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Clearable="true"
+                                                  Immediate="true"/>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @FormatInterfaceId(context.InterfaceId)
+                                    </MudText>
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.subtitle2">@DisplayPetName(context)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @FormatInterfaceId(context.InterfaceId)
+                                    </MudText>
+                                </MudStack>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Behavior">
+                            @if (IsEditing(context))
+                            {
+                                <MudStack Spacing="0">
+                                    <MudSwitch @bind-Value="_editingBookmark.AutoConnect"
+                                               Label="Auto connect"
+                                               Color="@Color.Primary"/>
+                                    <MudSwitch @bind-Value="_editingBookmark.DefaultSelect"
+                                               Label="Default"
+                                               Color="@Color.Primary"/>
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Variant="Variant.Outlined"
+                                             Color="@(context.AutoConnect ? Color.Primary : Color.Default)">
+                                        @(context.AutoConnect ? "Auto connect" : "Manual")
+                                    </MudChip>
+                                    @if (context.DefaultSelect)
+                                    {
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Color="Color.Secondary">
+                                            Default
+                                        </MudChip>
+                                    }
+                                </MudStack>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Sturdy reference" Style="max-width: 32rem;">
+                            @if (IsEditing(context))
+                            {
+                                <MudTextField @bind-Value="_editingBookmark.SturdyRef"
+                                              Label="Sturdy reference"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              Lines="3"/>
+                            }
+                            else
+                            {
+                                <MudTooltip Text="@context.SturdyRef">
+                                    <MudText Typo="Typo.body2" Style="word-break: break-all;">
+                                        @context.SturdyRef
+                                    </MudText>
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudStack Row="true"
+                                      Wrap="Wrap.NoWrap"
+                                      Spacing="0"
+                                      Justify="Justify.FlexEnd"
+                                      AlignItems="AlignItems.Center"
+                                      Style="width: 7.5rem;">
+                                @if (IsEditing(context))
+                                {
+                                    <MudTooltip Text="Save bookmark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Check"
+                                                       Color="Color.Primary"
+                                                       Disabled="@(!CanSaveEditingBookmark)"
+                                                       OnClick="@SaveEditingBookmarkAsync"/>
+                                    </MudTooltip>
+
+                                    <MudTooltip Text="Cancel editing">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                       OnClick="@CancelEditingBookmark"/>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-center justify-center" style="width: 40px; min-width: 40px;">
+                                        @if (IsConnecting(context))
+                                        {
+                                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary"/>
+                                        }
+                                        else
+                                        {
+                                            <MudTooltip Text="@ResolveConnectTooltip(context)">
+                                                <span>
+                                                    <MudIconButton Icon="@(IsConnected(context) ? Icons.Material.Filled.LinkOff : Icons.Material.Filled.Cast)"
+                                                                   Color="@(IsConnected(context) ? Color.Success : Color.Default)"
+                                                                   Disabled="@(!CanToggleConnection(context))"
+                                                                   OnClick="@(() => ToggleConnectionAsync(context))"/>
+                                                </span>
+                                            </MudTooltip>
+                                        }
+                                    </div>
+
+                                    <MudTooltip Text="Edit bookmark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                       OnClick="@(() => BeginEditing(context))"/>
+                                    </MudTooltip>
+
+                                    <MudTooltip Text="Delete bookmark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       OnClick="@(() => Delete(context))"/>
+                                    </MudTooltip>
+                                }
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4" Color="Color.Secondary">
+                            @(_searchText.Length > 0
+                                ? "No bookmarks match your search."
+                                : "No sturdy references saved yet.")
+                        </MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-auto">
+            @BookmarkCountLabel
+        </MudText>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public Dictionary<ulong, Type> InterfaceIdToType { get; set; } = [];
+    [Parameter] public Dictionary<string, Proxy> SturdyRef2Services { get; set; } = [];
+
+    [Parameter] public EventCallback<(ulong, string, string)> ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged { get; set; }
+
+    [Parameter] public EventCallback<(ulong, string)> DisconnectedFromInterfaceIdAndSturdyRefChanged { get; set; }
+
+    private List<StoredSrData> _bookmarks = [];
+    private string _searchText = "";
+    private bool _loadingBookmarks = true;
+    private string? _busySturdyRef;
+    private StoredSrData? _editingBookmarkSource;
+    private StoredSrData _editingBookmark = new();
+
+    private List<StoredSrData> FilteredBookmarks =>
+        _bookmarks.Where(MatchesSearch).ToList();
+
+    private string BookmarkCountLabel =>
+        $"{FilteredBookmarks.Count} of {_bookmarks.Count} bookmark(s)";
+
+    private bool CanSaveEditingBookmark =>
+        !string.IsNullOrWhiteSpace(_editingBookmark.SturdyRef);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await LoadBookmarksAsync();
+    }
+
+    private async Task LoadBookmarksAsync()
+    {
+        if (await LocalStorage.ContainKeyAsync(StoredSrData.StorageKey))
+        {
+            _bookmarks = await StoredSrData.GetAllData(LocalStorage);
+            _bookmarks.Sort();
+        }
+        else
+        {
+            _bookmarks = [];
+        }
+
+        _loadingBookmarks = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PersistBookmarksAsync()
+    {
+        await StoredSrData.SaveAllData(LocalStorage, _bookmarks);
+    }
+
+    private bool IsConnected(StoredSrData data)
+    {
+        if (!SturdyRef2Services.TryGetValue(data.SturdyRef, out var proxy)) return false;
+        return proxy is { IsNull: false, IsDisposed: false };
+    }
+
+    private bool IsConnecting(StoredSrData data)
+    {
+        return string.Equals(_busySturdyRef, data.SturdyRef, StringComparison.Ordinal);
+    }
+
+    private bool CanResolveInterface(StoredSrData data)
+    {
+        return data.InterfaceId != 0 && InterfaceIdToType.ContainsKey(data.InterfaceId);
+    }
+
+    private bool CanConnect(StoredSrData data)
+    {
+        return !string.IsNullOrWhiteSpace(data.SturdyRef) && !IsConnecting(data) && CanResolveInterface(data);
+    }
+
+    private bool CanToggleConnection(StoredSrData data)
+    {
+        return !IsConnecting(data)
+               && (
+                   IsConnected(data)
+                   || (
+                       !string.IsNullOrWhiteSpace(data.SturdyRef)
+                       && CanResolveInterface(data)
+                   )
+               );
+    }
+
+    private async Task ToggleConnectionAsync(StoredSrData data)
+    {
+        if (IsConnected(data))
+            await Disconnect(data);
+        else
+            await Connect(data);
+    }
+
+    private async Task Connect(StoredSrData data)
+    {
+        if (!CanConnect(data) || IsConnected(data))
+            return;
+
+        _busySturdyRef = data.SturdyRef;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var t = InterfaceIdToType[data.InterfaceId];
+            var method = ConMan.GetType().GetMethod(nameof(ConnectionManager.Connect), [typeof(string)]);
+            var generic = method?.MakeGenericMethod(t)
+                          ?? throw new InvalidOperationException($"No connector available for interface '{t.Name}'.");
+            var service = await generic.InvokeAsync(ConMan, data.SturdyRef);
+            if (service is Proxy p)
+            {
+                SturdyRef2Services[data.SturdyRef] = p;
+                Snackbar.Add($"Connected to '{DisplayPetName(data)}'.", Severity.Success);
+                if (ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged.HasDelegate)
+                {
+                    await ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged.InvokeAsync(
+                        (data.InterfaceId, data.SturdyRef, data.PetName)
+                    );
+                }
+            }
+        }
+        catch (RpcException)
+        {
+            Snackbar.Add($"Couldn't connect to '{DisplayPetName(data)}'.", Severity.Error);
+        }
+        finally
+        {
+            _busySturdyRef = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task Disconnect(StoredSrData data)
+    {
+        if (!IsConnected(data))
+            return;
+
+        _busySturdyRef = data.SturdyRef;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            if (DisconnectedFromInterfaceIdAndSturdyRefChanged.HasDelegate)
+            {
+                await DisconnectedFromInterfaceIdAndSturdyRefChanged.InvokeAsync(
+                    (data.InterfaceId, data.SturdyRef)
+                );
+            }
+            else if (SturdyRef2Services.Remove(data.SturdyRef, out var proxy))
+            {
+                proxy.Dispose();
+            }
+
+            Snackbar.Add($"Disconnected from '{DisplayPetName(data)}'.", Severity.Info);
+        }
+        finally
+        {
+            _busySturdyRef = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task AddBookmarkAsync()
+    {
+        var parameters = new DialogParameters<NewSturdyRefDialog>
+        {
+            { x => x.InterfaceId, 0UL },
+            { x => x.AllowInterfaceIdEdit, true }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<NewSturdyRefDialog>("Add sturdy reference", parameters, options);
+        var bookmark = await dialog.GetReturnValueAsync<StoredSrData>();
+        if (bookmark is null)
+            return;
+
+        await UpsertBookmarkAsync(null, bookmark);
+    }
+
+    private void BeginEditing(StoredSrData data)
+    {
+        _editingBookmarkSource = data;
+        _editingBookmark = data.Clone();
+    }
+
+    private bool IsEditing(StoredSrData data)
+    {
+        return ReferenceEquals(_editingBookmarkSource, data);
+    }
+
+    private void CancelEditingBookmark()
+    {
+        _editingBookmarkSource = null;
+        _editingBookmark = new StoredSrData();
+    }
+
+    private async Task SaveEditingBookmarkAsync()
+    {
+        if (_editingBookmarkSource == null)
+            return;
+
+        var bookmark = _editingBookmark.Clone();
+        bookmark.PetName = bookmark.PetName?.Trim() ?? "";
+        bookmark.SturdyRef = bookmark.SturdyRef?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(bookmark.SturdyRef))
+        {
+            Snackbar.Add("Enter a sturdy reference.", Severity.Error);
+            return;
+        }
+
+        var existing = _editingBookmarkSource;
+        CancelEditingBookmark();
+        await UpsertBookmarkAsync(existing, bookmark);
+    }
+
+    private async Task UpsertBookmarkAsync(StoredSrData? existing, StoredSrData bookmark)
+    {
+        var reconnect = false;
+        if (existing != null && IsConnected(existing))
+        {
+            var connectionChanged =
+                existing.InterfaceId != bookmark.InterfaceId
+                || !string.Equals(existing.SturdyRef, bookmark.SturdyRef, StringComparison.Ordinal);
+            if (connectionChanged)
+            {
+                await Disconnect(existing);
+                reconnect = true;
+            }
+        }
+
+        if (bookmark.DefaultSelect)
+        {
+            foreach (var entry in _bookmarks.Where(entry => entry.InterfaceId == bookmark.InterfaceId))
+            {
+                entry.DefaultSelect = false;
+            }
+        }
+
+        if (existing == null)
+        {
+            _bookmarks.Add(bookmark);
+            Snackbar.Add("Bookmark added.", Severity.Success);
+        }
+        else
+        {
+            var index = _bookmarks.IndexOf(existing);
+            if (index >= 0)
+                _bookmarks[index] = bookmark;
+            Snackbar.Add("Bookmark updated.", Severity.Success);
+        }
+
+        _bookmarks.Sort();
+        await PersistBookmarksAsync();
+
+        if (existing != null && !reconnect && IsConnected(bookmark))
+        {
+            if (ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged.HasDelegate)
+            {
+                await ConnectedToInterfaceIdAndSturdyRefAndPetNameChanged.InvokeAsync(
+                    (bookmark.InterfaceId, bookmark.SturdyRef, bookmark.PetName)
+                );
+            }
+        }
+        else if (reconnect)
+        {
+            await Connect(bookmark);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Delete(StoredSrData data)
+    {
+        if (ReferenceEquals(_editingBookmarkSource, data))
+            CancelEditingBookmark();
+
+        if (!_bookmarks.Remove(data)) return;
+
+        await PersistBookmarksAsync();
+        Snackbar.Add("Bookmark removed.", Severity.Info);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private bool MatchesSearch(StoredSrData data)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return true;
+
+        var search = _searchText.Trim();
+        return DisplayPetName(data).Contains(search, StringComparison.OrdinalIgnoreCase)
+               || data.SturdyRef.Contains(search, StringComparison.OrdinalIgnoreCase)
+               || FormatInterfaceId(data.InterfaceId).Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string DisplayPetName(StoredSrData data)
+    {
+        return string.IsNullOrWhiteSpace(data.PetName) ? "(Unnamed bookmark)" : data.PetName;
+    }
+
+    private static string FormatInterfaceId(ulong interfaceId)
+    {
+        return interfaceId == 0 ? "Missing interface ID" : $"0x{interfaceId:x16}";
+    }
+
+    private string ResolveConnectTooltip(StoredSrData data)
+    {
+        if (IsConnected(data))
+            return "Disconnect";
+        if (IsConnecting(data))
+            return "Working...";
+        if (!CanResolveInterface(data))
+            return "This interface isn't available in the current editor session.";
+        return "Connect";
+    }
+
+}

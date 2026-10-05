@@ -7,6 +7,3 @@
 [submodule "mas_csharp_common"]
 	path = mas_csharp_common
 	url = https://github.com/zalf-rpm/mas_csharp_common.git
-[submodule "mas_blazor_components"]
-	path = mas_blazor_components
-	url = https://github.com/zalf-rpm/mas_blazor_components.git

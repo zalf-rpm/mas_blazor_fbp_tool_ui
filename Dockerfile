@@ -27,9 +27,6 @@ COPY capnproto-dotnetcore/version.json capnproto-dotnetcore/
 COPY capnproto-dotnetcore/Capnp.Net.Runtime/Capnp.Net.Runtime.csproj capnproto-dotnetcore/Capnp.Net.Runtime/
 COPY capnproto-dotnetcore/Capnp.Net.Runtime/packages.lock.json capnproto-dotnetcore/Capnp.Net.Runtime/
 
-COPY mas_blazor_components/Directory.Packages.props mas_blazor_components/
-COPY mas_blazor_components/BlazorComponents.csproj mas_blazor_components/
-COPY mas_blazor_components/packages.lock.json mas_blazor_components/
 
 COPY mas_capnproto_schemas/gen/csharp/zalfmas_capnpschemas.csproj mas_capnproto_schemas/gen/csharp/
 COPY mas_capnproto_schemas/gen/csharp/packages.lock.json mas_capnproto_schemas/gen/csharp/

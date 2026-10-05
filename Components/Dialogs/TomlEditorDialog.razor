@@ -1,0 +1,435 @@
+@using MudBlazor
+@using Tomlyn
+@using Tomlyn.Model
+@namespace Mas.Infrastructure.BlazorComponents
+
+<MudDialog>
+    <DialogContent>
+        @if (_errorMessage != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            @foreach (var entry in _entries)
+            {
+                @if (entry.IsCategory)
+                {
+                    <MudPaper Class="pa-3 mb-3" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">[@entry.Key]</MudText>
+                        @foreach (var subEntry in entry.SubEntries)
+                        {
+                            <div class="mb-2">
+                                @RenderEntryEditor(subEntry)
+                            </div>
+                        }
+                    </MudPaper>
+                }
+                else
+                {
+                    <div class="mb-2">
+                        @RenderEntryEditor(entry)
+                    </div>
+                }
+            }
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public string? TomlString { get; set; }
+
+    private readonly List<TomlEntry> _entries = new();
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(TomlString))
+        {
+            try
+            {
+                var comments = ParseComments(TomlString);
+                var model = TomlSerializer.Deserialize<TomlTable>(TomlString) ?? new TomlTable();
+                ParseTomlModel(model, comments);
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Failed to parse TOML: {ex.Message}";
+            }
+        }
+    }
+
+    private Dictionary<string, CommentInfo> ParseComments(string tomlString)
+    {
+        var comments = new Dictionary<string, CommentInfo>();
+        var lines = tomlString.Split('\n');
+        string? currentCategory = null;
+
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+
+            // Check for category headers
+            if (trimmedLine.StartsWith("[") && trimmedLine.Contains("]"))
+            {
+                var categoryEnd = trimmedLine.IndexOf(']');
+                currentCategory = trimmedLine.Substring(1, categoryEnd - 1);
+                continue;
+            }
+
+            // Check for key-value pairs with inline comments
+            if (trimmedLine.Contains("=") && trimmedLine.Contains("#"))
+            {
+                var parts = trimmedLine.Split('=', 2);
+                if (parts.Length == 2)
+                {
+                    var key = parts[0].Trim();
+                    var valuePart = parts[1];
+                    var commentIndex = valuePart.IndexOf('#');
+
+                    if (commentIndex > 0)
+                    {
+                        var comment = valuePart.Substring(commentIndex + 1).Trim();
+                        var fullKey = currentCategory != null ? $"{currentCategory}.{key}" : key;
+                        comments[fullKey] = ParseCommentInfo(comment);
+                    }
+                }
+            }
+        }
+
+        return comments;
+    }
+
+    private CommentInfo ParseCommentInfo(string comment)
+    {
+        var info = new CommentInfo();
+
+        // Check for [placeholder] -> tooltip format
+        if (comment.Contains("[") && comment.Contains("]") && comment.Contains("->"))
+        {
+            var startBracket = comment.IndexOf('[');
+            var endBracket = comment.IndexOf(']');
+            var arrowIndex = comment.IndexOf("->");
+
+            if (startBracket < endBracket && endBracket < arrowIndex)
+            {
+                info.HelperText = comment.Substring(startBracket + 1, endBracket - startBracket - 1).Trim();
+                info.Tooltip = comment.Substring(arrowIndex + 2).Trim();
+            }
+            else
+            {
+                // Malformed, use entire comment as helper text
+                info.HelperText = comment;
+            }
+        }
+        else
+        {
+            // No special format, use entire comment as helper text
+            info.HelperText = comment;
+        }
+
+        return info;
+    }
+
+    private void ParseTomlModel(TomlTable table, Dictionary<string, CommentInfo> comments)
+    {
+        foreach (var kvp in table)
+        {
+            if (kvp.Value is TomlTable subTable)
+            {
+                // This is a category
+                var categoryEntry = new TomlEntry
+                {
+                    Key = kvp.Key,
+                    IsCategory = true,
+                    SubEntries = new List<TomlEntry>()
+                };
+
+                foreach (var subKvp in subTable)
+                {
+                    var fullKey = $"{kvp.Key}.{subKvp.Key}";
+                    var commentInfo = comments.GetValueOrDefault(fullKey);
+                    categoryEntry.SubEntries.Add(CreateEntryFromValue(subKvp.Key, subKvp.Value, commentInfo));
+                }
+
+                _entries.Add(categoryEntry);
+            }
+            else
+            {
+                var commentInfo = comments.GetValueOrDefault(kvp.Key);
+                _entries.Add(CreateEntryFromValue(kvp.Key, kvp.Value, commentInfo));
+            }
+        }
+    }
+
+    private TomlEntry CreateEntryFromValue(string key, object value, CommentInfo? commentInfo = null)
+    {
+        return value switch
+        {
+            string s => new TomlEntry { Key = key, ValueType = TomlValueType.String, StringValue = s, Comment = commentInfo },
+            long l => new TomlEntry { Key = key, ValueType = TomlValueType.Integer, IntegerValue = l, Comment = commentInfo },
+            double d => new TomlEntry { Key = key, ValueType = TomlValueType.Double, DoubleValue = d, Comment = commentInfo },
+            bool b => new TomlEntry { Key = key, ValueType = TomlValueType.Boolean, BooleanValue = b, Comment = commentInfo },
+            TomlArray arr => CreateArrayEntry(key, arr, commentInfo),
+            _ => new TomlEntry { Key = key, ValueType = TomlValueType.String, StringValue = value?.ToString() ?? "", Comment = commentInfo }
+        };
+    }
+
+    private TomlEntry CreateArrayEntry(string key, TomlArray array, CommentInfo? commentInfo = null)
+    {
+        if (array.Count == 0)
+        {
+            return new TomlEntry { Key = key, ValueType = TomlValueType.StringArray, StringArrayValue = "", Comment = commentInfo };
+        }
+
+        var firstElement = array[0];
+        return firstElement switch
+        {
+            string _ => new TomlEntry
+            {
+                Key = key,
+                ValueType = TomlValueType.StringArray,
+                StringArrayValue = string.Join(", ", array.Cast<string>()),
+                Comment = commentInfo
+            },
+            long _ => new TomlEntry
+            {
+                Key = key,
+                ValueType = TomlValueType.IntegerArray,
+                IntegerArrayValue = string.Join(", ", array.Cast<long>()),
+                Comment = commentInfo
+            },
+            double _ => new TomlEntry
+            {
+                Key = key,
+                ValueType = TomlValueType.DoubleArray,
+                DoubleArrayValue = string.Join(", ", array.Cast<double>()),
+                Comment = commentInfo
+            },
+            _ => new TomlEntry { Key = key, ValueType = TomlValueType.StringArray, StringArrayValue = "", Comment = commentInfo }
+        };
+    }
+
+    private RenderFragment RenderEntryEditor(TomlEntry entry)
+    {
+        var helperText = entry.Comment?.HelperText;
+        var tooltip = entry.Comment?.Tooltip;
+
+        return entry.ValueType switch
+        {
+            TomlValueType.String => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                        <MudTextField @bind-Value="entry.StringValue"
+                                                      Label="@entry.Key"
+                                                      Placeholder="@helperText"
+                                                      HelperText="@helperText"
+                                                      Variant="Variant.Outlined"
+                                                      ShrinkLabel="true"
+                                                      Clearable="true"
+                                                      Class="flex-grow-1"/>
+                                    </MudTooltip>,
+
+            TomlValueType.Integer => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                         <MudNumericField @bind-Value="entry.IntegerValue"
+                                                          Label="@entry.Key"
+                                                          HelperText="@helperText"
+                                                          Variant="Variant.Outlined"
+                                                          ShrinkLabel="true"
+                                                          Class="flex-grow-1"/>
+                                     </MudTooltip>,
+
+            TomlValueType.Double => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                        <MudNumericField @bind-Value="entry.DoubleValue"
+                                                         Label="@entry.Key"
+                                                         HelperText="@helperText"
+                                                         Variant="Variant.Outlined"
+                                                         ShrinkLabel="true"
+                                                         Class="flex-grow-1"/>
+                                    </MudTooltip>,
+
+            TomlValueType.Boolean => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                         <MudSwitch @bind-Value="entry.BooleanValue"
+                                                    Label="@entry.Key"
+                                                    LabelPlacement="Placement.Start"
+                                                    Color="Color.Primary"
+                                                    Class="flex-grow-1"/>
+                                     </MudTooltip>,
+
+            TomlValueType.StringArray => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                             <MudTextField @bind-Value="entry.StringArrayValue"
+                                                           Label="@entry.Key"
+                                                           Placeholder="@helperText"
+                                                           HelperText="@helperText"
+                                                           Variant="Variant.Outlined"
+                                                           ShrinkLabel="true"
+                                                           Class="flex-grow-1"/>
+                                         </MudTooltip>,
+
+            TomlValueType.IntegerArray => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                              <MudTextField @bind-Value="entry.IntegerArrayValue"
+                                                            Label="@entry.Key"
+                                                            Placeholder="@helperText"
+                                                            HelperText="@helperText"
+                                                            Variant="Variant.Outlined"
+                                                            ShrinkLabel="true"
+                                                            Class="flex-grow-1"/>
+                                          </MudTooltip>,
+
+            TomlValueType.DoubleArray => @<MudTooltip Text="@tooltip" Placement="Placement.Top">
+                                             <MudTextField @bind-Value="entry.DoubleArrayValue"
+                                                           Label="@entry.Key"
+                                                           Placeholder="@helperText"
+                                                           HelperText="@helperText"
+                                                           Variant="Variant.Outlined"
+                                                           ShrinkLabel="true"
+                                                           Class="flex-grow-1"/>
+                                         </MudTooltip>,
+
+            _ => @<div></div>
+        };
+    }
+
+    private void Save()
+    {
+        try
+        {
+            var table = new TomlTable();
+
+            foreach (var entry in _entries)
+            {
+                if (entry.IsCategory)
+                {
+                    var subTable = new TomlTable();
+                    foreach (var subEntry in entry.SubEntries)
+                    {
+                        AddEntryToTable(subTable, subEntry);
+                    }
+
+                    table[entry.Key] = subTable;
+                }
+                else
+                {
+                    AddEntryToTable(table, entry);
+                }
+            }
+
+            var tomlString = TomlSerializer.Serialize(table);
+            MudDialog?.Close(DialogResult.Ok(tomlString));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to generate TOML: {ex.Message}";
+        }
+    }
+
+    private void AddEntryToTable(TomlTable table, TomlEntry entry)
+    {
+        switch (entry.ValueType)
+        {
+            case TomlValueType.String:
+                table[entry.Key] = entry.StringValue ?? "";
+                break;
+
+            case TomlValueType.Integer:
+                table[entry.Key] = entry.IntegerValue;
+                break;
+
+            case TomlValueType.Double:
+                table[entry.Key] = entry.DoubleValue;
+                break;
+
+            case TomlValueType.Boolean:
+                table[entry.Key] = entry.BooleanValue;
+                break;
+
+            case TomlValueType.StringArray:
+                var stringArray = new TomlArray();
+                if (!string.IsNullOrWhiteSpace(entry.StringArrayValue))
+                {
+                    foreach (var item in entry.StringArrayValue.Split(',').Select(s => s.Trim()))
+                    {
+                        stringArray.Add(item);
+                    }
+                }
+
+                table[entry.Key] = stringArray;
+                break;
+
+            case TomlValueType.IntegerArray:
+                var intArray = new TomlArray();
+                if (!string.IsNullOrWhiteSpace(entry.IntegerArrayValue))
+                {
+                    foreach (var item in entry.IntegerArrayValue.Split(',').Select(s => s.Trim()))
+                    {
+                        if (long.TryParse(item, out var value))
+                        {
+                            intArray.Add(value);
+                        }
+                    }
+                }
+
+                table[entry.Key] = intArray;
+                break;
+
+            case TomlValueType.DoubleArray:
+                var doubleArray = new TomlArray();
+                if (!string.IsNullOrWhiteSpace(entry.DoubleArrayValue))
+                {
+                    foreach (var item in entry.DoubleArrayValue.Split(',').Select(s => s.Trim()))
+                    {
+                        if (double.TryParse(item, out var value))
+                        {
+                            doubleArray.Add(value);
+                        }
+                    }
+                }
+
+                table[entry.Key] = doubleArray;
+                break;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private class TomlEntry
+    {
+        public string Key { get; set; } = "";
+        public bool IsCategory { get; set; }
+        public List<TomlEntry> SubEntries { get; set; } = new();
+        public TomlValueType ValueType { get; set; }
+        public string? StringValue { get; set; }
+        public long IntegerValue { get; set; }
+        public double DoubleValue { get; set; }
+        public bool BooleanValue { get; set; }
+        public string? StringArrayValue { get; set; }
+        public string? IntegerArrayValue { get; set; }
+        public string? DoubleArrayValue { get; set; }
+        public CommentInfo? Comment { get; set; }
+    }
+
+    private class CommentInfo
+    {
+        public string? HelperText { get; set; }
+        public string? Tooltip { get; set; }
+    }
+
+    private enum TomlValueType
+    {
+        String,
+        Integer,
+        Double,
+        Boolean,
+        StringArray,
+        IntegerArray,
+        DoubleArray
+    }
+
+}

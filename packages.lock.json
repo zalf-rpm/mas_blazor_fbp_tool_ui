@@ -2,11 +2,29 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "Blazored.LocalStorage": {
+        "type": "Direct",
+        "requested": "[4.5.0, )",
+        "resolved": "4.5.0",
+        "contentHash": "6nZuJwA7zNIKx83IsObiHXZb09ponJOpCClU3en+hI8ZFvrOKXeOw+H7TegQZQrvdR1n9fkrVkEBQZg8vx6ZTw=="
+      },
       "Microsoft.AspNetCore.App.Internal.Assets": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "tYYYBZsuF2DSz1I3hcfB8qC4nNekIKufkYZOJ2R28fNK3PkS7fJao/mIX5H84NH94UACZQ4dhvt8GDlkrJFwLg=="
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "+sIBo9AMBZH46qHWHQdfzcGMt+RuBaPYrUMOAM9VjA7MQ9QtIez3lq1C3E05+Yroa94KKt3DSWaxmCI4H28a9Q=="
+      },
+      "MudBlazor": {
+        "type": "Direct",
+        "requested": "[9.9.0, )",
+        "resolved": "9.9.0",
+        "contentHash": "da57tXFdMFbatyTQYDCzZ3I2pXZgOpS737+ErZuXLc2YRmSC98VL9/keJOjKd5Am8YAxg7cf3lrKqFc6IoG3ag=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.4, )",
+        "resolved": "13.0.4",
+        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
       },
       "Tomlyn": {
         "type": "Direct",
@@ -41,41 +59,10 @@
           "SvgPathProperties": "1.1.2"
         }
       },
-      "Allegiance.Blazor.Highcharts": {
-        "type": "Transitive",
-        "resolved": "7.0.5",
-        "contentHash": "9clPMZtSFpXZFNVHbtYaPHUAHBlF0hWyuEWOSUH3X7zw1Smue3mq6Ge1FMDV7fv63fFlSmgoTQ2zM3fnuWsNnA==",
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.2"
-        }
-      },
-      "Blazored.LocalStorage": {
-        "type": "Transitive",
-        "resolved": "4.5.0",
-        "contentHash": "6nZuJwA7zNIKx83IsObiHXZb09ponJOpCClU3en+hI8ZFvrOKXeOw+H7TegQZQrvdR1n9fkrVkEBQZg8vx6ZTw=="
-      },
-      "BlazorGoogleMaps": {
-        "type": "Transitive",
-        "resolved": "4.16.0",
-        "contentHash": "OKk8kbIyzaIXM7aki9F/3Mi4Nykwq3YPnMxKl8gp90PbasAvJbMZBXpsazWW2Zw2avSgoq+dvxxf6o+YaGS/9Q==",
-        "dependencies": {
-          "OneOf": "3.0.271"
-        }
-      },
       "libsodium": {
         "type": "Transitive",
         "resolved": "1.0.22",
         "contentHash": "KPD9SloJFclrsjnhABu7dzWrcyYkwPbvx5l1gRSPAX/0n+OBtSiVCKtGFv4n+ecWUHU0tCG9LSSwoZZx673zBQ=="
-      },
-      "MudBlazor": {
-        "type": "Transitive",
-        "resolved": "9.9.0",
-        "contentHash": "da57tXFdMFbatyTQYDCzZ3I2pXZgOpS737+ErZuXLc2YRmSC98VL9/keJOjKd5Am8YAxg7cf3lrKqFc6IoG3ag=="
-      },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.4",
-        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
       },
       "NSec.Cryptography": {
         "type": "Transitive",
@@ -85,29 +72,10 @@
           "libsodium": "[1.0.22, 1.0.23)"
         }
       },
-      "OneOf": {
-        "type": "Transitive",
-        "resolved": "3.0.271",
-        "contentHash": "pqpqeK8xQGggExhr4tesVgJkjdn+9HQAO0QgrYV2hFjE3y90okzk1kQMntMiUOGfV7FrCUfKPaVvPBD4IANqKg=="
-      },
       "SvgPathProperties": {
         "type": "Transitive",
         "resolved": "1.1.2",
         "contentHash": "oqCX5+CxcLfC1lC6gfzOSM+WOmfwn4V7yzMHQfofi+QmYoY+Hq5oye6BgnqhHC+3BSsiadLSOnfYxpcv/enkcw=="
-      },
-      "blazorcomponents": {
-        "type": "Project",
-        "dependencies": {
-          "Allegiance.Blazor.Highcharts": "[7.0.5, )",
-          "BlazorGoogleMaps": "[4.16.0, )",
-          "Blazored.LocalStorage": "[4.5.0, )",
-          "Capnp.Net.Runtime": "[1.0.0, )",
-          "MudBlazor": "[9.9.0, )",
-          "Newtonsoft.Json": "[13.0.4, )",
-          "Tomlyn": "[2.10.1, )",
-          "Zalf.Mas.CapnpSchemas": "[0.0.1, )",
-          "common": "[1.0.0, )"
-        }
       },
       "capnp.net.runtime": {
         "type": "Project"

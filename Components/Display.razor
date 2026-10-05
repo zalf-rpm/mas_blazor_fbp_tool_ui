@@ -1,0 +1,19 @@
+@using MudBlazor
+@namespace Mas.Infrastructure.BlazorComponents
+<MudPaper Class="mud-width-full" Style="@Style" Outlined="true"
+          @onpointerenter="@(_ => DisableZoom.InvokeAsync())"
+          @onpointerleave="@(_ => EnableZoom.InvokeAsync())">
+    @ChildContent
+</MudPaper>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public int WidthPx { get; set; } = 100;
+    [Parameter] public int HeightPx { get; set; } = 120;
+
+    [Parameter] public EventCallback EnableZoom { get; set; }
+    [Parameter] public EventCallback DisableZoom { get; set; }
+
+    private string Style => $"height: {HeightPx}px; overflow: auto;";
+}

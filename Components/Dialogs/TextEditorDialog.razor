@@ -1,0 +1,40 @@
+@using MudBlazor
+@namespace Mas.Infrastructure.BlazorComponents
+
+<MudDialog>
+    <DialogContent>
+        <MudPaper Width="400px" Class="pa-1" Elevation="0">
+            <MudTextField Class="pa-3"
+                          T="string"
+                          @bind-Value="Text"
+                          Lines="15"
+                          Label="IIP content"
+                          Variant="Variant.Outlined"/>
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public string? Text { get; set; }
+
+    protected override void OnInitialized()
+    {
+    }
+
+    private void Save()
+    {
+        MudDialog?.Close(DialogResult.Ok(Text));
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+}
