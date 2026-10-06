@@ -1,5 +1,65 @@
 # Changelog
 
+## [1.6.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.5.0...v1.6.0) (2026-10-06)
+
+
+### Features
+
+* add activity state for process components ([c90ed44](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/c90ed44e7e096dd2b20472802d4bbaf2dbcd0ba9))
+* add dev stage in docker image with hot reloading and use lockfile for image build ([8a1471f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/8a1471f89eb0d285cd429b6d62af8869c09b3840))
+* add multiprocess components on array out ports ([aa1b712](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/aa1b712677f828dc60e340f47143fbab5c1604ba))
+* add proper start stop and cleanup logic when switching component services ([fb907c7](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/fb907c7fcc10292a218ecafcbe276eee320369ab))
+* **blazor:** add ReconnectModal component and modernize assets in App.razor ([6352e2b](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/6352e2b7d237bd43ce8f615819869fb39236834c))
+* **bookmarks:** reuse connected services and auto-connect per session ([371ad25](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/371ad254da39309dee0a4e54e2a3d46a012f5ad1))
+* **editor:** implement modern Blazor features, navigation locking, error boundaries, and component contracts ([85d22ce](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/85d22ce22a31f0a71d893ebb627f047b1715fcef))
+* **flow:** add flow session routes and extract reusable flow load and export methods ([abf8e36](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/abf8e369083c5d5f50b9d341d5382fa1ad960763))
+* **flow:** synchronize active flow services with local storage and scope exports to alive services ([2dc15a6](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/2dc15a63babd9343ef8aad9ee3e0a6a5ec2443f9))
+* match lifecycle better ([5978fa3](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/5978fa3e949b79f35c408f3a209c4bf618dd5ead))
+* redesign link label make expandible and see buffer state and increase size ([db5b776](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/db5b7766b4cf5233d4e2b7cc3eafacaeafc04ed2))
+* refresh remote process config before editing ([27feeae](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/27feeaef37a8d8f43078a4933bc31f7ad3e639c7))
+* **routing:** modernize 404 handling, error pipeline, and static assets ([3175e6d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/3175e6daacc71695e098fad4f9a955d2e042ff18))
+* **session:** add detached grace period and background TTL session reaper ([29b0b26](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/29b0b26996039964963dbd447e9fcc116bdec6ca))
+* **session:** implement in-memory FlowSessionStore and route hydration ([117a052](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/117a05290e6b1ed8c6190bbc3023bcb5dc52c93d))
+* **session:** invert flow state architecture to store active diagram in memory and derive JSON on demand ([55e0709](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/55e07098010521088053cf4c9376cccab0145acd))
+* **ui:** add 3 dots appearance menu to navbar for switching themes ([e2f25d7](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/e2f25d7c6b94ddb7a54df057c58f07b94384602b))
+* **ui:** add session indicator, new flow action, and explicit session termination ([5df8d08](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/5df8d08cfadee018b08c783d231a4d1755c648d9))
+* **ui:** contain nodes and keep the last used node in front ([266a82b](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/266a82b1e600d25fd3f4b8accbc33e82a1648855))
+* **ui:** show the expanded channel card above the nodes ([f0b8921](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/f0b892103106ca654daa956e4d62beed58cc4eec))
+* use lastError to report the last error on hover ([298a81c](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/298a81c2c469e8d3686cf73dc8d00abd535f1d3a))
+
+
+### Bug Fixes
+
+* **docker:** align SDK/runtime images and schemas lock file for locked restore ([ff03e0f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ff03e0fd582ddebf02558aa2cfc4b74137adb970))
+* dont close process compoennets when channel is deleted rather gracefully stop them and disconnect the channels ([ed7e78f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ed7e78fdaf6313dc864906354f77bc9a6cc2918c))
+* **editor:** invoke StateHasChanged via Dispatcher to prevent threading exception ([d2f2748](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/d2f27482756c822edc5a965a149a5b026fb4d3b0))
+* **editor:** prevent null reference during diagram event registration and canvas mount ([d300c00](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/d300c00b74c947f93c608f402d167b1704e453a5))
+* fixed &lt; &gt; in to be printed messages ([ed23cc2](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ed23cc287cd1dc878afdd27f2fa649934e3a4c8a))
+* handle null values ([21468c6](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/21468c6c2f0d9137bab42818d299a8db2b15abe6))
+* **ports:** restore CanAcceptMoreConnections check to allow connecting channels in UI ([36d586f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/36d586f5fad1523ad734152631deca6624f9a9ab))
+* prevent unresolvable failure state ([048152d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/048152dbea6b285b557f505e6868c2a59b31a589))
+* removed seamingly old code breaking configuration value reading ([2f7fd7a](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/2f7fd7a33bb1f5897cd9fb52433c494fb33f8940))
+* **runtime:** disable execute flow until components are present on canvas ([8c23d94](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/8c23d940fbf5ad259f1bd9ae8d5452581c3113c8))
+* **runtime:** make component registration and node dictionary indexing idempotent on reload ([b9e7412](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/b9e741267ca5f95bbcbac34f64d627e40e41b306))
+* to allow in and out ports with the same name ([db535c6](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/db535c695614f59d91f20430f290b96bafb30ce5))
+* **ui:** align bookmark modal and snackbar notifications with MudBlazor defaults to eliminate overlap ([3b7b299](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/3b7b2991bc3a05513e68a64fd884dac5883034d6))
+* **ui:** show the port tooltip as a real tooltip in front of the nodes ([6ff1af3](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/6ff1af33af71558f09ccd7ada704b2ab97d828f2))
+* **ui:** stop cursor flicker on the component status circle ([7b4e3e9](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/7b4e3e93eff9719ab8a4ceca5920de1e0e29015e))
+* use less chars until shorting process name ([65a1546](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/65a154673171d4ede2701bfd735304117ff5860f))
+* **warnings:** resolve CS8509 non-exhaustive pattern switch expressions ([b65a0d3](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/b65a0d3b982a277483bd0b92b69cdc366dd37c90))
+* **warnings:** resolve CS8600, CS8601, CS8604 null assignment, conversion, and argument warnings ([b14936d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/b14936d564f98266f3712d2a85d8afe25a5170cf))
+* **warnings:** resolve CS8602 possible null reference dereferences ([239a141](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/239a141bc35db01f722106c180d981f252faf710))
+* **warnings:** resolve CS8603 possible null reference returns ([a72b153](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/a72b153241d6769995fcfee9fcc9062621e348da))
+* **warnings:** resolve CS8618 uninitialized non-nullable properties and fields ([7118c36](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/7118c362d1d6c2bffc280872fa43aa603a25e4d2))
+* **warnings:** resolve CS8622, CS8620, CS8619 delegate and generic nullability mismatches ([969729f](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/969729fba498a701bc593628aeb2da51da81aadc))
+* **warnings:** resolve CS8625 null literal conversions to non-nullable reference types ([94dcf1a](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/94dcf1a079a4d7d5898c67808dd9dd84d77097d6))
+* **warnings:** resolve CS8629 unchecked nullable struct access in CapnpLinkLabelRenderer ([ae610ce](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/ae610ce791948bb73f488c9eba10241c9bc3ae12))
+
+
+### Performance Improvements
+
+* **docker:** optimize build context with .dockerignore exclusions and layered restore caching ([f0d3e1d](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/commit/f0d3e1de0f5d837569b9a28469a71bc4d2c49ba9))
+
 ## [1.5.0](https://github.com/zalf-rpm/mas_blazor_fbp_tool_ui/compare/v1.4.0...v1.5.0) (2026-05-05)
 
 
